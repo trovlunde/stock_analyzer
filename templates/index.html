@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Analysis API</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+        color: #333;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+      }
+      .section {
+        margin-bottom: 30px;
+      }
+      h2 {
+        color: #2980b9;
+      }
+      .endpoint {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+      }
+      .endpoint-url {
+        font-family: monospace;
+        background-color: #e9ecef;
+        padding: 5px 10px;
+        border-radius: 3px;
+      }
+      .method {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 3px;
+        color: white;
+        font-size: 0.9em;
+        margin-right: 10px;
+      }
+      .get {
+        background-color: #28a745;
+      }
+      .post {
+        background-color: #007bff;
+      }
+      .status {
+        display: inline-block;
+        padding: 5px 10px;
+        background-color: #28a745;
+        color: white;
+        border-radius: 15px;
+        font-size: 0.9em;
+      }
+      a {
+        color: #007bff;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Stock Analysis API</h1>
+      <div class="section">
+        <span class="status">🟢 API Status: {{ status }}</span>
+      </div>
+
+      <div class="section">
+        <h2>Available Endpoints</h2>
+
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="endpoint-url">/health</span>
+          <p>Check the health status of the API</p>
+        </div>
+
+        <div class="endpoint">
+          <span class="method get">GET</span>
+          <span class="endpoint-url">/api/v1/status</span>
+          <p>Get detailed API status and available endpoints</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Documentation</h2>
+        <p>
+          This API provides various endpoints for stock analysis, including:
+        </p>
+        <ul>
+          <li>
+            <a href="/movement-analysis">Movement Analysis</a>
+          </li>
+          <li>Fundamental Analysis</li>
+          <li>Portfolio Evaluation</li>
+          <li>Trading Cost Analysis</li>
+        </ul>
+        <p>
+          For detailed API documentation and examples, please refer to the
+          project documentation.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

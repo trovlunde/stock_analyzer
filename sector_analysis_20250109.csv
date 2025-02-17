@@ -1,0 +1,12 @@
+Sector,Number of Companies,Avg Market Cap ($B),Avg Forward P/E,Median Forward P/E,Avg Trailing P/E,Median Trailing P/E,Avg Price to Book,Median Price to Book,Avg Profit Margins,Median Profit Margins,Avg Operating Margins,Median Operating Margins
+Industrials,61,52.37,26.19,20.04,30.46,28.7,6.77,4.78,0.12,0.12,0.17,0.18
+Healthcare,54,85.12,19.42,15.21,72.26,32.61,8.65,3.91,0.11,0.09,0.18,0.17
+Technology,80,214.8,26.3,23.03,59.99,35.09,13.74,7.46,0.18,0.18,0.22,0.2
+Utilities,30,39.42,18.13,17.49,22.22,20.15,2.65,1.92,0.13,0.14,0.24,0.23
+Financial Services,63,85.27,16.22,13.34,inf,17.09,4.66,2.09,0.19,0.19,0.27,0.29
+Basic Materials,21,39.03,17.49,14.99,22.93,17.44,3.37,1.73,0.09,0.08,0.13,0.15
+Consumer Cyclical,54,114.74,20.88,17.94,26.25,22.97,8.05,5.74,0.11,0.1,0.18,0.14
+Real Estate,27,34.24,42.67,35.68,55.62,35.14,4.6,2.54,0.2,0.19,0.29,0.3
+Communication Services,19,394.72,19.0,19.83,31.32,24.57,10.07,3.71,0.08,0.12,0.2,0.24
+Consumer Defensive,35,69.26,17.2,16.09,28.23,21.53,20.55,4.75,0.1,0.08,0.17,0.16
+Energy,21,78.18,14.54,13.14,20.1,14.83,4.22,2.3,0.18,0.16,0.21,0.23

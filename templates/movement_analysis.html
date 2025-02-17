@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Movement Analysis</title>
+    <link
+      rel="icon"
+      type="image/x-icon"
+      href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAABILAAASCwAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A"
+    />
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .results {
+        margin-top: 20px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
+      .prediction-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      .prediction-table th,
+      .prediction-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      .prediction-table th {
+        background-color: #f8f9fa;
+      }
+      .loading {
+        display: none;
+        text-align: center;
+        margin: 20px 0;
+      }
+      .error {
+        color: #dc3545;
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #f8d7da;
+        border-radius: 4px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Stock Movement Analysis</h1>
+
+      <!-- Training Form -->
+      <div class="form-group">
+        <h2>Train Model</h2>
+        <form id="trainForm">
+          <div class="form-group">
+            <label for="trainTicker">Ticker Symbol:</label>
+            <input type="text" id="trainTicker" required />
+          </div>
+          <div class="form-group">
+            <label for="threshold">Threshold:</label>
+            <input type="number" id="threshold" value="0.005" step="0.001" />
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="useExtraFeatures" />
+              Use Extra Features
+            </label>
+          </div>
+          <div class="form-group">
+            <label for="period">Period:</label>
+            <input type="text" id="period" value="5y" />
+          </div>
+          <button type="submit">Train Model</button>
+        </form>
+        <div id="trainError" class="error"></div>
+      </div>
+
+      <!-- Prediction Form -->
+      <div class="form-group">
+        <h2>Get Predictions</h2>
+        <form id="predictForm">
+          <div class="form-group">
+            <label for="predictTicker">Ticker Symbol:</label>
+            <input type="text" id="predictTicker" required />
+          </div>
+          <div class="form-group">
+            <label for="days">Number of Days:</label>
+            <input type="number" id="days" value="5" min="1" />
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="bypassCache" />
+              Bypass Cache
+            </label>
+          </div>
+          <button type="submit">Get Predictions</button>
+        </form>
+        <div id="predictError" class="error"></div>
+      </div>
+
+      <!-- Results Section -->
+      <div class="results" id="results">
+        <h2>Results</h2>
+        <div id="predictionChart"></div>
+        <table class="prediction-table" id="predictionTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Close</th>
+              <th>Daily Return</th>
+              <th>Daily Model</th>
+              <th>Weekly Model</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="loading" id="loading">
+        <img
+          src="https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif"
+          alt="Loading..."
+        />
+      </div>
+    </div>
+
+    <script>
+      $(document).ready(function () {
+        // Train Model Form Submit
+        $("#trainForm").on("submit", function (e) {
+          e.preventDefault();
+          const ticker = $("#trainTicker").val().toUpperCase();
+
+          $("#loading").show();
+          $("#trainError").hide();
+
+          $.ajax({
+            url: `/api/v1/train/${ticker}`,
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({
+              threshold: parseFloat($("#threshold").val()),
+              use_extra_features: $("#useExtraFeatures").is(":checked"),
+              period: $("#period").val(),
+            }),
+            success: function (response) {
+              alert("Model trained successfully!");
+              // Auto-fill prediction form
+              $("#predictTicker").val(ticker);
+            },
+            error: function (xhr) {
+              $("#trainError")
+                .text(xhr.responseJSON?.message || "Training failed")
+                .show();
+            },
+            complete: function () {
+              $("#loading").hide();
+            },
+          });
+        });
+
+        // Predict Form Submit
+        $("#predictForm").on("submit", function (e) {
+          e.preventDefault();
+          const ticker = $("#predictTicker").val().toUpperCase();
+
+          $("#loading").show();
+          $("#predictError").hide();
+
+          $.ajax({
+            url: `/api/v1/predict/movement/${ticker}?days=${$(
+              "#days"
+            ).val()}&bypass_cache=${$("#bypassCache").is(":checked")}`,
+            method: "GET",
+            success: function (response) {
+              displayPredictions(response);
+            },
+            error: function (xhr) {
+              $("#predictError")
+                .text(xhr.responseJSON?.message || "Prediction failed")
+                .show();
+            },
+            complete: function () {
+              $("#loading").hide();
+            },
+          });
+        });
+
+        function displayPredictions(data) {
+          const tbody = $("#predictionTable tbody");
+          tbody.empty();
+
+          // Prepare data for plotting
+          const dates = [];
+          const dailyPreds = [];
+          const weeklyPreds = [];
+          const returns = [];
+
+          data.predictions.forEach((pred) => {
+            dates.push(pred.Date);
+            dailyPreds.push(pred["Daily Model"]);
+            weeklyPreds.push(pred["Weekly Model"]);
+            returns.push(parseFloat(pred["Daily Return"].replace("%", "")));
+
+            tbody.append(`
+                        <tr>
+                            <td>${pred.Date}</td>
+                            <td>${pred.Close}</td>
+                            <td>${pred["Daily Return"]}</td>
+                            <td>${pred["Daily Model"]}</td>
+                            <td>${pred["Weekly Model"]}</td>
+                            <td>D: ${pred["Daily Pos%"]}<br>W: ${pred["Weekly Pos%"]}</td>
+                        </tr>
+                    `);
+          });
+
+          // Create plot
+          const trace1 = {
+            x: dates,
+            y: returns,
+            type: "scatter",
+            name: "Returns",
+          };
+
+          const layout = {
+            title: "Predictions Analysis",
+            xaxis: { title: "Date" },
+            yaxis: { title: "Return (%)" },
+          };
+
+          Plotly.newPlot("predictionChart", [trace1], layout);
+        }
+      });
+    </script>
+  </body>
+</html>

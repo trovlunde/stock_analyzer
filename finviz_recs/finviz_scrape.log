@@ -1,0 +1,98 @@
+2025-02-13 11:23:12,985 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-13 11:23:12,985 - INFO - === Starting Finviz scraping script ===
+2025-02-13 11:23:12,985 - INFO - Starting Finviz scraping...
+2025-02-13 11:23:12,985 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-13 11:23:13,809 - INFO - Successfully scraped 18 stocks
+2025-02-13 11:23:13,809 - INFO - Found 18 stocks matching criteria.
+2025-02-13 11:23:13,809 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-13 11:23:13,809 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz-recs.json
+2025-02-13 11:23:13,809 - INFO - Added stock: AEHL
+2025-02-13 11:23:13,809 - INFO - Added stock: APTO
+2025-02-13 11:23:13,809 - INFO - Added stock: AVGR
+2025-02-13 11:23:13,809 - INFO - Added stock: CHPT
+2025-02-13 11:23:13,809 - INFO - Added stock: DUO
+2025-02-13 11:23:13,809 - INFO - Added stock: GNS
+2025-02-13 11:23:13,809 - INFO - Added stock: GPRO
+2025-02-13 11:23:13,809 - INFO - Added stock: LRHC
+2025-02-13 11:23:13,809 - INFO - Added stock: MULN
+2025-02-13 11:23:13,809 - INFO - Added stock: MYNA
+2025-02-13 11:23:13,809 - INFO - Added stock: NKGN
+2025-02-13 11:23:13,809 - INFO - Added stock: NKLA
+2025-02-13 11:23:13,809 - INFO - Added stock: NXU
+2025-02-13 11:23:13,809 - INFO - Added stock: OMGA
+2025-02-13 11:23:13,809 - INFO - Added stock: SPGC
+2025-02-13 11:23:13,809 - INFO - Added stock: STSS
+2025-02-13 11:23:13,809 - INFO - Added stock: TIVC
+2025-02-13 11:23:13,809 - INFO - Added stock: WINT
+2025-02-13 11:23:13,809 - INFO - Successfully wrote 18 stocks to JSON file
+2025-02-13 11:23:27,954 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-13 11:23:27,954 - INFO - === Starting Finviz scraping script ===
+2025-02-13 11:23:27,954 - INFO - Starting Finviz scraping...
+2025-02-13 11:23:27,954 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-13 11:23:28,353 - INFO - Successfully scraped 18 stocks
+2025-02-13 11:23:28,353 - INFO - Found 18 stocks matching criteria.
+2025-02-13 11:23:28,353 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-13 11:23:28,353 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-13 11:23:28,353 - INFO - Added stock: AEHL
+2025-02-13 11:23:28,353 - INFO - Added stock: APTO
+2025-02-13 11:23:28,353 - INFO - Added stock: AVGR
+2025-02-13 11:23:28,353 - INFO - Added stock: CHPT
+2025-02-13 11:23:28,353 - INFO - Added stock: DUO
+2025-02-13 11:23:28,353 - INFO - Added stock: GNS
+2025-02-13 11:23:28,353 - INFO - Added stock: GPRO
+2025-02-13 11:23:28,353 - INFO - Added stock: LRHC
+2025-02-13 11:23:28,353 - INFO - Added stock: MULN
+2025-02-13 11:23:28,353 - INFO - Added stock: MYNA
+2025-02-13 11:23:28,353 - INFO - Added stock: NKGN
+2025-02-13 11:23:28,353 - INFO - Added stock: NKLA
+2025-02-13 11:23:28,353 - INFO - Added stock: NXU
+2025-02-13 11:23:28,353 - INFO - Added stock: OMGA
+2025-02-13 11:23:28,353 - INFO - Added stock: SPGC
+2025-02-13 11:23:28,353 - INFO - Added stock: STSS
+2025-02-13 11:23:28,353 - INFO - Added stock: TIVC
+2025-02-13 11:23:28,353 - INFO - Added stock: WINT
+2025-02-13 11:23:28,359 - INFO - Successfully wrote 18 stocks to JSON file
+2025-02-14 09:24:54,220 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-14 09:24:54,220 - INFO - === Starting Finviz scraping script ===
+2025-02-14 09:24:54,220 - INFO - Starting Finviz scraping...
+2025-02-14 09:24:54,220 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-14 09:24:54,720 - INFO - Successfully scraped 16 stocks
+2025-02-14 09:24:54,720 - INFO - Found 16 stocks matching criteria.
+2025-02-14 09:24:54,720 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-14 09:24:54,720 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-14 09:24:54,752 - INFO - Added stock: AVGR
+2025-02-14 09:24:54,752 - INFO - Added stock: AZTR
+2025-02-14 09:24:54,752 - INFO - Added stock: CHPT
+2025-02-14 09:24:54,752 - INFO - Added stock: INAB
+2025-02-14 09:24:54,752 - INFO - Added stock: INVZ
+2025-02-14 09:24:54,752 - INFO - Added stock: MGOL
+2025-02-14 09:24:54,752 - INFO - Added stock: NKTR
+2025-02-14 09:24:54,752 - INFO - Added stock: OTLY
+2025-02-14 09:24:54,752 - INFO - Added stock: PEV
+2025-02-14 09:24:54,752 - INFO - Added stock: PIII
+2025-02-14 09:24:54,752 - INFO - Added stock: PRPH
+2025-02-14 09:24:54,752 - INFO - Added stock: SCPX
+2025-02-14 09:24:54,752 - INFO - Added stock: SYRA
+2025-02-14 09:24:54,752 - INFO - Added stock: TIVC
+2025-02-14 09:24:54,752 - INFO - Added stock: VRPX
+2025-02-14 09:24:54,752 - INFO - Added stock: XHG
+2025-02-14 09:24:54,752 - INFO - Successfully wrote 16 stocks to JSON file
+2025-02-17 09:10:02,662 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-17 09:10:02,662 - INFO - === Starting Finviz scraping script ===
+2025-02-17 09:10:02,662 - INFO - Starting Finviz scraping...
+2025-02-17 09:10:02,662 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-17 09:10:03,033 - INFO - Successfully scraped 10 stocks
+2025-02-17 09:10:03,046 - INFO - Found 10 stocks matching criteria.
+2025-02-17 09:10:03,046 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-17 09:10:03,046 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-17 09:10:03,047 - INFO - Added stock: CHPT
+2025-02-17 09:10:03,047 - INFO - Added stock: CNSP
+2025-02-17 09:10:03,047 - INFO - Added stock: EFSH
+2025-02-17 09:10:03,047 - INFO - Added stock: ICON
+2025-02-17 09:10:03,047 - INFO - Added stock: NKTR
+2025-02-17 09:10:03,047 - INFO - Added stock: PTPI
+2025-02-17 09:10:03,047 - INFO - Added stock: SPGC
+2025-02-17 09:10:03,047 - INFO - Added stock: SRM
+2025-02-17 09:10:03,047 - INFO - Added stock: VRPX
+2025-02-17 09:10:03,047 - INFO - Added stock: XHG
+2025-02-17 09:10:03,049 - INFO - Successfully wrote 10 stocks to JSON file
