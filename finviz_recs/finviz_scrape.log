@@ -96,3 +96,754 @@
 2025-02-17 09:10:03,047 - INFO - Added stock: VRPX
 2025-02-17 09:10:03,047 - INFO - Added stock: XHG
 2025-02-17 09:10:03,049 - INFO - Successfully wrote 10 stocks to JSON file
+2025-02-17 13:35:38,538 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-17 13:35:38,538 - INFO - === Starting Finviz scraping script ===
+2025-02-17 13:35:38,538 - INFO - Starting Finviz scraping...
+2025-02-17 13:35:38,538 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-17 13:35:38,952 - INFO - Successfully scraped 10 stocks
+2025-02-17 13:35:38,952 - INFO - Starting Finviz scraping...
+2025-02-17 13:35:38,952 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-17 13:35:39,516 - INFO - Successfully scraped 10 stocks
+2025-02-17 13:35:39,516 - INFO - Found 10 stocks matching criteria.
+2025-02-17 13:35:39,516 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 13:35:39,529 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-17 13:35:39,530 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-17 13:35:39,530 - INFO - Found 10 stocks matching criteria.
+2025-02-17 13:35:39,530 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 13:35:39,530 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-17 13:35:39,530 - INFO - Added stock: SPGC
+2025-02-17 13:35:39,530 - INFO - Added stock: PACB
+2025-02-17 13:35:39,530 - INFO - Added stock: STAI
+2025-02-17 13:35:39,530 - INFO - Added stock: ALLO
+2025-02-17 13:35:39,530 - INFO - Added stock: CHPT
+2025-02-17 13:35:39,530 - INFO - Added stock: ZCAR
+2025-02-17 13:35:39,530 - INFO - Added stock: ICON
+2025-02-17 13:35:39,530 - INFO - Added stock: EDIT
+2025-02-17 13:35:39,530 - INFO - Added stock: SOBR
+2025-02-17 13:35:39,530 - INFO - Added stock: OM
+2025-02-17 13:35:39,531 - INFO - Successfully wrote 10 stocks to JSON file
+2025-02-17 13:58:11,193 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-17 13:58:11,193 - INFO - === Starting Finviz scraping script ===
+2025-02-17 13:58:11,193 - INFO - Starting Finviz scraping...
+2025-02-17 13:58:11,193 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-17 13:58:11,500 - INFO - Successfully scraped 10 stocks
+2025-02-17 13:58:11,501 - INFO - Starting Finviz scraping...
+2025-02-17 13:58:11,501 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-17 13:58:11,985 - INFO - Successfully scraped 10 stocks
+2025-02-17 13:58:11,985 - INFO - Found 10 stocks matching criteria.
+2025-02-17 13:58:12,078 - INFO - Market closed - No trading day for NYSE
+2025-02-17 13:58:12,078 - INFO - Skipping 8 stocks from USA - Market closed
+2025-02-17 13:58:12,265 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 13:58:12,265 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-17 13:58:12,266 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-17 13:58:12,266 - INFO - Found 10 stocks matching criteria.
+2025-02-17 13:58:12,365 - INFO - Market closed - No trading day for NYSE
+2025-02-17 13:58:12,365 - INFO - Skipping 8 stocks from USA - Market closed
+2025-02-17 13:58:12,442 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 13:58:12,442 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-17 13:58:12,443 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-17 13:58:45,694 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-17 13:58:45,694 - INFO - === Starting Finviz scraping script ===
+2025-02-17 13:58:45,694 - INFO - Starting Finviz scraping...
+2025-02-17 13:58:45,694 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-17 13:58:46,571 - INFO - Successfully scraped 10 stocks
+2025-02-17 13:58:46,571 - INFO - Starting Finviz scraping...
+2025-02-17 13:58:46,571 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-17 13:58:46,961 - INFO - Successfully scraped 10 stocks
+2025-02-17 13:58:46,962 - INFO - Found 10 stocks matching criteria.
+2025-02-17 13:58:47,065 - INFO - Market closed - No trading day for NYSE
+2025-02-17 13:58:47,065 - INFO - Skipping 8 stocks from USA - Market closed
+2025-02-17 13:58:47,257 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 13:58:47,257 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-17 13:58:47,258 - INFO - Added stock: ICON
+2025-02-17 13:58:47,258 - INFO - Added stock: XHG
+2025-02-17 13:58:47,260 - INFO - Successfully wrote 2 stocks to JSON file
+2025-02-17 13:58:47,260 - INFO - Found 10 stocks matching criteria.
+2025-02-17 13:58:47,357 - INFO - Market closed - No trading day for NYSE
+2025-02-17 13:58:47,357 - INFO - Skipping 8 stocks from USA - Market closed
+2025-02-17 13:58:47,444 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 13:58:47,444 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-17 13:58:47,445 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-17 15:03:42,725 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-17 15:03:42,725 - INFO - === Starting Finviz scraping script ===
+2025-02-17 15:03:42,725 - INFO - Starting Finviz scraping...
+2025-02-17 15:03:42,725 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-17 15:03:43,245 - INFO - Successfully scraped 20 stocks
+2025-02-17 15:03:43,245 - INFO - Starting Finviz scraping...
+2025-02-17 15:03:43,245 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-17 15:03:44,087 - INFO - Successfully scraped 16 stocks
+2025-02-17 15:03:44,087 - INFO - Starting Finviz scraping...
+2025-02-17 15:03:44,087 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-17 15:03:44,524 - INFO - Successfully scraped 10 stocks
+2025-02-17 15:03:44,524 - INFO - Starting Finviz scraping...
+2025-02-17 15:03:44,524 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-17 15:03:44,813 - INFO - Successfully scraped 10 stocks
+2025-02-17 15:03:44,813 - INFO - Found 20 stocks matching criteria.
+2025-02-17 15:03:44,905 - INFO - Market closed - No trading day for NYSE
+2025-02-17 15:03:44,905 - INFO - Skipping 18 stocks from USA - Market closed
+2025-02-17 15:03:45,104 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 15:03:45,104 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-17 15:03:45,104 - INFO - Added stock: ICON
+2025-02-17 15:03:45,104 - INFO - Added stock: RTC
+2025-02-17 15:03:45,104 - INFO - Successfully wrote 2 stocks to JSON file
+2025-02-17 15:03:45,104 - INFO - Found 16 stocks matching criteria.
+2025-02-17 15:03:45,234 - INFO - Market closed - No trading day for NYSE
+2025-02-17 15:03:45,234 - INFO - Skipping 14 stocks from USA - Market closed
+2025-02-17 15:03:45,314 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 15:03:45,314 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-17 15:03:45,315 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-17 15:03:45,315 - INFO - Found 10 stocks matching criteria.
+2025-02-17 15:03:45,410 - INFO - Market closed - No trading day for NYSE
+2025-02-17 15:03:45,410 - INFO - Skipping 8 stocks from USA - Market closed
+2025-02-17 15:03:45,488 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 15:03:45,488 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-17 15:03:45,488 - INFO - Added stock: ZCAR
+2025-02-17 15:03:45,488 - INFO - Added stock: ICON
+2025-02-17 15:03:45,488 - INFO - Successfully wrote 2 stocks to JSON file
+2025-02-17 15:03:45,488 - INFO - Found 10 stocks matching criteria.
+2025-02-17 15:03:45,585 - INFO - Market closed - No trading day for NYSE
+2025-02-17 15:03:45,585 - INFO - Skipping 8 stocks from USA - Market closed
+2025-02-17 15:03:45,779 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-17 15:03:45,779 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-17 15:03:45,780 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-18 09:10:17,884 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-18 09:10:17,885 - INFO - === Starting Finviz scraping script ===
+2025-02-18 09:10:17,885 - INFO - Starting Finviz scraping...
+2025-02-18 09:10:17,885 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-18 09:10:18,863 - INFO - Successfully scraped 20 stocks
+2025-02-18 09:10:18,874 - INFO - Starting Finviz scraping...
+2025-02-18 09:10:18,875 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-18 09:10:19,739 - INFO - Successfully scraped 16 stocks
+2025-02-18 09:10:19,740 - INFO - Starting Finviz scraping...
+2025-02-18 09:10:19,740 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-18 09:10:21,014 - INFO - Successfully scraped 10 stocks
+2025-02-18 09:10:21,015 - INFO - Starting Finviz scraping...
+2025-02-18 09:10:21,016 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-18 09:10:21,722 - INFO - Successfully scraped 10 stocks
+2025-02-18 09:10:21,723 - INFO - Found 20 stocks matching criteria.
+2025-02-18 09:10:23,848 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-18 09:10:23,848 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-18 09:10:23,850 - INFO - Added stock: ADTX
+2025-02-18 09:10:23,850 - INFO - Added stock: BSLK
+2025-02-18 09:10:23,850 - INFO - Added stock: CHPT
+2025-02-18 09:10:23,851 - INFO - Added stock: CNSP
+2025-02-18 09:10:23,851 - INFO - Added stock: CYN
+2025-02-18 09:10:23,851 - INFO - Added stock: DGLY
+2025-02-18 09:10:23,851 - INFO - Added stock: EFSH
+2025-02-18 09:10:23,851 - INFO - Added stock: GCTK
+2025-02-18 09:10:23,852 - INFO - Added stock: HCTI
+2025-02-18 09:10:23,852 - INFO - Added stock: INAB
+2025-02-18 09:10:23,852 - INFO - Added stock: MGOL
+2025-02-18 09:10:23,852 - INFO - Added stock: MULN
+2025-02-18 09:10:23,852 - INFO - Added stock: NAOV
+2025-02-18 09:10:23,852 - INFO - Added stock: NKTR
+2025-02-18 09:10:23,853 - INFO - Added stock: OCEA
+2025-02-18 09:10:23,853 - INFO - Added stock: PEV
+2025-02-18 09:10:23,853 - INFO - Added stock: PRPH
+2025-02-18 09:10:23,853 - INFO - Added stock: PTPI
+2025-02-18 09:10:23,853 - INFO - Added stock: ICON
+2025-02-18 09:10:23,854 - INFO - Added stock: RTC
+2025-02-18 09:10:23,858 - INFO - Successfully wrote 20 stocks to JSON file
+2025-02-18 09:10:23,858 - INFO - Found 16 stocks matching criteria.
+2025-02-18 09:10:25,164 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-18 09:10:25,171 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-18 09:10:25,172 - INFO - Added stock: MGOL
+2025-02-18 09:10:25,172 - INFO - Added stock: CYN
+2025-02-18 09:10:25,172 - INFO - Added stock: SPGC
+2025-02-18 09:10:25,173 - INFO - Added stock: PACB
+2025-02-18 09:10:25,173 - INFO - Added stock: STAI
+2025-02-18 09:10:25,173 - INFO - Added stock: ALLO
+2025-02-18 09:10:25,173 - INFO - Added stock: OCEA
+2025-02-18 09:10:25,173 - INFO - Added stock: CHPT
+2025-02-18 09:10:25,173 - INFO - Added stock: FFIE
+2025-02-18 09:10:25,174 - INFO - Added stock: MULN
+2025-02-18 09:10:25,174 - INFO - Added stock: NAOV
+2025-02-18 09:10:25,174 - INFO - Added stock: EDIT
+2025-02-18 09:10:25,174 - INFO - Added stock: SOBR
+2025-02-18 09:10:25,174 - INFO - Added stock: OM
+2025-02-18 09:10:25,175 - INFO - Added stock: ZCAR
+2025-02-18 09:10:25,175 - INFO - Added stock: ICON
+2025-02-18 09:10:25,180 - INFO - Successfully wrote 16 stocks to JSON file
+2025-02-18 09:10:25,180 - INFO - Found 10 stocks matching criteria.
+2025-02-18 09:10:26,568 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-18 09:10:26,568 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-18 09:10:26,570 - INFO - Added stock: SPGC
+2025-02-18 09:10:26,570 - INFO - Added stock: PACB
+2025-02-18 09:10:26,570 - INFO - Added stock: STAI
+2025-02-18 09:10:26,570 - INFO - Added stock: ALLO
+2025-02-18 09:10:26,570 - INFO - Added stock: CHPT
+2025-02-18 09:10:26,571 - INFO - Added stock: EDIT
+2025-02-18 09:10:26,571 - INFO - Added stock: SOBR
+2025-02-18 09:10:26,571 - INFO - Added stock: OM
+2025-02-18 09:10:26,571 - INFO - Added stock: ZCAR
+2025-02-18 09:10:26,571 - INFO - Added stock: ICON
+2025-02-18 09:10:26,574 - INFO - Successfully wrote 10 stocks to JSON file
+2025-02-18 09:10:26,574 - INFO - Found 10 stocks matching criteria.
+2025-02-18 09:10:28,661 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-18 09:10:28,661 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-18 09:10:28,662 - INFO - Added stock: CHPT
+2025-02-18 09:10:28,662 - INFO - Added stock: CNSP
+2025-02-18 09:10:28,662 - INFO - Added stock: EFSH
+2025-02-18 09:10:28,662 - INFO - Added stock: NKTR
+2025-02-18 09:10:28,663 - INFO - Added stock: PTPI
+2025-02-18 09:10:28,663 - INFO - Added stock: SPGC
+2025-02-18 09:10:28,663 - INFO - Added stock: SRM
+2025-02-18 09:10:28,663 - INFO - Added stock: VRPX
+2025-02-18 09:10:28,663 - INFO - Added stock: ICON
+2025-02-18 09:10:28,663 - INFO - Added stock: XHG
+2025-02-18 09:10:28,669 - INFO - Successfully wrote 10 stocks to JSON file
+2025-02-19 09:10:19,928 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-19 09:10:19,929 - INFO - === Starting Finviz scraping script ===
+2025-02-19 09:10:19,929 - INFO - Starting Finviz scraping...
+2025-02-19 09:10:19,929 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-19 09:10:21,333 - INFO - Successfully scraped 20 stocks
+2025-02-19 09:10:21,345 - INFO - Starting Finviz scraping...
+2025-02-19 09:10:21,346 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-19 09:10:22,567 - INFO - Successfully scraped 10 stocks
+2025-02-19 09:10:22,567 - INFO - Starting Finviz scraping...
+2025-02-19 09:10:22,568 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-19 09:10:23,470 - INFO - Successfully scraped 6 stocks
+2025-02-19 09:10:23,471 - INFO - Starting Finviz scraping...
+2025-02-19 09:10:23,471 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-19 09:10:24,718 - INFO - Successfully scraped 15 stocks
+2025-02-19 09:10:24,718 - INFO - Found 20 stocks matching criteria.
+2025-02-19 09:10:25,439 - WARNING - No exchange found for country: United Kingdom
+2025-02-19 09:10:26,848 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-19 09:10:26,848 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-19 09:10:26,851 - INFO - Added stock: ABVC
+2025-02-19 09:10:26,851 - INFO - Added stock: ADTX
+2025-02-19 09:10:26,851 - INFO - Added stock: BPTH
+2025-02-19 09:10:26,851 - INFO - Added stock: BSLK
+2025-02-19 09:10:26,851 - INFO - Added stock: CNSP
+2025-02-19 09:10:26,852 - INFO - Added stock: DGLY
+2025-02-19 09:10:26,852 - INFO - Added stock: EDBL
+2025-02-19 09:10:26,852 - INFO - Added stock: GLYC
+2025-02-19 09:10:26,852 - INFO - Added stock: GPRO
+2025-02-19 09:10:26,852 - INFO - Added stock: HCTI
+2025-02-19 09:10:26,853 - INFO - Added stock: LGMK
+2025-02-19 09:10:26,853 - INFO - Added stock: LXRX
+2025-02-19 09:10:26,853 - INFO - Added stock: MGOL
+2025-02-19 09:10:26,853 - INFO - Added stock: NKLA
+2025-02-19 09:10:26,853 - INFO - Added stock: PRPH
+2025-02-19 09:10:26,853 - INFO - Added stock: PTPI
+2025-02-19 09:10:26,854 - INFO - Added stock: CGBS
+2025-02-19 09:10:26,854 - INFO - Added stock: INVZ
+2025-02-19 09:10:26,854 - INFO - Added stock: KWE
+2025-02-19 09:10:26,854 - INFO - Added stock: LICN
+2025-02-19 09:10:26,860 - INFO - Successfully wrote 20 stocks to JSON file
+2025-02-19 09:10:26,860 - INFO - Found 10 stocks matching criteria.
+2025-02-19 09:10:28,784 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-19 09:10:28,784 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-19 09:10:28,786 - INFO - Added stock: MGOL
+2025-02-19 09:10:28,786 - INFO - Added stock: NKLA
+2025-02-19 09:10:28,786 - INFO - Added stock: ALLO
+2025-02-19 09:10:28,786 - INFO - Added stock: SOBR
+2025-02-19 09:10:28,786 - INFO - Added stock: PACB
+2025-02-19 09:10:28,786 - INFO - Added stock: EDIT
+2025-02-19 09:10:28,786 - INFO - Added stock: LXRX
+2025-02-19 09:10:28,788 - INFO - Added stock: STSS
+2025-02-19 09:10:28,788 - INFO - Added stock: TWG
+2025-02-19 09:10:28,788 - INFO - Added stock: ICON
+2025-02-19 09:10:28,794 - INFO - Successfully wrote 10 stocks to JSON file
+2025-02-19 09:10:28,794 - INFO - Found 6 stocks matching criteria.
+2025-02-19 09:10:30,115 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-19 09:10:30,115 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-19 09:10:30,117 - INFO - Added stock: NKLA
+2025-02-19 09:10:30,118 - INFO - Added stock: ALLO
+2025-02-19 09:10:30,118 - INFO - Added stock: PACB
+2025-02-19 09:10:30,118 - INFO - Added stock: EDIT
+2025-02-19 09:10:30,118 - INFO - Added stock: STSS
+2025-02-19 09:10:30,119 - INFO - Added stock: TWG
+2025-02-19 09:10:30,122 - INFO - Successfully wrote 6 stocks to JSON file
+2025-02-19 09:10:30,122 - INFO - Found 15 stocks matching criteria.
+2025-02-19 09:10:30,824 - WARNING - No exchange found for country: United Kingdom
+2025-02-19 09:10:32,132 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-19 09:10:32,133 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-19 09:10:32,135 - INFO - Added stock: ABVC
+2025-02-19 09:10:32,135 - INFO - Added stock: ADTX
+2025-02-19 09:10:32,135 - INFO - Added stock: CNSP
+2025-02-19 09:10:32,136 - INFO - Added stock: DGLY
+2025-02-19 09:10:32,137 - INFO - Added stock: EDBL
+2025-02-19 09:10:32,137 - INFO - Added stock: GLYC
+2025-02-19 09:10:32,137 - INFO - Added stock: GPRO
+2025-02-19 09:10:32,137 - INFO - Added stock: HCTI
+2025-02-19 09:10:32,138 - INFO - Added stock: NKLA
+2025-02-19 09:10:32,138 - INFO - Added stock: PRPH
+2025-02-19 09:10:32,138 - INFO - Added stock: SRM
+2025-02-19 09:10:32,138 - INFO - Added stock: SYRA
+2025-02-19 09:10:32,138 - INFO - Added stock: CGBS
+2025-02-19 09:10:32,138 - INFO - Added stock: KWE
+2025-02-19 09:10:32,138 - INFO - Added stock: TWG
+2025-02-19 09:10:32,151 - INFO - Successfully wrote 15 stocks to JSON file
+2025-02-20 09:27:34,413 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-20 09:27:34,414 - INFO - === Starting Finviz scraping script ===
+2025-02-20 09:27:34,414 - INFO - Starting Finviz scraping...
+2025-02-20 09:27:34,415 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-20 09:27:36,467 - INFO - Successfully scraped 20 stocks
+2025-02-20 09:27:36,480 - INFO - Starting Finviz scraping...
+2025-02-20 09:27:36,480 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-20 09:27:37,608 - INFO - Successfully scraped 11 stocks
+2025-02-20 09:27:37,609 - INFO - Starting Finviz scraping...
+2025-02-20 09:27:37,609 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-20 09:27:38,335 - INFO - Successfully scraped 3 stocks
+2025-02-20 09:27:38,336 - INFO - Starting Finviz scraping...
+2025-02-20 09:27:38,336 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-20 09:27:39,263 - INFO - Successfully scraped 14 stocks
+2025-02-20 09:27:39,263 - INFO - Found 20 stocks matching criteria.
+2025-02-20 09:27:40,063 - WARNING - No exchange found for country: United Arab Emirates
+2025-02-20 09:27:40,063 - WARNING - Error checking market hours for Singapore: Class SGX is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2025-02-20 09:27:40,064 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-20 09:27:40,064 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-20 09:27:40,065 - INFO - Added stock: ADTX
+2025-02-20 09:27:40,065 - INFO - Added stock: AUUD
+2025-02-20 09:27:40,065 - INFO - Added stock: BLNE
+2025-02-20 09:27:40,065 - INFO - Added stock: BSLK
+2025-02-20 09:27:40,065 - INFO - Added stock: CNSP
+2025-02-20 09:27:40,066 - INFO - Added stock: DGLY
+2025-02-20 09:27:40,066 - INFO - Added stock: GORO
+2025-02-20 09:27:40,066 - INFO - Added stock: LGMK
+2025-02-20 09:27:40,066 - INFO - Added stock: MGOL
+2025-02-20 09:27:40,066 - INFO - Added stock: NKLA
+2025-02-20 09:27:40,066 - INFO - Added stock: OCEA
+2025-02-20 09:27:40,066 - INFO - Added stock: PRPH
+2025-02-20 09:27:40,066 - INFO - Added stock: PTPI
+2025-02-20 09:27:40,066 - INFO - Added stock: TRUG
+2025-02-20 09:27:40,066 - INFO - Added stock: TTOO
+2025-02-20 09:27:40,066 - INFO - Added stock: BHAT
+2025-02-20 09:27:40,066 - INFO - Added stock: LICN
+2025-02-20 09:27:40,066 - INFO - Added stock: INVZ
+2025-02-20 09:27:40,066 - INFO - Added stock: LYT
+2025-02-20 09:27:40,066 - INFO - Added stock: MNDR
+2025-02-20 09:27:40,075 - INFO - Successfully wrote 20 stocks to JSON file
+2025-02-20 09:27:40,076 - INFO - Found 11 stocks matching criteria.
+2025-02-20 09:27:41,313 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-20 09:27:41,314 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-20 09:27:41,317 - INFO - Added stock: NKLA
+2025-02-20 09:27:41,317 - INFO - Added stock: MGOL
+2025-02-20 09:27:41,318 - INFO - Added stock: OCEA
+2025-02-20 09:27:41,318 - INFO - Added stock: AUUD
+2025-02-20 09:27:41,318 - INFO - Added stock: MVIS
+2025-02-20 09:27:41,319 - INFO - Added stock: ALLO
+2025-02-20 09:27:41,319 - INFO - Added stock: PACB
+2025-02-20 09:27:41,319 - INFO - Added stock: SOBR
+2025-02-20 09:27:41,319 - INFO - Added stock: KPTI
+2025-02-20 09:27:41,320 - INFO - Added stock: TWG
+2025-02-20 09:27:41,320 - INFO - Added stock: ICON
+2025-02-20 09:27:41,327 - INFO - Successfully wrote 11 stocks to JSON file
+2025-02-20 09:27:41,328 - INFO - Found 3 stocks matching criteria.
+2025-02-20 09:27:42,173 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-20 09:27:42,173 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-20 09:27:42,175 - INFO - Added stock: OCEA
+2025-02-20 09:27:42,176 - INFO - Added stock: AUUD
+2025-02-20 09:27:42,176 - INFO - Added stock: MVIS
+2025-02-20 09:27:42,180 - INFO - Successfully wrote 3 stocks to JSON file
+2025-02-20 09:27:42,181 - INFO - Found 14 stocks matching criteria.
+2025-02-20 09:27:43,970 - WARNING - No exchange found for country: United Arab Emirates
+2025-02-20 09:27:43,970 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-20 09:27:43,970 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-20 09:27:43,973 - INFO - Added stock: ADTX
+2025-02-20 09:27:43,973 - INFO - Added stock: AUUD
+2025-02-20 09:27:43,973 - INFO - Added stock: BLNE
+2025-02-20 09:27:43,974 - INFO - Added stock: BSLK
+2025-02-20 09:27:43,974 - INFO - Added stock: GORO
+2025-02-20 09:27:43,974 - INFO - Added stock: OCEA
+2025-02-20 09:27:43,974 - INFO - Added stock: PRPH
+2025-02-20 09:27:43,974 - INFO - Added stock: PTPI
+2025-02-20 09:27:43,974 - INFO - Added stock: TRUG
+2025-02-20 09:27:43,974 - INFO - Added stock: TTOO
+2025-02-20 09:27:43,974 - INFO - Added stock: BHAT
+2025-02-20 09:27:43,975 - INFO - Added stock: LICN
+2025-02-20 09:27:43,975 - INFO - Added stock: INVZ
+2025-02-20 09:27:43,975 - INFO - Added stock: LYT
+2025-02-20 09:27:43,985 - INFO - Successfully wrote 14 stocks to JSON file
+2025-02-21 13:22:36,600 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-21 13:22:36,600 - INFO - === Starting Finviz scraping script ===
+2025-02-21 13:22:36,600 - INFO - Starting Finviz scraping...
+2025-02-21 13:22:36,601 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-21 13:22:37,519 - INFO - Successfully scraped 20 stocks
+2025-02-21 13:22:37,522 - INFO - Starting Finviz scraping...
+2025-02-21 13:22:37,522 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-21 13:22:38,196 - INFO - Successfully scraped 10 stocks
+2025-02-21 13:22:38,196 - INFO - Starting Finviz scraping...
+2025-02-21 13:22:38,196 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-21 13:22:38,904 - INFO - Successfully scraped 4 stocks
+2025-02-21 13:22:38,905 - INFO - Starting Finviz scraping...
+2025-02-21 13:22:38,905 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-21 13:22:39,475 - INFO - Successfully scraped 11 stocks
+2025-02-21 13:22:39,476 - INFO - Found 20 stocks matching criteria.
+2025-02-21 13:22:41,744 - WARNING - No exchange found for country: United Arab Emirates
+2025-02-21 13:22:41,744 - WARNING - Error checking market hours for Singapore: Class SGX is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2025-02-21 13:22:41,744 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-21 13:22:41,744 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-21 13:22:41,746 - INFO - Added stock: ADTX
+2025-02-21 13:22:41,746 - INFO - Added stock: BURU
+2025-02-21 13:22:41,746 - INFO - Added stock: CVM
+2025-02-21 13:22:41,746 - INFO - Added stock: DGLY
+2025-02-21 13:22:41,746 - INFO - Added stock: FGEN
+2025-02-21 13:22:41,746 - INFO - Added stock: LGMK
+2025-02-21 13:22:41,746 - INFO - Added stock: NEGG
+2025-02-21 13:22:41,746 - INFO - Added stock: NKLA
+2025-02-21 13:22:41,746 - INFO - Added stock: PRPH
+2025-02-21 13:22:41,747 - INFO - Added stock: PTPI
+2025-02-21 13:22:41,747 - INFO - Added stock: SOAR
+2025-02-21 13:22:41,747 - INFO - Added stock: STSS
+2025-02-21 13:22:41,747 - INFO - Added stock: AEHL
+2025-02-21 13:22:41,747 - INFO - Added stock: LICN
+2025-02-21 13:22:41,747 - INFO - Added stock: RETO
+2025-02-21 13:22:41,747 - INFO - Added stock: UPC
+2025-02-21 13:22:41,747 - INFO - Added stock: APTO
+2025-02-21 13:22:41,747 - INFO - Added stock: ICON
+2025-02-21 13:22:41,747 - INFO - Added stock: LYT
+2025-02-21 13:22:41,747 - INFO - Added stock: MNDR
+2025-02-21 13:22:41,752 - INFO - Successfully wrote 20 stocks to JSON file
+2025-02-21 13:22:41,753 - INFO - Found 10 stocks matching criteria.
+2025-02-21 13:22:43,227 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-21 13:22:43,227 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-21 13:22:43,228 - INFO - Added stock: STSS
+2025-02-21 13:22:43,228 - INFO - Added stock: MVIS
+2025-02-21 13:22:43,228 - INFO - Added stock: NKLA
+2025-02-21 13:22:43,228 - INFO - Added stock: PACB
+2025-02-21 13:22:43,228 - INFO - Added stock: EDIT
+2025-02-21 13:22:43,229 - INFO - Added stock: SOBR
+2025-02-21 13:22:43,229 - INFO - Added stock: OM
+2025-02-21 13:22:43,229 - INFO - Added stock: ICON
+2025-02-21 13:22:43,229 - INFO - Added stock: TWG
+2025-02-21 13:22:43,229 - INFO - Added stock: ZCAR
+2025-02-21 13:22:43,235 - INFO - Successfully wrote 10 stocks to JSON file
+2025-02-21 13:22:43,236 - INFO - Found 4 stocks matching criteria.
+2025-02-21 13:22:44,732 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-21 13:22:44,732 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-21 13:22:44,734 - INFO - Added stock: STSS
+2025-02-21 13:22:44,735 - INFO - Added stock: OM
+2025-02-21 13:22:44,735 - INFO - Added stock: ICON
+2025-02-21 13:22:44,735 - INFO - Added stock: TWG
+2025-02-21 13:22:44,742 - INFO - Successfully wrote 4 stocks to JSON file
+2025-02-21 13:22:44,743 - INFO - Found 11 stocks matching criteria.
+2025-02-21 13:22:46,748 - WARNING - Error checking market hours for Singapore: Class SGX is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2025-02-21 13:22:46,748 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-21 13:22:46,749 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-21 13:22:46,751 - INFO - Added stock: AEHL
+2025-02-21 13:22:46,751 - INFO - Added stock: RETO
+2025-02-21 13:22:46,751 - INFO - Added stock: APTO
+2025-02-21 13:22:46,751 - INFO - Added stock: BURU
+2025-02-21 13:22:46,752 - INFO - Added stock: FGEN
+2025-02-21 13:22:46,752 - INFO - Added stock: NEGG
+2025-02-21 13:22:46,752 - INFO - Added stock: PRPH
+2025-02-21 13:22:46,752 - INFO - Added stock: SOAR
+2025-02-21 13:22:46,752 - INFO - Added stock: STSS
+2025-02-21 13:22:46,752 - INFO - Added stock: ICON
+2025-02-21 13:22:46,752 - INFO - Added stock: MNDR
+2025-02-21 13:22:46,761 - INFO - Successfully wrote 11 stocks to JSON file
+2025-02-24 09:11:57,022 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-24 09:11:57,022 - INFO - === Starting Finviz scraping script ===
+2025-02-24 09:11:57,022 - INFO - Starting Finviz scraping...
+2025-02-24 09:11:57,022 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-24 09:11:58,089 - INFO - Successfully scraped 20 stocks
+2025-02-24 09:11:58,089 - INFO - Starting Finviz scraping...
+2025-02-24 09:11:58,090 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-24 09:11:58,468 - INFO - Successfully scraped 10 stocks
+2025-02-24 09:11:58,468 - INFO - Starting Finviz scraping...
+2025-02-24 09:11:58,469 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-24 09:11:59,475 - INFO - Successfully scraped 3 stocks
+2025-02-24 09:11:59,476 - INFO - Starting Finviz scraping...
+2025-02-24 09:11:59,476 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-24 09:11:59,919 - INFO - Successfully scraped 10 stocks
+2025-02-24 09:11:59,919 - INFO - Found 20 stocks matching criteria.
+2025-02-24 09:12:00,796 - WARNING - Error checking market hours for Singapore: Class SGX is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2025-02-24 09:12:01,066 - WARNING - No exchange found for country: United Kingdom
+2025-02-24 09:12:01,066 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-24 09:12:01,066 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-24 09:12:01,076 - INFO - Added stock: ADTX
+2025-02-24 09:12:01,076 - INFO - Added stock: BURU
+2025-02-24 09:12:01,076 - INFO - Added stock: DGLY
+2025-02-24 09:12:01,076 - INFO - Added stock: FGEN
+2025-02-24 09:12:01,076 - INFO - Added stock: NKGN
+2025-02-24 09:12:01,076 - INFO - Added stock: NKLA
+2025-02-24 09:12:01,077 - INFO - Added stock: OMGA
+2025-02-24 09:12:01,077 - INFO - Added stock: PRPH
+2025-02-24 09:12:01,077 - INFO - Added stock: STSS
+2025-02-24 09:12:01,077 - INFO - Added stock: AEHL
+2025-02-24 09:12:01,077 - INFO - Added stock: CHSN
+2025-02-24 09:12:01,077 - INFO - Added stock: CNEY
+2025-02-24 09:12:01,077 - INFO - Added stock: LICN
+2025-02-24 09:12:01,077 - INFO - Added stock: RETO
+2025-02-24 09:12:01,077 - INFO - Added stock: RTC
+2025-02-24 09:12:01,077 - INFO - Added stock: ICON
+2025-02-24 09:12:01,077 - INFO - Added stock: INVZ
+2025-02-24 09:12:01,077 - INFO - Added stock: MNDR
+2025-02-24 09:12:01,077 - INFO - Added stock: TLRY
+2025-02-24 09:12:01,077 - INFO - Added stock: UOKA
+2025-02-24 09:12:01,082 - INFO - Successfully wrote 20 stocks to JSON file
+2025-02-24 09:12:01,082 - INFO - Found 10 stocks matching criteria.
+2025-02-24 09:12:01,824 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-24 09:12:01,824 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-24 09:12:01,834 - INFO - Added stock: HOLO
+2025-02-24 09:12:01,834 - INFO - Added stock: CHSN
+2025-02-24 09:12:01,835 - INFO - Added stock: NKLA
+2025-02-24 09:12:01,835 - INFO - Added stock: OMGA
+2025-02-24 09:12:01,835 - INFO - Added stock: MVIS
+2025-02-24 09:12:01,835 - INFO - Added stock: STSS
+2025-02-24 09:12:01,835 - INFO - Added stock: EDIT
+2025-02-24 09:12:01,835 - INFO - Added stock: TPIC
+2025-02-24 09:12:01,835 - INFO - Added stock: CDLX
+2025-02-24 09:12:01,835 - INFO - Added stock: ICON
+2025-02-24 09:12:01,838 - INFO - Successfully wrote 10 stocks to JSON file
+2025-02-24 09:12:01,839 - INFO - Found 3 stocks matching criteria.
+2025-02-24 09:12:02,408 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-24 09:12:02,408 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-24 09:12:02,419 - INFO - Added stock: HOLO
+2025-02-24 09:12:02,419 - INFO - Added stock: CHSN
+2025-02-24 09:12:02,419 - INFO - Added stock: OMGA
+2025-02-24 09:12:02,421 - INFO - Successfully wrote 3 stocks to JSON file
+2025-02-24 09:12:02,421 - INFO - Found 10 stocks matching criteria.
+2025-02-24 09:12:03,233 - WARNING - No exchange found for country: United Kingdom
+2025-02-24 09:12:03,233 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-24 09:12:03,233 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-24 09:12:03,244 - INFO - Added stock: BURU
+2025-02-24 09:12:03,244 - INFO - Added stock: NKGN
+2025-02-24 09:12:03,245 - INFO - Added stock: OMGA
+2025-02-24 09:12:03,245 - INFO - Added stock: CHSN
+2025-02-24 09:12:03,245 - INFO - Added stock: CNEY
+2025-02-24 09:12:03,245 - INFO - Added stock: LICN
+2025-02-24 09:12:03,245 - INFO - Added stock: RTC
+2025-02-24 09:12:03,245 - INFO - Added stock: UPC
+2025-02-24 09:12:03,245 - INFO - Added stock: TLRY
+2025-02-24 09:12:03,245 - INFO - Added stock: UOKA
+2025-02-24 09:12:03,250 - INFO - Successfully wrote 10 stocks to JSON file
+2025-02-25 09:10:25,707 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-25 09:10:25,707 - INFO - === Starting Finviz scraping script ===
+2025-02-25 09:10:25,708 - INFO - Starting Finviz scraping...
+2025-02-25 09:10:25,708 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-25 09:10:27,164 - INFO - Successfully scraped 20 stocks
+2025-02-25 09:10:27,195 - INFO - Starting Finviz scraping...
+2025-02-25 09:10:27,195 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-25 09:10:28,458 - INFO - Successfully scraped 8 stocks
+2025-02-25 09:10:28,459 - INFO - Starting Finviz scraping...
+2025-02-25 09:10:28,459 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-25 09:10:29,119 - INFO - Successfully scraped 1 stocks
+2025-02-25 09:10:29,120 - INFO - Starting Finviz scraping...
+2025-02-25 09:10:29,121 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-25 09:10:29,860 - INFO - Successfully scraped 9 stocks
+2025-02-25 09:10:29,861 - INFO - Found 20 stocks matching criteria.
+2025-02-25 09:10:32,511 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-25 09:10:32,512 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-25 09:10:32,515 - INFO - Added stock: ADTX
+2025-02-25 09:10:32,515 - INFO - Added stock: BURU
+2025-02-25 09:10:32,516 - INFO - Added stock: CHPT
+2025-02-25 09:10:32,516 - INFO - Added stock: CYCU
+2025-02-25 09:10:32,516 - INFO - Added stock: DGLY
+2025-02-25 09:10:32,516 - INFO - Added stock: FOXO
+2025-02-25 09:10:32,516 - INFO - Added stock: LGMK
+2025-02-25 09:10:32,516 - INFO - Added stock: NKLA
+2025-02-25 09:10:32,517 - INFO - Added stock: QVCGA
+2025-02-25 09:10:32,517 - INFO - Added stock: STSS
+2025-02-25 09:10:32,517 - INFO - Added stock: CHSN
+2025-02-25 09:10:32,517 - INFO - Added stock: CNEY
+2025-02-25 09:10:32,517 - INFO - Added stock: CPHI
+2025-02-25 09:10:32,518 - INFO - Added stock: LGHL
+2025-02-25 09:10:32,518 - INFO - Added stock: RETO
+2025-02-25 09:10:32,518 - INFO - Added stock: RTC
+2025-02-25 09:10:32,518 - INFO - Added stock: SXTC
+2025-02-25 09:10:32,518 - INFO - Added stock: FRSX
+2025-02-25 09:10:32,518 - INFO - Added stock: INVZ
+2025-02-25 09:10:32,519 - INFO - Added stock: ICON
+2025-02-25 09:10:32,537 - INFO - Successfully wrote 20 stocks to JSON file
+2025-02-25 09:10:32,538 - INFO - Found 8 stocks matching criteria.
+2025-02-25 09:10:34,741 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-25 09:10:34,741 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-25 09:10:34,743 - INFO - Added stock: HOLO
+2025-02-25 09:10:34,744 - INFO - Added stock: CHSN
+2025-02-25 09:10:34,744 - INFO - Added stock: CHPT
+2025-02-25 09:10:34,744 - INFO - Added stock: NKLA
+2025-02-25 09:10:34,744 - INFO - Added stock: EDIT
+2025-02-25 09:10:34,744 - INFO - Added stock: STSS
+2025-02-25 09:10:34,745 - INFO - Added stock: KPTI
+2025-02-25 09:10:34,745 - INFO - Added stock: ICON
+2025-02-25 09:10:34,752 - INFO - Successfully wrote 8 stocks to JSON file
+2025-02-25 09:10:34,752 - INFO - Found 1 stocks matching criteria.
+2025-02-25 09:10:35,469 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-25 09:10:35,470 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-25 09:10:35,472 - INFO - Added stock: EDIT
+2025-02-25 09:10:35,478 - INFO - Successfully wrote 1 stocks to JSON file
+2025-02-25 09:10:35,478 - INFO - Found 9 stocks matching criteria.
+2025-02-25 09:10:37,171 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-25 09:10:37,172 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-25 09:10:37,175 - INFO - Added stock: CPHI
+2025-02-25 09:10:37,175 - INFO - Added stock: LGHL
+2025-02-25 09:10:37,175 - INFO - Added stock: RETO
+2025-02-25 09:10:37,176 - INFO - Added stock: RTC
+2025-02-25 09:10:37,176 - INFO - Added stock: SXTC
+2025-02-25 09:10:37,176 - INFO - Added stock: WNW
+2025-02-25 09:10:37,176 - INFO - Added stock: DGLY
+2025-02-25 09:10:37,176 - INFO - Added stock: LGMK
+2025-02-25 09:10:37,177 - INFO - Added stock: QVCGA
+2025-02-25 09:10:37,196 - INFO - Successfully wrote 9 stocks to JSON file
+2025-02-25 14:35:04,295 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-25 14:35:04,295 - INFO - === Starting Finviz scraping script ===
+2025-02-25 14:35:04,295 - INFO - Starting Finviz scraping...
+2025-02-25 14:35:04,295 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-25 14:35:04,764 - INFO - Successfully scraped 20 stocks
+2025-02-25 14:35:04,764 - INFO - Starting Finviz scraping...
+2025-02-25 14:35:04,765 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-25 14:35:05,060 - INFO - Successfully scraped 8 stocks
+2025-02-25 14:35:05,060 - INFO - Starting Finviz scraping...
+2025-02-25 14:35:05,060 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-25 14:35:05,349 - INFO - Successfully scraped 1 stocks
+2025-02-25 14:35:05,350 - INFO - Starting Finviz scraping...
+2025-02-25 14:35:05,350 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-25 14:35:05,715 - INFO - Successfully scraped 8 stocks
+2025-02-25 14:35:05,716 - INFO - Found 20 stocks matching criteria.
+2025-02-25 14:35:06,067 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-25 14:35:06,067 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-25 14:35:06,069 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-25 14:35:06,069 - INFO - Found 8 stocks matching criteria.
+2025-02-25 14:35:06,458 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-25 14:35:06,458 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-25 14:35:06,460 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-25 14:35:06,460 - INFO - Found 1 stocks matching criteria.
+2025-02-25 14:35:06,588 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-25 14:35:06,588 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-25 14:35:06,590 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-25 14:35:06,590 - INFO - Found 8 stocks matching criteria.
+2025-02-25 14:35:06,858 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
+2025-02-25 14:35:06,859 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-25 14:35:06,859 - INFO - Recent data exists (less than 12 hours old). Skipping update.
+2025-02-26 09:10:17,613 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-26 09:10:17,613 - INFO - === Starting Finviz scraping script ===
+2025-02-26 09:10:17,613 - INFO - Starting Finviz scraping...
+2025-02-26 09:10:17,614 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-26 09:10:18,770 - INFO - Successfully scraped 19 stocks
+2025-02-26 09:10:18,784 - INFO - Starting Finviz scraping...
+2025-02-26 09:10:18,785 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-26 09:10:20,176 - INFO - Successfully scraped 6 stocks
+2025-02-26 09:10:20,177 - INFO - Starting Finviz scraping...
+2025-02-26 09:10:20,177 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-26 09:10:20,982 - INFO - Successfully scraped 2 stocks
+2025-02-26 09:10:20,983 - INFO - Starting Finviz scraping...
+2025-02-26 09:10:20,983 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-26 09:10:22,392 - INFO - Successfully scraped 7 stocks
+2025-02-26 09:10:22,393 - INFO - Found 19 stocks matching criteria.
+2025-02-26 09:10:23,095 - WARNING - No exchange found for country: Ireland
+2025-02-26 09:10:24,869 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-26 09:10:24,870 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-26 09:10:24,873 - INFO - Added stock: ADIL
+2025-02-26 09:10:24,873 - INFO - Added stock: CHPT
+2025-02-26 09:10:24,873 - INFO - Added stock: CYCU
+2025-02-26 09:10:24,874 - INFO - Added stock: DDC
+2025-02-26 09:10:24,874 - INFO - Added stock: DGLY
+2025-02-26 09:10:24,874 - INFO - Added stock: HCTI
+2025-02-26 09:10:24,874 - INFO - Added stock: LGMK
+2025-02-26 09:10:24,874 - INFO - Added stock: NKLA
+2025-02-26 09:10:24,875 - INFO - Added stock: PTPI
+2025-02-26 09:10:24,875 - INFO - Added stock: QVCGA
+2025-02-26 09:10:24,875 - INFO - Added stock: URG
+2025-02-26 09:10:24,875 - INFO - Added stock: YYAI
+2025-02-26 09:10:24,875 - INFO - Added stock: BREA
+2025-02-26 09:10:24,875 - INFO - Added stock: DMN
+2025-02-26 09:10:24,876 - INFO - Added stock: VERO
+2025-02-26 09:10:24,876 - INFO - Added stock: ICON
+2025-02-26 09:10:24,876 - INFO - Added stock: MFI
+2025-02-26 09:10:24,876 - INFO - Added stock: NCI
+2025-02-26 09:10:24,877 - INFO - Added stock: PITA
+2025-02-26 09:10:24,899 - INFO - Successfully wrote 19 stocks to JSON file
+2025-02-26 09:10:24,899 - INFO - Found 6 stocks matching criteria.
+2025-02-26 09:10:26,099 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-26 09:10:26,099 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-26 09:10:26,101 - INFO - Added stock: SLXN
+2025-02-26 09:10:26,101 - INFO - Added stock: CHPT
+2025-02-26 09:10:26,101 - INFO - Added stock: NKLA
+2025-02-26 09:10:26,101 - INFO - Added stock: STAI
+2025-02-26 09:10:26,101 - INFO - Added stock: NVTS
+2025-02-26 09:10:26,101 - INFO - Added stock: ICON
+2025-02-26 09:10:26,107 - INFO - Successfully wrote 6 stocks to JSON file
+2025-02-26 09:10:26,108 - INFO - Found 2 stocks matching criteria.
+2025-02-26 09:10:26,536 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-26 09:10:26,536 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-26 09:10:26,537 - INFO - Added stock: SLXN
+2025-02-26 09:10:26,537 - INFO - Added stock: STAI
+2025-02-26 09:10:26,540 - INFO - Successfully wrote 2 stocks to JSON file
+2025-02-26 09:10:26,540 - INFO - Found 7 stocks matching criteria.
+2025-02-26 09:10:27,066 - WARNING - No exchange found for country: Ireland
+2025-02-26 09:10:28,375 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-26 09:10:28,375 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-26 09:10:28,378 - INFO - Added stock: ADIL
+2025-02-26 09:10:28,378 - INFO - Added stock: DDC
+2025-02-26 09:10:28,378 - INFO - Added stock: HCTI
+2025-02-26 09:10:28,378 - INFO - Added stock: BREA
+2025-02-26 09:10:28,379 - INFO - Added stock: MFI
+2025-02-26 09:10:28,379 - INFO - Added stock: NCI
+2025-02-26 09:10:28,379 - INFO - Added stock: VERO
+2025-02-26 09:10:28,398 - INFO - Successfully wrote 7 stocks to JSON file
+2025-02-27 10:28:23,563 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2025-02-27 10:28:23,563 - INFO - === Starting Finviz scraping script ===
+2025-02-27 10:28:23,563 - INFO - Starting Finviz scraping...
+2025-02-27 10:28:23,563 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2025-02-27 10:28:27,490 - INFO - Successfully scraped 19 stocks
+2025-02-27 10:28:27,521 - INFO - Starting Finviz scraping...
+2025-02-27 10:28:27,521 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2025-02-27 10:28:28,446 - INFO - Successfully scraped 7 stocks
+2025-02-27 10:28:28,446 - INFO - Starting Finviz scraping...
+2025-02-27 10:28:28,446 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2025-02-27 10:28:30,046 - INFO - Successfully scraped 5 stocks
+2025-02-27 10:28:30,046 - INFO - Starting Finviz scraping...
+2025-02-27 10:28:30,046 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2025-02-27 10:28:31,428 - INFO - Successfully scraped 10 stocks
+2025-02-27 10:28:31,428 - INFO - Found 19 stocks matching criteria.
+2025-02-27 10:28:33,058 - WARNING - Error checking market hours for Japan: Class TSE is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2025-02-27 10:28:33,058 - WARNING - Error checking market hours for Singapore: Class SGX is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2025-02-27 10:28:35,590 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-27 10:28:35,590 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2025-02-27 10:28:35,590 - INFO - Added stock: AIM
+2025-02-27 10:28:35,590 - INFO - Added stock: AWH
+2025-02-27 10:28:35,590 - INFO - Added stock: CGTX
+2025-02-27 10:28:35,590 - INFO - Added stock: DGLY
+2025-02-27 10:28:35,590 - INFO - Added stock: GCTK
+2025-02-27 10:28:35,590 - INFO - Added stock: HCTI
+2025-02-27 10:28:35,590 - INFO - Added stock: LGMK
+2025-02-27 10:28:35,590 - INFO - Added stock: ONVO
+2025-02-27 10:28:35,590 - INFO - Added stock: PTPI
+2025-02-27 10:28:35,590 - INFO - Added stock: QVCGA
+2025-02-27 10:28:35,590 - INFO - Added stock: SCPX
+2025-02-27 10:28:35,590 - INFO - Added stock: STSS
+2025-02-27 10:28:35,590 - INFO - Added stock: URG
+2025-02-27 10:28:35,590 - INFO - Added stock: BLMZ
+2025-02-27 10:28:35,590 - INFO - Added stock: BTOG
+2025-02-27 10:28:35,590 - INFO - Added stock: CPOP
+2025-02-27 10:28:35,590 - INFO - Added stock: INVZ
+2025-02-27 10:28:35,590 - INFO - Added stock: IPA
+2025-02-27 10:28:35,590 - INFO - Added stock: PITA
+2025-02-27 10:28:35,621 - INFO - Successfully wrote 19 stocks to JSON file
+2025-02-27 10:28:35,621 - INFO - Found 7 stocks matching criteria.
+2025-02-27 10:28:37,209 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-27 10:28:37,209 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2025-02-27 10:28:37,209 - INFO - Added stock: LCID
+2025-02-27 10:28:37,209 - INFO - Added stock: BTBT
+2025-02-27 10:28:37,209 - INFO - Added stock: STSS
+2025-02-27 10:28:37,209 - INFO - Added stock: WKHS
+2025-02-27 10:28:37,209 - INFO - Added stock: HRTX
+2025-02-27 10:28:37,209 - INFO - Added stock: PYXS
+2025-02-27 10:28:37,209 - INFO - Added stock: PBM
+2025-02-27 10:28:37,225 - INFO - Successfully wrote 7 stocks to JSON file
+2025-02-27 10:28:37,225 - INFO - Found 5 stocks matching criteria.
+2025-02-27 10:28:38,575 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-27 10:28:38,575 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2025-02-27 10:28:38,575 - INFO - Added stock: BTBT
+2025-02-27 10:28:38,575 - INFO - Added stock: STSS
+2025-02-27 10:28:38,575 - INFO - Added stock: WKHS
+2025-02-27 10:28:38,575 - INFO - Added stock: HRTX
+2025-02-27 10:28:38,591 - INFO - Added stock: PBM
+2025-02-27 10:28:38,591 - INFO - Successfully wrote 5 stocks to JSON file
+2025-02-27 10:28:38,591 - INFO - Found 10 stocks matching criteria.
+2025-02-27 10:28:40,566 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2025-02-27 10:28:40,566 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2025-02-27 10:28:40,601 - INFO - Added stock: AIM
+2025-02-27 10:28:40,601 - INFO - Added stock: AWH
+2025-02-27 10:28:40,601 - INFO - Added stock: GCTK
+2025-02-27 10:28:40,601 - INFO - Added stock: HCTI
+2025-02-27 10:28:40,601 - INFO - Added stock: QVCGA
+2025-02-27 10:28:40,601 - INFO - Added stock: SCPX
+2025-02-27 10:28:40,601 - INFO - Added stock: STSS
+2025-02-27 10:28:40,601 - INFO - Added stock: URG
+2025-02-27 10:28:40,601 - INFO - Added stock: CPOP
+2025-02-27 10:28:40,601 - INFO - Added stock: PITA
+2025-02-27 10:28:40,640 - INFO - Successfully wrote 10 stocks to JSON file

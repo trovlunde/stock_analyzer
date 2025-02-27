@@ -31,6 +31,18 @@ def save_cache(df):
     df.to_parquet(cache_path)
 
 
+def is_weekend(date):
+    """Check if a date falls on a weekend"""
+    return date.weekday() >= 5
+
+
+def get_last_business_day(date):
+    """Get the last business day on or before the given date"""
+    while is_weekend(date):
+        date = date - timedelta(days=1)
+    return date
+
+
 def fetch_daily_returns(ticker, signal_date, current_date):
     """
     Fetch detailed daily returns for visualization.
@@ -39,50 +51,83 @@ def fetch_daily_returns(ticker, signal_date, current_date):
     time.sleep(0.1)
     print(f"\nProcessing {ticker} (signal date: {signal_date})", end='')
 
-    # Adjust signal date to previous business day if it's a weekend
-    # If signal is on Saturday or Sunday, use Friday's data
-    original_signal_date = signal_date
+    # Calculate expected end date (10 days after signal)
+    expected_end_date = signal_date + timedelta(days=10)
+    # Adjust expected end date to last business day if it falls on weekend
+    expected_end_date = get_last_business_day(expected_end_date)
 
-    if signal_date.weekday() == 0:  # 5 = Saturday, 6 = Sunday
-        days_to_subtract = signal_date.weekday() + 3  # 4 = Friday
-        signal_date = signal_date - timedelta(days=days_to_subtract)
-        print(f" (adjusted to {signal_date})", end='')
+    # Adjust signal date to previous business day if it's a weekend
+    original_signal_date = signal_date
+    prev_market_day = signal_date - timedelta(days=1)
+
+    if signal_date.weekday() == 0:  # Monday
+        days_to_subtract = signal_date.weekday() + 3  # Go back to Friday
+        prev_market_day = signal_date - timedelta(days=days_to_subtract)
+        print(f" (adjusted to {prev_market_day})", end='')
 
     # Fetch from day before signal to capture both the signal day and future returns
     start_date = signal_date - timedelta(days=45)
     # Use original date for end range
     end_date = original_signal_date + timedelta(days=10)
 
-    stock = yf.Ticker(ticker)
-    hist = stock.history(
-        start=start_date,
-        end=min(end_date, current_date.date() + timedelta(days=1)),
-        interval='1d'
-    )
+    try:
+        stock = yf.Ticker(ticker)
+        hist = stock.history(
+            start=start_date,
+            end=end_date + timedelta(days=1),
+            interval='1d'
+        )
+    except Exception as e:
+        print(f" ✗ (Error fetching data: {str(e)})")
+        return None, None, False
 
     if hist.empty:
         print(" ✗ (No data available)")
-        return None, None
+        return None, None, False
 
-    print(signal_date)
+    # Check if we have complete data
+    actual_end_date = hist.index[-1].date()
+    has_complete_data = actual_end_date >= expected_end_date
 
-    # Find signal day data to get the open price
-    # For Monday signals after weekend, look for Friday's data
-    # Convert index to date for comparison
+    # Find signal day data
     signal_day_data = hist[hist.index.date == signal_date]
 
     if len(signal_day_data) == 0:
-        print(" ✗ (No signal day data)")
-        return None, None
+        # If no signal day data (e.g., for today's signals), try to use previous day's close
+        prev_days_data = hist[hist.index.date < signal_date].tail(1)
+        if len(prev_days_data) == 0:
+            print(" ✗ (No signal day data or previous day data)")
+            return None, None, False
 
-    # Use signal day's open as reference price
-    reference_price = signal_day_data['Open'].iloc[0]
+        # Use previous day's close as reference price
+        reference_price = prev_days_data['Close'].iloc[0]
+        print(f" (Using previous day's close: {reference_price})")
+
+        # Create a DataFrame for signal day using previous day's close as open
+        signal_day_data = pd.DataFrame({
+            'Open': reference_price,
+            'High': reference_price,  # Will be updated if we get data during the day
+            'Low': reference_price,   # Will be updated if we get data during the day
+            'Close': reference_price  # Will be updated if we get data during the day
+        }, index=[pd.Timestamp(signal_date)])
+
+        # If we have partial data for today, update the high/low/close
+        today_partial = hist[hist.index.date == signal_date]
+        if len(today_partial) > 0:
+            signal_day_data['High'] = today_partial['High'].iloc[0]
+            signal_day_data['Low'] = today_partial['Low'].iloc[0]
+            signal_day_data['Close'] = today_partial['Close'].iloc[0]
+    else:
+        # Use signal day's open as reference price
+        reference_price = signal_day_data['Open'].iloc[0]
 
     # Calculate standard returns (for compatibility)
     next_day_return = None
     next_week_return = None
     next_day_high_return = None
     next_week_high_return = None
+    next_day_low_return = None
+    next_week_low_return = None
 
     # Calculate returns starting from signal day
     signal_day_returns = hist[hist.index.date >= signal_date].copy()
@@ -93,12 +138,16 @@ def fetch_daily_returns(ticker, signal_date, current_date):
             signal_day_data['Close'].iloc[0] - reference_price) / reference_price
         next_day_high_return = (
             signal_day_data['High'].iloc[0] - reference_price) / reference_price
+        next_day_low_return = (
+            signal_day_data['Low'].iloc[0] - reference_price) / reference_price
 
         if len(signal_day_returns) >= 5:
             next_week_return = (
                 signal_day_returns['Close'].iloc[4] - reference_price) / reference_price
             next_week_high_return = (
                 signal_day_returns['High'].iloc[4] - reference_price) / reference_price
+            next_week_low_return = (
+                signal_day_returns['Low'].iloc[4] - reference_price) / reference_price
 
     standard_returns = {
         'Ticker': ticker,
@@ -107,6 +156,8 @@ def fetch_daily_returns(ticker, signal_date, current_date):
         'next_week_return': next_week_return,
         'next_day_high_return': next_day_high_return,
         'next_week_high_return': next_week_high_return,
+        'next_day_low_return': next_day_low_return,
+        'next_week_low_return': next_week_low_return,
         'data_start_date': hist.index[0].date(),
         'data_end_date': hist.index[-1].date()
     }
@@ -131,7 +182,7 @@ def fetch_daily_returns(ticker, signal_date, current_date):
     }
 
     print(" ✓")
-    return standard_returns, detailed_returns
+    return standard_returns, detailed_returns, has_complete_data
 
 
 def fetch_stock_returns(df):
@@ -154,7 +205,7 @@ def fetch_stock_returns(df):
         signal_date = pd.to_datetime(row['timestamp']).tz_localize(
             None)  # Convert to timezone-naive datetime
 
-        # Check if data exists in cache first
+        # Check if data exists in cache and is complete
         cached_entry = None
         if not cached_data.empty:
             cached_entry = cached_data[
@@ -162,16 +213,31 @@ def fetch_stock_returns(df):
                 (cached_data['timestamp'] == signal_date)
             ]
 
-        if cached_entry is not None and not cached_entry.empty:
-            returns_data.append(cached_entry.iloc[0].to_dict())
-            successful_fetches += 1
-            print(f"\n{ticker} found in cache ✓")
-            continue
+            if not cached_entry.empty:
+                # Check if cached data is complete
+                if cached_entry['is_complete'].iloc[0]:
+                    returns_data.append(cached_entry.iloc[0].to_dict())
+                    successful_fetches += 1
+                    print(f"\n{ticker} found in cache (complete data) ✓")
+                    continue
+                else:
+                    # Data is incomplete, check if it's older than 2 days
+                    cache_age = (current_date - signal_date).days
+                    if cache_age <= 1:
+                        returns_data.append(cached_entry.iloc[0].to_dict())
+                        successful_fetches += 1
+                        print(
+                            f"\n{ticker} found in cache (incomplete but recent) ✓")
+                        continue
 
         try:
-            standard_returns, detailed_returns = fetch_daily_returns(
+            standard_returns, detailed_returns, has_complete_data = fetch_daily_returns(
                 ticker, signal_date.date(), current_date)
+
             if standard_returns:
+                # Add complete data flag
+                standard_returns['is_complete'] = has_complete_data
+
                 # Ensure consistent datetime types
                 standard_returns['timestamp'] = pd.to_datetime(
                     standard_returns['timestamp'])
@@ -179,6 +245,7 @@ def fetch_stock_returns(df):
                     standard_returns['data_start_date'])
                 standard_returns['data_end_date'] = pd.to_datetime(
                     standard_returns['data_end_date'])
+
                 returns_data.append(standard_returns)
                 if detailed_returns:
                     detailed_returns_data.append(detailed_returns)
@@ -208,17 +275,20 @@ def fetch_stock_returns(df):
                     cached_data[col] = pd.to_datetime(
                         cached_data[col]).dt.tz_localize(None)
 
-            combined_cache = pd.concat([cached_data, returns_df]).drop_duplicates(
-                subset=['Ticker', 'timestamp'])
+            # Update cache, preferring complete data over incomplete
+            combined_cache = pd.concat([cached_data, returns_df])
+            # Sort by is_complete and keep the first (complete takes precedence)
+            combined_cache = combined_cache.sort_values('is_complete', ascending=False).drop_duplicates(
+                subset=['Ticker', 'timestamp'], keep='first')
             save_cache(combined_cache)
 
     return returns_df, detailed_returns_df
 
 
-def load_historical_signals():
+def load_historical_signals(file_name='finviz_recs_up.json'):
     """Load and parse the historical signals from JSON file"""
     try:
-        with open('finviz_recs/finviz_recs.json', 'r') as f:
+        with open(f'finviz_recs/{file_name}', 'r') as f:
             data = json.load(f)
 
         # Convert signals to DataFrame

@@ -50,7 +50,18 @@ def prepare_features(signals_df, returns_df, threshold=0.05, use_technical_featu
 
     # Basic feature
     df['volume_price_ratio'] = df['Volume'] * df['Price']
-    feature_columns.append('volume_price_ratio')
+    # Add previous day returns (high, low, and full day)
+    df['prev_day_high_return'] = df.groupby(
+        'Ticker')['next_day_high_return'].shift(1)
+    df['prev_day_low_return'] = df.groupby(
+        'Ticker')['next_day_low_return'].shift(1)
+    df['prev_day_return'] = df['Change']  # Already have this from earlier
+    feature_columns.extend([
+        'volume_price_ratio',
+        'prev_day_high_return',
+        'prev_day_low_return',
+        'prev_day_return'
+    ])
 
     # Technical features
     if use_technical_features:
@@ -60,6 +71,9 @@ def prepare_features(signals_df, returns_df, threshold=0.05, use_technical_featu
         df['log_price'] = np.log1p(df['Price'])
         df['log_volume'] = np.log1p(df['Volume'])
         df['log_market_cap'] = np.log1p(df['Market Cap'])
+        df['volatility'] = df['Change'].rolling(window=14, min_periods=1).std()
+        df['volatility_2day'] = df['volatility'].rolling(
+            window=2, min_periods=1).std()
 
         # Add previous day return (already in Change column as percentage)
         # This is already in decimal form from earlier cleaning
@@ -93,7 +107,7 @@ def prepare_features(signals_df, returns_df, threshold=0.05, use_technical_featu
             'log_volume',
             'log_market_cap',
             'prev_day_return',
-            'rsi'
+            'rsi',
         ])
 
     # Market context features
@@ -355,31 +369,109 @@ def train_regressor(df, feature_columns, return_type='next_day_return'):
     return reg, scaler, df_predict
 
 
+def plot_prediction_histograms(all_predictions):
+    """Plot scores for each stock with individual points side by side"""
+    # Get all score columns excluding overall score
+    score_cols = [
+        col for col in all_predictions.columns if col.startswith('score_')]
+
+    # Create figure
+    fig = go.Figure()
+
+    # Sort stocks by overall score
+    sorted_predictions = all_predictions.sort_values(
+        'overall_score', ascending=False)
+
+    # Add overall scores as stars FIRST (so they appear behind)
+    fig.add_trace(go.Scatter(
+        x=sorted_predictions['Ticker'],
+        y=sorted_predictions['overall_score'],
+        mode='markers',
+        name='Overall Score',
+        marker=dict(
+            color='red',
+            size=12,
+            symbol='star'
+        )
+    ))
+
+    # Add individual score points
+    # Create small offsets for overlapping points
+    x_positions = []
+    y_values = []
+
+    for ticker in sorted_predictions['Ticker']:
+        scores = sorted_predictions[sorted_predictions['Ticker']
+                                    == ticker][score_cols].values.ravel()
+        # Group same y-values and add small offset
+        unique_scores = {}  # track count of each score
+        for score in scores:
+            if score in unique_scores:
+                unique_scores[score] += 0.15  # small offset
+            else:
+                unique_scores[score] = 0
+            x_positions.append(ticker)
+            y_values.append(score + unique_scores[score])
+
+    fig.add_trace(go.Scatter(
+        x=x_positions,
+        y=y_values,
+        mode='markers',
+        name='Individual Scores',
+        marker=dict(
+            color='blue',
+            size=6,
+            opacity=0.7
+        )
+    ))
+
+    # Update layout
+    fig.update_layout(
+        title='Score Distribution by Stock (Sorted by Overall Score)',
+        xaxis_title='Stock Ticker',
+        yaxis_title='Score (1-10)',
+        width=1200,
+        height=600,
+        showlegend=True,
+        xaxis=dict(
+            tickangle=45  # Angle the ticker labels for better readability
+        )
+    )
+
+    fig.show(renderer="browser")
+
+
+def normalize_to_score(series, min_val=None, max_val=None):
+    """Normalize a series to a 1-10 score"""
+    if min_val is None:
+        min_val = series.min()
+    if max_val is None:
+        max_val = series.max()
+
+    # Handle case where all values are the same
+    if min_val == max_val:
+        return pd.Series([5] * len(series))  # Return middle score
+
+    # Normalize to 0-1 range
+    normalized = (series - min_val) / (max_val - min_val)
+    # Convert to 1-10 range and round to nearest integer
+    scores = (normalized * 9 + 1).round()
+    return scores
+
+
 def main():
     # Load historical signals
     signals_df = load_historical_signals()
     if signals_df is None:
         return
 
-    print(f"\nInitial data sizes:")
-    print(
-        f"Signals DataFrame: {signals_df.shape}, Memory usage: {signals_df.memory_usage().sum() / 1024**2:.2f} MB")
-
     # Fetch returns using cached approach
     returns_df, detailed_returns_df = fetch_stock_returns(signals_df)
-    print(
-        f"Returns DataFrame: {returns_df.shape}, Memory usage: {returns_df.memory_usage().sum() / 1024**2:.2f} MB")
 
     # Check if returns_df is empty
     if returns_df.empty:
         print("No return data available. Please check the stock data fetching process.")
         return
-
-    # Initialize empty DataFrame for predictions with only essential columns
-    all_predictions = None
-
-    # Track unique tickers and timestamps to avoid duplicates
-    processed_pairs = set()
 
     # Test different feature combinations
     feature_combinations = [
@@ -389,101 +481,66 @@ def main():
         (True, True, "With all features")
     ]
 
-    # Train different classifiers
-    classifiers = {
-        'dualclass': ('next_day_positive', train_classifier),
-        'dualclass_high': ('next_day_high_positive', train_classifier),
-        'multiclass_day': ('next_day_return', train_multiclass_classifier),
-        'multiclass_day_high': ('next_week_return', train_multiclass_classifier),
-        'regression_day': ('next_day_return', train_regressor),
-        'regression_day_high': ('next_week_return', train_regressor)
-    }
+    all_predictions = []
 
     for tech_features, market_features, desc in feature_combinations:
-        print(f"\nProcessing feature combination: {desc}")
-        gc.collect()  # Force garbage collection before each iteration
-
         df, feature_columns = prepare_features(
-            signals_df.copy(),
-            returns_df.copy(),
+            signals_df,
+            returns_df,
             use_technical_features=tech_features,
             use_market_features=market_features
         )
 
-        # Store predictions for this feature combination
-        feature_predictions = None
+        # Train different classifiers
+        classifiers = {
+            'dualclass': ('next_day_positive', train_classifier),
+            'dualclass_high': ('next_day_high_positive', train_classifier),
+            'multiclass_day': ('next_day_return', train_multiclass_classifier),
+            'multiclass_day_high': ('next_day_high_return', train_multiclass_classifier),
+            'regression_day': ('next_day_return', train_regressor),
+            'regression_day_high': ('next_day_high_return', train_regressor)
+        }
 
         for model_name, (target, train_func) in classifiers.items():
-            print(f"\nTraining {model_name}")
-            gc.collect()  # Force garbage collection before training
-
             model, scaler, predictions = train_func(
-                df.copy(), feature_columns, target)
+                df, feature_columns, target)
 
             if predictions is not None and len(predictions) > 0:
-                # Select only essential columns
-                pred_cols = [col for col in predictions.columns if 'pred' in col.lower(
-                ) or 'prob' in col.lower()]
-                pred_subset = predictions[[
-                    'Ticker', 'timestamp'] + pred_cols].copy()
-
-                # Rename prediction columns to include feature combination
-                for col in pred_cols:
-                    pred_subset.rename(
-                        columns={col: f'{model_name}_{desc}_{col}'}, inplace=True)
-
-                # Update feature predictions
-                if feature_predictions is None:
-                    feature_predictions = pred_subset
+                # Different column selection based on classifier type
+                if 'multiclass' in model_name:
+                    pred_cols = [
+                        col for col in predictions.columns if 'prob_class_' in col.lower()]
                 else:
-                    feature_predictions = pd.merge(
-                        feature_predictions,
-                        pred_subset,
+                    pred_cols = [
+                        col for col in predictions.columns if 'pred' in col.lower()]
+
+                for col in pred_cols:
+                    predictions[f'{model_name}_{desc}_{col}'] = predictions[col]
+
+                if len(all_predictions) == 0:
+                    all_predictions = predictions[['Ticker', 'timestamp'] +
+                                                  [f'{model_name}_{desc}_{col}' for col in pred_cols]]
+                else:
+                    all_predictions = pd.merge(
+                        all_predictions,
+                        predictions[['Ticker', 'timestamp'] +
+                                    [f'{model_name}_{desc}_{col}' for col in pred_cols]],
                         on=['Ticker', 'timestamp'],
                         how='outer'
                     )
 
-                # Clear memory
-                del predictions, pred_subset
-                gc.collect()
-
-        # After all models for this feature combination, merge with main predictions
-        if all_predictions is None:
-            all_predictions = feature_predictions
-        elif feature_predictions is not None:
-            # Only merge new unique ticker-timestamp pairs
-            new_pairs = set(
-                zip(feature_predictions['Ticker'], feature_predictions['timestamp']))
-            existing_pairs = set(
-                zip(all_predictions['Ticker'], all_predictions['timestamp']))
-
-            if new_pairs - existing_pairs:  # If there are new pairs to add
-                all_predictions = pd.merge(
-                    all_predictions,
-                    feature_predictions,
-                    on=['Ticker', 'timestamp'],
-                    how='outer'
-                )
-
-        # Clear memory
-        del feature_predictions
-        gc.collect()
-
-    # Final processing of predictions
-    if all_predictions is not None and len(all_predictions) > 0:
+    if len(all_predictions) > 0:
         # Separate different types of predictions
-        binary_cols_day = [
-            col for col in all_predictions.columns if 'dualclass_' in col.lower() and not 'high' in col.lower()]
-        binary_cols_high = [
-            col for col in all_predictions.columns if 'dualclass_' in col.lower() and 'high' in col.lower()]
-
-        multiclass_cols_day = [
-            col for col in all_predictions.columns if 'multiclass_day' in col.lower() and not 'high' in col.lower()]
+        binary_cols_day = [col for col in all_predictions.columns if 'dualclass_' in col.lower(
+        ) and not 'high' in col.lower()]
+        binary_cols_high = [col for col in all_predictions.columns if 'dualclass_' in col.lower(
+        ) and 'high' in col.lower()]
+        multiclass_cols_day = [col for col in all_predictions.columns if 'multiclass_day' in col.lower(
+        ) and not 'high' in col.lower()]
         multiclass_cols_high = [
             col for col in all_predictions.columns if 'multiclass_day' in col.lower() and 'high' in col.lower()]
-
-        regression_cols_day = [
-            col for col in all_predictions.columns if 'regression_day_' in col.lower() and not 'high' in col.lower()]
+        regression_cols_day = [col for col in all_predictions.columns if 'regression_day_' in col.lower(
+        ) and not 'high' in col.lower()]
         regression_cols_high = [
             col for col in all_predictions.columns if 'regression_day_' in col.lower() and 'high' in col.lower()]
 
@@ -496,152 +553,290 @@ def main():
                 axis=1)
 
         if multiclass_cols_day:
-            all_predictions['avg_multiclass_pred_day'] = all_predictions[multiclass_cols_day].mean(
+            # Calculate weighted score for each classifier's predictions
+            class_weights = [1, 2, 3, 4, 5]  # Changed weights to 1-5 range
+
+            # Get all unique classifier bases by removing the class number and 'prob_class_' suffix
+            classifier_bases = set('_'.join(
+                col.split('_')[:-2]) for col in multiclass_cols_day if 'prob_class_' in col)
+
+            for base in classifier_bases:
+                # Get all probability columns for this classifier
+                prob_cols = [
+                    col for col in multiclass_cols_day if base in col and 'prob_class_' in col]
+                # Extract class numbers from column names
+                class_nums = [int(col.split('_')[-1]) for col in prob_cols]
+
+                # Calculate weighted score
+                all_predictions[f'{base}_score'] = sum(
+                    all_predictions[col] * class_weights[i]
+                    for i, col in zip(class_nums, prob_cols)
+                )
+
+            score_columns = [
+                col for col in all_predictions.columns if col.endswith('_score')]
+            all_predictions['avg_multiclass_pred_day'] = all_predictions[score_columns].mean(
                 axis=1)
+
         if multiclass_cols_high:
-            all_predictions['avg_multiclass_pred_high'] = all_predictions[multiclass_cols_high].mean(
+            # Similar calculation for high predictions
+            classifier_bases = set('_'.join(
+                col.split('_')[:-2]) for col in multiclass_cols_high if 'prob_class_' in col)
+
+            for base in classifier_bases:
+                prob_cols = [
+                    col for col in multiclass_cols_high if base in col and 'prob_class_' in col]
+                class_nums = [int(col.split('_')[-1]) for col in prob_cols]
+
+                all_predictions[f'{base}_score'] = sum(
+                    all_predictions[col] * class_weights[i]
+                    for i, col in zip(class_nums, prob_cols)
+                )
+
+            score_columns = [col for col in all_predictions.columns if col.endswith(
+                '_score') and 'high' in col.lower()]
+            all_predictions['avg_multiclass_pred_high'] = all_predictions[score_columns].mean(
                 axis=1)
 
         if regression_cols_day:
-            # Calculate the average regression prediction first
             all_predictions['avg_regression_pred_day'] = all_predictions[regression_cols_day].mean(
                 axis=1)
+        if regression_cols_high:
+            all_predictions['avg_regression_pred_high'] = all_predictions[regression_cols_high].mean(
+                axis=1)
 
-            # Sort by average regression prediction
-            regression_display = all_predictions.sort_values(
-                'avg_regression_pred_day', ascending=False)
+        # Now add the normalized scores
+        if binary_cols_day:
+            all_predictions['score_binary_day'] = normalize_to_score(
+                all_predictions['avg_binary_pred_day'], 0, 1)
 
-            # Create a more detailed table showing all regression predictions
-            display_columns = ['Ticker', 'timestamp']
+        if binary_cols_high:
+            all_predictions['score_binary_high'] = normalize_to_score(
+                all_predictions['avg_binary_pred_high'], 0, 1)
 
-            # Group regression columns by feature combination
-            base_reg = [
-                col for col in regression_cols_day if 'Base features only' in col]
-            tech_reg = [
-                col for col in regression_cols_day if 'With technical features' in col]
-            market_reg = [
-                col for col in regression_cols_day if 'With market features' in col]
-            all_reg = [
-                col for col in regression_cols_day if 'With all features' in col]
+        if multiclass_cols_day:
+            all_predictions['score_multiclass_day'] = normalize_to_score(
+                all_predictions['avg_multiclass_pred_day'], 1, 5)
 
-            # Calculate averages for each feature combination
-            if base_reg:
-                regression_display['avg_base'] = regression_display[base_reg].mean(
-                    axis=1).round(3)
-                display_columns.append('avg_base')
-                display_columns.extend(base_reg)
+        if multiclass_cols_high:
+            all_predictions['score_multiclass_high'] = normalize_to_score(
+                all_predictions['avg_multiclass_pred_high'], 1, 5)
 
-            if tech_reg:
-                regression_display['avg_tech'] = regression_display[tech_reg].mean(
-                    axis=1).round(3)
-                display_columns.append('avg_tech')
-                display_columns.extend(tech_reg)
-
-            if market_reg:
-                regression_display['avg_market'] = regression_display[market_reg].mean(
-                    axis=1).round(3)
-                display_columns.append('avg_market')
-                display_columns.extend(market_reg)
-
-            if all_reg:
-                regression_display['avg_all_features'] = regression_display[all_reg].mean(
-                    axis=1).round(3)
-                display_columns.append('avg_all_features')
-                display_columns.extend(all_reg)
-
-            display_columns.append('avg_regression_pred_day')
-
-            regression_fig = go.Figure(data=[go.Table(
-                header=dict(
-                    values=display_columns,
-                    fill_color='paleturquoise',
-                    align='left'
-                ),
-                cells=dict(
-                    values=[regression_display[col]
-                            for col in display_columns],
-                    fill_color='lavender',
-                    align='left'
-                )
-            )])
-
-            regression_fig.update_layout(
-                title='Regression Predictions by Feature Set (Expected Return %) - Day',
-                width=2000,  # Increased width to accommodate more columns
-                height=800
-            )
-            regression_fig.show(renderer="browser")
-
-            # Print top 10 regression predictions with all averages
-            print("\nTop 10 Regression Predictions - Day:")
-            print(regression_display[display_columns].head(10))
+        if regression_cols_day:
+            all_predictions['score_regression_day'] = normalize_to_score(
+                all_predictions['avg_regression_pred_day'])
 
         if regression_cols_high:
-            # Similar structure for high predictions
-            regression_display = all_predictions.sort_values(
-                'avg_regression_pred_high', ascending=False)
+            all_predictions['score_regression_high'] = normalize_to_score(
+                all_predictions['avg_regression_pred_high'])
 
-            display_columns = ['Ticker', 'timestamp']
+        # Calculate overall score as average of individual scores
+        score_cols = [
+            col for col in all_predictions.columns if col.startswith('score_')]
+        if score_cols:
+            all_predictions['overall_score'] = all_predictions[score_cols].mean(
+                axis=1).round()
 
-            base_reg = [
-                col for col in regression_cols_high if 'Base features only' in col]
-            tech_reg = [
-                col for col in regression_cols_high if 'With technical features' in col]
-            market_reg = [
-                col for col in regression_cols_high if 'With market features' in col]
-            all_reg = [
-                col for col in regression_cols_high if 'With all features' in col]
-
-            if base_reg:
-                regression_display['avg_base'] = regression_display[base_reg].mean(
-                    axis=1).round(3)
-                display_columns.append('avg_base')
-                display_columns.extend(base_reg)
-
-            if tech_reg:
-                regression_display['avg_tech'] = regression_display[tech_reg].mean(
-                    axis=1).round(3)
-                display_columns.append('avg_tech')
-                display_columns.extend(tech_reg)
-
-            if market_reg:
-                regression_display['avg_market'] = regression_display[market_reg].mean(
-                    axis=1).round(3)
-                display_columns.append('avg_market')
-                display_columns.extend(market_reg)
-
-            if all_reg:
-                regression_display['avg_all_features'] = regression_display[all_reg].mean(
-                    axis=1).round(3)
-                display_columns.append('avg_all_features')
-                display_columns.extend(all_reg)
-
-            display_columns.append('avg_regression_pred_high')
-
-            regression_fig = go.Figure(data=[go.Table(
-                header=dict(
-                    values=display_columns,
-                    fill_color='paleturquoise',
-                    align='left'
-                ),
-                cells=dict(
-                    values=[regression_display[col]
-                            for col in display_columns],
-                    fill_color='lavender',
-                    align='left'
+            # Add score columns to display tables
+            if binary_cols_day:
+                binary_display = all_predictions.sort_values(
+                    'score_binary_day', ascending=False)
+                binary_fig = go.Figure(data=[go.Table(
+                    header=dict(
+                        values=['Ticker', 'Timestamp', 'Score',
+                                'Binary Score', 'Avg Binary'] + binary_cols_day,
+                        fill_color='paleturquoise',
+                        align='left'
+                    ),
+                    cells=dict(
+                        values=[binary_display['Ticker'],
+                                binary_display['timestamp'],
+                                binary_display['score_binary_day'],
+                                binary_display['score_binary_day'],
+                                binary_display['avg_binary_pred_day']] +
+                        [binary_display[col] for col in binary_cols_day],
+                        fill_color='lavender',
+                        align='left'
+                    )
+                )])
+                binary_fig.update_layout(
+                    title='Normalized Scores (1-10) Comparison',
+                    width=1600,
+                    height=800
                 )
-            )])
+                binary_fig.show(renderer="browser")
 
-            regression_fig.update_layout(
-                title='Regression Predictions by Feature Set (Expected Return %) - High',
-                width=2000,
-                height=800
+            if binary_cols_high:
+                binary_display = all_predictions.sort_values(
+                    'score_binary_high', ascending=False)
+                binary_fig = go.Figure(data=[go.Table(
+                    header=dict(
+                        values=['Ticker', 'Timestamp', 'Score',
+                                'Binary Score', 'Avg Binary'] + binary_cols_high,
+                        fill_color='paleturquoise',
+                        align='left'
+                    ),
+                    cells=dict(
+                        values=[binary_display['Ticker'],
+                                binary_display['timestamp'],
+                                binary_display['score_binary_high'],
+                                binary_display['score_binary_high'],
+                                binary_display['avg_binary_pred_high']] +
+                        [binary_display[col] for col in binary_cols_high],
+                        fill_color='lavender',
+                        align='left'
+                    )
+                )])
+                binary_fig.update_layout(
+                    title='Normalized Scores (1-10) Comparison',
+                    width=1600,
+                    height=800
+                )
+                binary_fig.show(renderer="browser")
+
+            if multiclass_cols_day:
+                multiclass_display = all_predictions.sort_values(
+                    'score_multiclass_day', ascending=False)
+                multiclass_fig = go.Figure(data=[go.Table(
+                    header=dict(
+                        values=['Ticker', 'Timestamp', 'Score', 'Score', 'Avg Score'] +
+                        multiclass_cols_day,
+                        fill_color='paleturquoise',
+                        align='left'
+                    ),
+                    cells=dict(
+                        values=[multiclass_display['Ticker'],
+                                multiclass_display['timestamp'],
+                                multiclass_display['score_multiclass_day'],
+                                multiclass_display['score_multiclass_day'],
+                                multiclass_display['avg_multiclass_pred_day']] +
+                        [multiclass_display[col]
+                            for col in multiclass_cols_day],
+                        fill_color='lavender',
+                        align='left'
+                    )
+                )])
+                multiclass_fig.update_layout(
+                    title='Normalized Scores (1-10) Comparison',
+                    width=1600,
+                    height=800
+                )
+                multiclass_fig.show(renderer="browser")
+
+            if multiclass_cols_high:
+                multiclass_display = all_predictions.sort_values(
+                    'score_multiclass_high', ascending=False)
+                multiclass_fig = go.Figure(data=[go.Table(
+                    header=dict(
+                        values=['Ticker', 'Timestamp', 'Score', 'Score', 'Avg Score'] +
+                        multiclass_cols_high,
+                        fill_color='paleturquoise',
+                        align='left'
+                    ),
+                    cells=dict(
+                        values=[multiclass_display['Ticker'],
+                                multiclass_display['timestamp'],
+                                multiclass_display['score_multiclass_high'],
+                                multiclass_display['score_multiclass_high'],
+                                multiclass_display['avg_multiclass_pred_high']] +
+                        [multiclass_display[col]
+                            for col in multiclass_cols_high],
+                        fill_color='lavender',
+                        align='left'
+                    )
+                )])
+                multiclass_fig.update_layout(
+                    title='Normalized Scores (1-10) Comparison',
+                    width=1600,
+                    height=800
+                )
+                multiclass_fig.show(renderer="browser")
+
+            if regression_cols_day:
+                regression_display = all_predictions.sort_values(
+                    'score_regression_day', ascending=False)
+                regression_fig = go.Figure(data=[go.Table(
+                    header=dict(
+                        values=['Ticker', 'Timestamp', 'Score', 'Score', 'Avg Regression'] +
+                        regression_cols_day,
+                        fill_color='paleturquoise',
+                        align='left'
+                    ),
+                    cells=dict(
+                        values=[regression_display['Ticker'],
+                                regression_display['timestamp'],
+                                regression_display['score_regression_day'],
+                                regression_display['score_regression_day'],
+                                regression_display['avg_regression_pred_day']] +
+                        [regression_display[col]
+                            for col in regression_cols_day],
+                        fill_color='lavender',
+                        align='left'
+                    )
+                )])
+                regression_fig.update_layout(
+                    title='Normalized Scores (1-10) Comparison',
+                    width=1600,
+                    height=800
+                )
+                regression_fig.show(renderer="browser")
+
+            if regression_cols_high:
+                regression_display = all_predictions.sort_values(
+                    'score_regression_high', ascending=False)
+                regression_fig = go.Figure(data=[go.Table(
+                    header=dict(
+                        values=['Ticker', 'Timestamp', 'Score', 'Score', 'Avg Regression'] +
+                        regression_cols_high,
+                        fill_color='paleturquoise',
+                        align='left'
+                    ),
+                    cells=dict(
+                        values=[regression_display['Ticker'],
+                                regression_display['timestamp'],
+                                regression_display['score_regression_high'],
+                                regression_display['score_regression_high'],
+                                regression_display['avg_regression_pred_high']] +
+                        [regression_display[col]
+                            for col in regression_cols_high],
+                        fill_color='lavender',
+                        align='left'
+                    )
+                )])
+                regression_fig.update_layout(
+                    title='Normalized Scores (1-10) Comparison',
+                    width=1600,
+                    height=800
+                )
+                regression_fig.show(renderer="browser")
+
+        # Update the plot_prediction_histograms call to include scores
+        plot_prediction_histograms(all_predictions)
+
+        # Add a new table showing all scores
+        scores_display = all_predictions.sort_values(
+            'overall_score', ascending=False)
+        scores_fig = go.Figure(data=[go.Table(
+            header=dict(
+                values=['Ticker', 'Timestamp', 'Overall Score'] + score_cols,
+                fill_color='paleturquoise',
+                align='left'
+            ),
+            cells=dict(
+                values=[scores_display['Ticker'],
+                        scores_display['timestamp'],
+                        scores_display['overall_score']] +
+                [scores_display[col] for col in score_cols],
+                fill_color='lavender',
+                align='left'
             )
-            regression_fig.show(renderer="browser")
-
-            # Print top 10 regression predictions with all averages
-            print("\nTop 10 Regression Predictions - High:")
-            print(regression_display[display_columns].head(10))
+        )])
+        scores_fig.update_layout(
+            title='Normalized Scores (1-10) Comparison',
+            width=1600,
+            height=800
+        )
+        scores_fig.show(renderer="browser")
 
     return df, all_predictions
 
