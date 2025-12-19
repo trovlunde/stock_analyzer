@@ -12,8 +12,8 @@ def get_tickers_from_finder():
     """Get tickers using one of the stock finder functions"""
     print("\nChoose stock finding method:")
     print("1. High Dividend Stocks")
-    print("2. Undervalued Stocks (Coming soon)")
-    print("3. Undervalued Sectors (Coming soon)")
+    print("2. Undervalued Stocks")
+    print("3. Growth Stocks")
 
     choice = input("> ")
 
@@ -26,7 +26,35 @@ def get_tickers_from_finder():
 
         stocks = find_stocks_by_method(
             'high_dividend', min_yield, min_market_cap, market)
-        display_stocks(stocks)
+        display_stocks(stocks, method='high_dividend')
+
+        if stocks:
+            print("\nSelect tickers from the list above (comma-separated):")
+            selected = input("> ").upper()
+            return [ticker.strip() for ticker in selected.split(",")]
+
+    elif choice == "2":
+        min_market_cap = float(
+            input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
+        market = input("Enter market (default: sp500): ") or "sp500"
+
+        stocks = find_stocks_by_method(
+            'undervalued', min_yield=0.0, min_market_cap=min_market_cap, market=market)
+        display_stocks(stocks, method='undervalued')
+
+        if stocks:
+            print("\nSelect tickers from the list above (comma-separated):")
+            selected = input("> ").upper()
+            return [ticker.strip() for ticker in selected.split(",")]
+
+    elif choice == "3":
+        min_market_cap = float(
+            input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
+        market = input("Enter market (default: sp500): ") or "sp500"
+
+        stocks = find_stocks_by_method(
+            'growth', min_yield=0.0, min_market_cap=min_market_cap, market=market)
+        display_stocks(stocks, method='growth')
 
         if stocks:
             print("\nSelect tickers from the list above (comma-separated):")
@@ -74,10 +102,19 @@ def main():
                 continue
 
             display_stock_data(df, events, ticker)
-            analysis = analyze_stock_data(df)
-            print("\nStock Analysis:")
-            for metric, value in analysis.items():
-                print(f"{metric}: {value:.4f}")
+            try:
+                analysis = analyze_stock_data(df)
+                print("\nStock Analysis:")
+                for metric, value in analysis.items():
+                    if value is not None:
+                        if isinstance(value, (int, float)):
+                            print(f"{metric}: {value:.4f}")
+                        else:
+                            print(f"{metric}: {value}")
+                    else:
+                        print(f"{metric}: N/A")
+            except Exception as e:
+                print(f"\nError analyzing stock data: {e}")
 
         elif mode == '2':
             # Portfolio analysis
@@ -132,48 +169,93 @@ def main():
                 continue
 
             # Calculate and display correlation matrix
-            print("\nPortfolio Correlation Matrix:")
-            correlation_matrix = analyze_portfolio_correlation(stock_data)
-            print(correlation_matrix)
+            if len(stock_data) > 1:
+                print("\nPortfolio Correlation Matrix:")
+                try:
+                    correlation_matrix = analyze_portfolio_correlation(
+                        stock_data)
+                    print(correlation_matrix)
+                except Exception as e:
+                    print(f"Error calculating correlation matrix: {e}")
+            else:
+                print("\nSkipping correlation matrix (requires at least 2 stocks)")
 
             # Calculate and display optimal portfolio weights
-            print("\nOptimal Portfolio Weights:")
-            try:
-                weights = optimize_portfolio(stock_data)
-                for ticker, weight in weights.items():
-                    print(f"{ticker}: {weight:.2%}")
-            except Exception as e:
-                print(f"Error calculating optimal weights: {e}")
+            if len(stock_data) > 1:
+                print("\nOptimal Portfolio Weights:")
+                try:
+                    weights = optimize_portfolio(stock_data)
+                    for ticker, weight in weights.items():
+                        print(f"{ticker}: {weight:.2%}")
+                except Exception as e:
+                    print(f"Error calculating optimal weights: {e}")
+                    print(
+                        "Note: Portfolio optimization requires at least 2 stocks with sufficient data overlap.")
+            else:
+                print("\nSkipping portfolio optimization (requires at least 2 stocks)")
 
             # Display individual stock metrics
             print("\nIndividual Stock Metrics:")
             for ticker, df in stock_data.items():
-                analysis = analyze_stock_data(df)
-                print(f"\n{ticker}:")
-                for metric, value in analysis.items():
-                    print(f"{metric}: {value:.4f}")
+                try:
+                    analysis = analyze_stock_data(df)
+                    print(f"\n{ticker}:")
+                    for metric, value in analysis.items():
+                        if value is not None:
+                            if isinstance(value, (int, float)):
+                                print(f"  {metric}: {value:.4f}")
+                            else:
+                                print(f"  {metric}: {value}")
+                        else:
+                            print(f"  {metric}: N/A")
+                except Exception as e:
+                    print(f"\n{ticker}: Error analyzing - {e}")
 
-            plot_efficient_frontier(stock_data)
+            if len(stock_data) > 1:
+                try:
+                    plot_efficient_frontier(stock_data)
+                except Exception as e:
+                    print(f"Error plotting efficient frontier: {e}")
 
         elif mode == '3':
             # Stock finder
             print("\nWhich stock finding method would you like to use?")
             print("1. High Dividend Stocks")
             print("2. Undervalued Stocks")
-            print("3. Undervalued Sectors")
+            print("3. Growth Stocks")
             select_mode = input("> ")
 
             if select_mode == "1":
-                tickers = find_stocks_by_method('high_dividend')
-                display_stocks(tickers)
+                min_yield = float(
+                    input("\nEnter minimum dividend yield (e.g., 0.03 for 3%): ") or "0.03")
+                min_market_cap = float(
+                    input("Enter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
+                market = input("Enter market (default: sp500): ") or "sp500"
+
+                tickers = find_stocks_by_method(
+                    'high_dividend', min_yield, min_market_cap, market)
+                display_stocks(tickers, method='high_dividend')
 
             elif select_mode == "2":
-                tickers = find_stocks_by_method('undervalued')
-                display_stocks(tickers)
+                min_market_cap = float(
+                    input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
+                market = input("Enter market (default: sp500): ") or "sp500"
+
+                tickers = find_stocks_by_method(
+                    'undervalued', min_yield=0.0, min_market_cap=min_market_cap, market=market)
+                display_stocks(tickers, method='undervalued')
 
             elif select_mode == "3":
-                tickers = find_stocks_by_method('undervalued_sector')
-                display_stocks(tickers)
+                min_market_cap = float(
+                    input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
+                market = input("Enter market (default: sp500): ") or "sp500"
+
+                tickers = find_stocks_by_method(
+                    'growth', min_yield=0.0, min_market_cap=min_market_cap, market=market)
+                display_stocks(tickers, method='growth')
+
+            else:
+                print("Invalid choice")
 
         elif mode == '4':
             # Sector Analysis

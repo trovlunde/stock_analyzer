@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def find_stocks_by_method(method='high_dividend', stockTickers=["AAPL", "MSFT", "GOOGL", "AMZN", "FB", "TSLA", "NVDA", "AMD", "INTC", "QCOM"]):
+def find_stocks_by_method(method='high_dividend', min_yield=0.03, min_market_cap=1e9, market='sp500', stockTickers=None):
     """
     Find stocks based on specified method
 
@@ -14,13 +14,32 @@ def find_stocks_by_method(method='high_dividend', stockTickers=["AAPL", "MSFT", 
         method (str): Method to use ('high_dividend', 'undervalued', 'growth')
         min_yield (float): Minimum dividend yield for dividend method
         min_market_cap (float): Minimum market cap in dollars
-        stockTickers (list): List of stock tickers to search
+        market (str): Market index to search ('sp500', 'nasdaq100', 'dow30', etc.)
+        stockTickers (list, optional): List of stock tickers to search. If None, uses market index.
 
     Returns:
         list: List of dictionaries containing stock info
     """
-    print(f"Fetching {stockTickers} stocks...")
-    stocks = yf.tickers(stockTickers)
+    from .market_indices import MarketIndices
+
+    # Get tickers from market index if not provided
+    if stockTickers is None:
+        try:
+            print(f"Fetching tickers from {market}...")
+            stockTickers = MarketIndices.get_market_tickers(market)
+            if not stockTickers:
+                print(
+                    f"Warning: No tickers found for {market}, using default list")
+                stockTickers = ["AAPL", "MSFT", "GOOGL", "AMZN",
+                                "META", "TSLA", "NVDA", "AMD", "INTC", "QCOM"]
+        except Exception as e:
+            print(f"Error fetching tickers from {market}: {e}")
+            print("Using default ticker list...")
+            stockTickers = ["AAPL", "MSFT", "GOOGL", "AMZN",
+                            "META", "TSLA", "NVDA", "AMD", "INTC", "QCOM"]
+
+    print(f"Fetching data for {len(stockTickers)} stocks...")
+    stocks = yf.Tickers(' '.join(stockTickers))
     filtered_stocks = []
     errors = []
 
@@ -28,13 +47,24 @@ def find_stocks_by_method(method='high_dividend', stockTickers=["AAPL", "MSFT", 
 
     # Method-specific filters and data
     if method == 'high_dividend':
-        dividendStocks = find_high_dividend_stocks(stocks=stocks)
+        filtered_stocks = find_high_dividend_stocks(
+            min_yield=min_yield, min_market_cap=min_market_cap, stocks=stocks)
 
     elif method == 'undervalued':
-        undervaluedStocks = find_undervalued_stocks(stocks=stocks)
+        filtered_stocks = find_undervalued_stocks(
+            min_market_cap=min_market_cap, stocks=stocks)
 
     elif method == 'growth':
-        growthStocks = find_growth_stocks(stocks=stocks)
+        # Note: find_growth_stocks uses a different API, so we pass market ticker
+        # Convert market name to ticker symbol if needed
+        market_ticker_map = {
+            'sp500': '^GSPC',
+            'nasdaq100': '^NDX',
+            'dow30': '^DJI'
+        }
+        market_ticker = market_ticker_map.get(market.lower(), '^GSPC')
+        filtered_stocks = find_growth_stocks(
+            min_market_cap=min_market_cap, marketTicker=market_ticker, growth_threshold=0.2)
 
     # Print summary
     print(f"\nFound {len(filtered_stocks)} matching stocks")
@@ -466,6 +496,3 @@ def find_undervalued_sectors(marketTicker='^GSPC'):
 # Example usage:
 # summary_df, full_data = analyzeSectorMetrics()
 # displaySectorComparison(full_data, 'forward_pe')
-
-
-

@@ -3,85 +3,121 @@ import pandas as pd
 from tqdm import tqdm
 import numpy as np
 from requests_ratelimiter import LimiterSession
+import time
 
 
-def fetch_stock_data(tickers, start_date=None, end_date=None, period="1mo"):
+def fetch_stock_data(tickers, start_date=None, end_date=None, period="1mo", retry_count=3):
     """
-    Fetch stock data and events from Yahoo Finance
+    Fetch stock data and events from Yahoo Finance with retry logic
 
     Args:
         ticker (str): Stock ticker symbol (e.g., 'AAPL' for Apple)
         start_date (str, optional): Start date in 'YYYY-MM-DD' format
         end_date (str, optional): End date in 'YYYY-MM-DD' format
         period (str, optional): Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+        retry_count (int): Number of retry attempts if data fetch fails
 
     Returns:
         tuple: (DataFrame with stock data, DataFrame with events)
     """
-    try:
-        stock = yf.Ticker(tickers)
-
-        # Fetch price data
-        if start_date and end_date:
-            df = stock.history(start=start_date, end=end_date)
-        else:
-            df = stock.history(period=period)
-
-        if df.empty:
-            print(f"No price data found for {tickers}")
-            return None, None
-
-        # Fetch events
-        events = pd.DataFrame()
-
-        # Get dividends
-        dividends = stock.dividends
-        if dividends is not None and not dividends.empty:
-            div_events = pd.DataFrame({
-                'Event': 'Dividend Payment',
-                'Details': dividends.apply(lambda x: f'${x:.2f}')
-            }, index=dividends.index)
-            events = pd.concat([events, div_events])
-
-        # # Add ex-dividend date
-        # try:
-        #     ex_div_date = stock.info.get('exDividendDate')
-        #     if ex_div_date:
-        #         ex_div_timestamp = pd.to_datetime(ex_div_date, unit='s')
-        #         # Localize the timestamp to UTC
-        #         ex_div_timestamp = ex_div_timestamp.tz_localize('UTC')
-        #         next_div = stock.info.get('dividendRate', 'N/A')
-        #         ex_div_event = pd.DataFrame({
-        #             'Event': 'Ex-Dividend Date',
-        #             'Details': f'Next dividend: ${next_div:.2f}' if isinstance(next_div, (int, float)) else 'Amount TBA'
-        #         }, index=[ex_div_timestamp])
-        #         events = pd.concat([events, ex_div_event])
-        # except Exception as e:
-        #     print(f"Error processing ex-dividend date: {e}")
-
+    for attempt in range(retry_count):
         try:
-            print(stock)
-            earnings = stock.earnings_dates
-            if not earnings.empty:
-                earnings_events = pd.DataFrame({
-                    'Event': 'Earnings',
-                    'Details': earnings.apply(lambda row: f"EPS Est: ${row['EPS Estimate']:.2f}, Actual: ${row['Reported EPS']:.2f}"
-                                              if pd.notnull(row['Reported EPS'])
-                                              else f"EPS Est: ${row['EPS Estimate']:.2f}", axis=1)
-                }, index=earnings.index)
-                events = pd.concat([events, earnings_events])
+            stock = yf.Ticker(tickers)
+
+            # Fetch price data with retry logic
+            if start_date and end_date:
+                df = stock.history(start=start_date, end=end_date)
+            else:
+                df = stock.history(period=period)
+
+            # If empty, try alternative methods
+            if df.empty:
+                if attempt < retry_count - 1:
+                    # Try with a longer period as fallback
+                    if period and period != "max":
+                        print(f"Retrying {tickers} with longer period...")
+                        time.sleep(1)  # Brief delay to avoid rate limiting
+                        df = stock.history(period="max")
+                        if not df.empty:
+                            # Filter to requested period if possible
+                            if period in ["1mo", "3mo", "6mo", "1y", "2y", "5y", "10y"]:
+                                days_map = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365,
+                                            "2y": 730, "5y": 1825, "10y": 3650}
+                                days = days_map.get(period, 365)
+                                df = df.tail(days)
+
+                    # If still empty, wait and retry
+                    if df.empty:
+                        wait_time = 2 ** attempt
+                        print(
+                            f"No data on attempt {attempt + 1}, retrying in {wait_time} seconds...")
+                        time.sleep(wait_time)
+                        continue
+                else:
+                    # Last attempt: try to get info to verify ticker is valid
+                    try:
+                        info = stock.info
+                        if info and 'symbol' in info:
+                            print(
+                                f"Warning: No price data available for {tickers} but ticker appears valid.")
+                            print(
+                                "This may be a temporary API issue. Try again later or use a different period.")
+                        else:
+                            print(
+                                f"No price data found for {tickers}. Ticker may be invalid or delisted.")
+                    except:
+                        print(f"No price data found for {tickers}")
+                    return None, None
+
+            # Fetch events
+            events = pd.DataFrame()
+
+            # Get dividends
+            try:
+                dividends = stock.dividends
+                if dividends is not None and not dividends.empty:
+                    div_events = pd.DataFrame({
+                        'Event': 'Dividend Payment',
+                        'Details': dividends.apply(lambda x: f'${x:.2f}')
+                    }, index=dividends.index)
+                    events = pd.concat([events, div_events])
+            except Exception as e:
+                pass  # Silently skip if dividends can't be fetched
+
+            # Get earnings dates
+            try:
+                earnings = stock.earnings_dates
+                if earnings is not None and not earnings.empty:
+                    earnings_events = pd.DataFrame({
+                        'Event': 'Earnings',
+                        'Details': earnings.apply(lambda row: f"EPS Est: ${row['EPS Estimate']:.2f}, Actual: ${row['Reported EPS']:.2f}"
+                                                  if pd.notnull(row['Reported EPS'])
+                                                  else f"EPS Est: ${row['EPS Estimate']:.2f}", axis=1)
+                    }, index=earnings.index)
+                    events = pd.concat([events, earnings_events])
+            except Exception as e:
+                pass  # Silently skip if earnings can't be fetched
+
+            # Sort events by date
+            if not events.empty:
+                events = events.sort_index()
+
+            return df, events
+
         except Exception as e:
-            print(f"Error processing earnings dates: {e}")
+            if attempt < retry_count - 1:
+                wait_time = 2 ** attempt
+                print(
+                    f"Error fetching data for {tickers} (attempt {attempt + 1}/{retry_count}): {str(e)}")
+                print(f"Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+                continue
+            else:
+                print(
+                    f"Error fetching data for {tickers} after {retry_count} attempts: {str(e)}")
+                return None, None
 
-        # Sort events by date
-        if not events.empty:
-            events = events.sort_index()
-
-        return df, events
-
-    except Exception as e:
-        print(f"Error fetching data: {e}")
-        return None, None
+    return None, None
 
 
 def fetch_stocks_data(tickers):
