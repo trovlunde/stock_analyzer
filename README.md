@@ -6,6 +6,12 @@ How to run:
 
 Run the interactive command-line interface:
 
+**Using Poetry:**
+```bash
+poetry run python -m stock_analysis.main
+```
+
+**Or using pip:**
 ```bash
 python -m stock_analysis.main
 ```
@@ -20,6 +26,12 @@ This will start an interactive menu where you can:
 
 Start the Flask web server:
 
+**Using Poetry:**
+```bash
+poetry run python app.py
+```
+
+**Or using pip:**
 ```bash
 python app.py
 ```
@@ -91,16 +103,30 @@ python -c "from stock_analysis.market_indices import MarketIndices; print(Market
 
 ### Environment Setup
 
-Make sure you have all dependencies installed:
+**Using Poetry (Recommended):**
+
+This project uses Poetry for dependency management. Make sure Poetry is installed, then:
+
+```bash
+# Install all dependencies
+poetry install
+
+# Run commands using Poetry
+poetry run python -m stock_analysis.main
+poetry run python app.py
+
+# Or activate the Poetry shell
+poetry shell
+python -m stock_analysis.main
+```
+
+**Using pip:**
+
+Alternatively, you can use pip:
 
 ```bash
 pip install -r requirements.txt
-```
-
-Or if using Poetry:
-
-```bash
-poetry install
+python -m stock_analysis.main
 ```
 
 ### Windows PowerShell Examples

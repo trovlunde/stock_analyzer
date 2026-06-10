@@ -1,6 +1,6 @@
 from .fetch_stock_data import fetch_stock_data, fetch_stocks_data
 from .display_stock_data import display_stock_data
-from .analyze_stock_data import analyze_stock_data, analyze_portfolio_correlation, optimize_portfolio
+from .analyze_stock_data import analyze_stock_data, analyze_portfolio_correlation, optimize_portfolio, analyze_stock_vs_sp500
 from .efficient_frontier_plot import plot_efficient_frontier
 from .stock_finder import find_stocks_by_method, display_stocks
 from .market_indices import MarketIndices
@@ -84,10 +84,12 @@ def main():
 
         elif mode == '1':
             # Single stock analysis
-            ticker = input("\nEnter stock ticker (e.g., AAPL): ").upper()
+            ticker = input(
+                "\nEnter stock ticker (e.g., AAPL) [default: ^GSPC]: ").upper() or "^GSPC"
             use_dates = input(
                 "Do you want to specify a date range? (y/n): ").lower()
 
+            period = None
             if use_dates == 'y':
                 start_date = input("Enter start date (YYYY-MM-DD): ")
                 end_date = input("Enter end date (YYYY-MM-DD): ")
@@ -113,6 +115,52 @@ def main():
                             print(f"{metric}: {value}")
                     else:
                         print(f"{metric}: N/A")
+
+                # Add S&P 500 comparison by default
+                print("\n" + "="*60)
+                print("S&P 500 Comparison (^GSPC)")
+                print("="*60)
+                sp500_comparison = analyze_stock_vs_sp500(df, period=period)
+
+                if sp500_comparison:
+                    for metric, value in sp500_comparison.items():
+                        if value is not None:
+                            if isinstance(value, (int, float)):
+                                if 'Performance' in metric or 'Return' in metric:
+                                    print(f"{metric}: {value:.2%}")
+                                elif 'Correlation' in metric:
+                                    print(f"{metric}: {value:.3f}")
+                                else:
+                                    print(f"{metric}: {value:.4f}")
+                            else:
+                                print(f"{metric}: {value}")
+                        else:
+                            print(f"{metric}: N/A")
+
+                    # Add interpretation
+                    if sp500_comparison.get('Beta'):
+                        beta = sp500_comparison['Beta']
+                        if beta > 1.2:
+                            print(
+                                "\n📈 High Beta: Stock is more volatile than the market")
+                        elif beta < 0.8:
+                            print(
+                                "\n📉 Low Beta: Stock is less volatile than the market")
+                        else:
+                            print(
+                                "\n📊 Moderate Beta: Stock volatility similar to market")
+
+                    if sp500_comparison.get('Relative Performance'):
+                        rel_perf = sp500_comparison['Relative Performance']
+                        if rel_perf > 0.1:
+                            print("✅ Outperforming S&P 500 significantly")
+                        elif rel_perf < -0.1:
+                            print("❌ Underperforming S&P 500 significantly")
+                        else:
+                            print("➡️ Performance similar to S&P 500")
+                else:
+                    print("Could not fetch S&P 500 data for comparison")
+
             except Exception as e:
                 print(f"\nError analyzing stock data: {e}")
 

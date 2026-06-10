@@ -16,13 +16,14 @@ def find_undervalued_sectors(marketTicker='^GSPC'):
     print(info)
 
 
-def analyze_and_display_sector_metrics(stocks_df, min_market_cap=1e9):
+def analyze_and_display_sector_metrics(stocks_df, min_market_cap=1e9, show_summary_table=True):
     """
     Analyze and visualize key metrics for each sector
 
     Args:
         stocks_df (pd.DataFrame): DataFrame containing stock data
         min_market_cap (float): Minimum market cap filter
+        show_summary_table (bool): Whether to print summary statistics table
     """
     # Convert numeric columns and handle non-numeric values
     numeric_columns = ['market_cap', 'forward_pe', 'trailing_pe', 'price_to_book',
@@ -54,7 +55,7 @@ def analyze_and_display_sector_metrics(stocks_df, min_market_cap=1e9):
     n_cols = 2
     n_rows = (n_metrics + 1) // 2
 
-    fig = plt.figure(figsize=(15, 5 * n_rows))
+    fig = plt.figure(figsize=(16, 6 * n_rows))
 
     # Create box plots for each metric
     for idx, (metric, title) in enumerate(metrics.items(), 1):
@@ -67,28 +68,71 @@ def analyze_and_display_sector_metrics(stocks_df, min_market_cap=1e9):
 
         ax = plt.subplot(n_rows, n_cols, idx)
 
+        # Filter out extreme outliers for cleaner visualization
+        metric_data = df[['sector', metric]].dropna()
+        metric_data = metric_data[~metric_data[metric].isin(
+            [float('inf'), float('-inf')])]
+
+        # Cap outliers at 95th percentile for better visualization
+        if len(metric_data) > 0:
+            q95 = metric_data[metric].quantile(0.95)
+            q5 = metric_data[metric].quantile(0.05)
+            # Only cap if there are extreme outliers
+            if q95 - q5 > 0:
+                metric_data = metric_data[
+                    (metric_data[metric] >= q5 - 3 * (q95 - q5)) &
+                    (metric_data[metric] <= q95 + 3 * (q95 - q5))
+                ]
+
         # Calculate sector averages (excluding NaN values)
-        sector_stats = df.groupby('sector')[metric].agg(
+        sector_stats = metric_data.groupby('sector')[metric].agg(
             ['mean', 'median', 'std']).round(2)
 
-        # Create box plot
-        sns.boxplot(data=df, x='sector', y=metric, ax=ax)
+        # Create box plot with outlier handling
+        sns.boxplot(data=metric_data, x='sector', y=metric, ax=ax,
+                    showfliers=True, fliersize=3)
 
         # Customize plot
-        ax.set_title(f'{title} by Sector', x=0.5, y=1.05)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.set_title(f'{title} by Sector', fontsize=12, pad=10)
+        ax.set_xticklabels(ax.get_xticklabels(),
+                           rotation=45, ha='right', fontsize=9)
+        ax.grid(True, linestyle='--', alpha=0.3, axis='y')
+        ax.set_xlabel('')
 
-        # Add sector averages as text
+        # Add sector averages as text (only if there's space)
+        y_max = ax.get_ylim()[1]
+        y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
+        text_y = y_max + y_range * 0.05
+
         for i, sector in enumerate(sector_stats.index):
             stats = sector_stats.loc[sector]
             if not pd.isna(stats['mean']):
-                ax.text(i, ax.get_ylim()[1],
-                        f'Mean: {stats["mean"]:.2f}\nMedian: {stats["median"]:.2f}',
-                        ha='center', va='bottom')
+                # Only add text if it won't cause overlap
+                try:
+                    ax.text(i, text_y, f'μ:{stats["mean"]:.1f}',
+                            ha='center', va='bottom', fontsize=7, alpha=0.7)
+                except:
+                    pass  # Skip if text can't be placed
 
     plt.tight_layout()
     plt.show()
+
+    # Print summary statistics table if requested
+    if show_summary_table:
+        print("\n" + "="*80)
+        print("SECTOR SUMMARY STATISTICS")
+        print("="*80)
+        for metric, title in metrics.items():
+            if metric in df.columns:
+                metric_data = df[['sector', metric]].dropna()
+                metric_data = metric_data[~metric_data[metric].isin(
+                    [float('inf'), float('-inf')])]
+                if len(metric_data) > 0:
+                    sector_summary = metric_data.groupby('sector')[metric].agg(
+                        ['mean', 'median', 'std', 'count']).round(2)
+                    print(f"\n{title}:")
+                    print(sector_summary.to_string())
+        print("\n" + "="*80)
 
     # Create summary table
     summary_stats = []
@@ -206,13 +250,14 @@ def analyze_and_display_sector_metrics(stocks_df, min_market_cap=1e9):
     return summary_df, df
 
 
-def display_sector_comparison(sector_data, metrics=['forward_pe']):
+def display_sector_comparison(sector_data, metrics=['forward_pe'], filter_outliers=True):
     """
     Create a detailed comparison visualization for multiple metrics across sectors
 
     Args:
         sector_data (pd.DataFrame): DataFrame containing sector data
         metrics (list): List of metrics to visualize
+        filter_outliers (bool): Whether to filter extreme outliers for cleaner plots
     """
     # Filter out stocks with no sector or 'N/A' sector
     sector_data = sector_data[sector_data['sector'].notna() & (
@@ -224,7 +269,7 @@ def display_sector_comparison(sector_data, metrics=['forward_pe']):
     n_rows = (n_metrics + 1) // 2
 
     fig, axes = plt.subplots(
-        n_rows, n_cols, figsize=(15 * n_cols // 2, 8 * n_rows))
+        n_rows, n_cols, figsize=(16 * n_cols // 2, 9 * n_rows))
     axes = np.array(axes).flatten() if n_metrics > 1 else [axes]
 
     for idx, (metric, ax) in enumerate(zip(metrics, axes)):
@@ -239,24 +284,58 @@ def display_sector_comparison(sector_data, metrics=['forward_pe']):
                     ha='center', va='center')
             continue
 
-        # Create violin plot with individual points
+        # Filter extreme outliers for cleaner visualization
+        if filter_outliers and len(metric_df) > 10:
+            q95 = metric_df[metric].quantile(0.95)
+            q5 = metric_df[metric].quantile(0.05)
+            iqr = q95 - q5
+            if iqr > 0:
+                # Cap outliers at reasonable range (less aggressive than before)
+                lower_bound = q5 - 3 * iqr
+                upper_bound = q95 + 3 * iqr
+                original_count = len(metric_df)
+                metric_df = metric_df[
+                    (metric_df[metric] >= lower_bound) &
+                    (metric_df[metric] <= upper_bound)
+                ]
+                filtered_count = len(metric_df)
+                if original_count > filtered_count:
+                    print(
+                        f"Note: Filtered {original_count - filtered_count} outliers for {metric}")
+
+        # Use violin plot with quartiles instead of swarm plot for less clutter
         sns.violinplot(data=metric_df, x='sector',
-                       y=metric, inner='box', ax=ax)
+                       y=metric, inner='quartile', ax=ax, cut=0)
 
-        # Add swarm plot for individual points
-        sns.swarmplot(data=metric_df, x='sector', y=metric,
-                      color='red', alpha=0.5, size=2, ax=ax)
+        # Optionally add a sample of points if dataset is small enough
+        if len(metric_df) < 500:
+            # Use stripplot with jitter for smaller datasets
+            try:
+                sns.stripplot(data=metric_df, x='sector', y=metric,
+                              color='black', alpha=0.3, size=1.5, ax=ax, jitter=0.2)
+            except:
+                pass  # Skip if stripplot fails
 
-        ax.set_title(f'{metric} Distribution by Sector', x=0.5, y=1.05)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
-        ax.grid(True, linestyle='--', alpha=0.7)
+        ax.set_title(f'{metric.replace("_", " ").title()} Distribution by Sector',
+                     fontsize=11, pad=10)
+        ax.set_xticklabels(ax.get_xticklabels(),
+                           rotation=45, ha='right', fontsize=9)
+        ax.grid(True, linestyle='--', alpha=0.3, axis='y')
+        ax.set_xlabel('')
 
-        # Add sector averages
+        # Add sector averages in a cleaner way
         sector_means = metric_df.groupby('sector')[metric].mean()
-        for i, mean in enumerate(sector_means):
-            if not pd.isna(mean):  # Only add text if mean is valid
-                ax.text(i, ax.get_ylim()[1], f'Mean: {mean:.2f}',
-                        ha='center', va='bottom')
+        y_max = ax.get_ylim()[1]
+        y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
+        text_y = y_max + y_range * 0.03
+
+        for i, (sector, mean) in enumerate(sector_means.items()):
+            if not pd.isna(mean):
+                try:
+                    ax.text(i, text_y, f'μ:{mean:.1f}',
+                            ha='center', va='bottom', fontsize=7, alpha=0.7)
+                except:
+                    pass  # Skip if text can't be placed
 
     # Hide empty subplots if any
     for idx in range(len(metrics), len(axes)):

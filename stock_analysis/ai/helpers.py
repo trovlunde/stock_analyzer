@@ -34,12 +34,35 @@ def get_index_data(ticker, period='10y', start_date=None):
         if start_date is not None:
             print(f"Using start date: {start_date}")
             if os.path.exists(cache_file):
-                if os.path.getmtime(cache_file) > pd.Timestamp.now().timestamp() - (12 * 60 * 60):
-                    print("Using cached data")
-                    # Read the cached data properly
-                    cached_data = pd.read_csv(
-                        cache_file, index_col=0, parse_dates=True)
-                    return cached_data
+                file_age_ok = os.path.getmtime(cache_file) > pd.Timestamp.now().timestamp() - (12 * 60 * 60)
+                
+                if file_age_ok:
+                    try:
+                        cached_data = pd.read_csv(
+                            cache_file, index_col=0, parse_dates=True)
+                        
+                        # Check data freshness
+                        if not cached_data.empty:
+                            try:
+                                latest_date = pd.Timestamp(cached_data.index.max())
+                                now = pd.Timestamp.now()
+                                days_old = (now - latest_date).days
+                                
+                                if days_old > 1:
+                                    print(f"Cache data is {days_old} days old (latest date: {latest_date.date()}), invalidating cache")
+                                elif days_old < -1:
+                                    print(f"Cache data has future dates (latest: {latest_date.date()}), invalidating cache")
+                                else:
+                                    print(f"Using cached data (latest date: {latest_date.date()})")
+                                    return cached_data
+                            except (ValueError, TypeError, AttributeError) as e:
+                                print(f"Error checking cache data dates: {e}, invalidating cache")
+                        else:
+                            print("Cached data is empty, invalidating cache")
+                    except Exception as e:
+                        print(f"Error reading cache file: {e}, invalidating cache")
+                else:
+                    print("Cache file is outdated (file modification time)")
             else:
                 print("Cache file does not exist or is outdated")
                 end_date = start_date
@@ -54,15 +77,40 @@ def get_index_data(ticker, period='10y', start_date=None):
         # Check cache first
         if os.path.exists(cache_file):
             print(f"Found cache file: {cache_file}")
-            if os.path.getmtime(cache_file) > pd.Timestamp.now().timestamp() - (12 * 60 * 60):
-                print("Using cached data")
-                # Read the cached data properly
-                cached_data = pd.read_csv(
-                    cache_file, index_col=0, parse_dates=True)
-                return cached_data
-
-            print("Cache is outdated")
-            print(time.ctime(os.path.getmtime(cache_file)))
+            # Check both file modification time and data freshness
+            file_age_ok = os.path.getmtime(cache_file) > pd.Timestamp.now().timestamp() - (12 * 60 * 60)
+            
+            if file_age_ok:
+                # Read the cached data to check data freshness
+                try:
+                    cached_data = pd.read_csv(
+                        cache_file, index_col=0, parse_dates=True)
+                    
+                    # Check if data is recent enough (latest date should be within 1 day of today)
+                    if not cached_data.empty:
+                        try:
+                            latest_date = pd.Timestamp(cached_data.index.max())
+                            # Check if it's a valid date (not too far in the future or past)
+                            now = pd.Timestamp.now()
+                            days_old = (now - latest_date).days
+                            
+                            # If data is more than 1 day old, invalidate cache
+                            if days_old > 1:
+                                print(f"Cache data is {days_old} days old (latest date: {latest_date.date()}), invalidating cache")
+                            elif days_old < -1:
+                                print(f"Cache data has future dates (latest: {latest_date.date()}), invalidating cache")
+                            else:
+                                print(f"Using cached data (latest date: {latest_date.date()})")
+                                return cached_data
+                        except (ValueError, TypeError, AttributeError) as e:
+                            print(f"Error checking cache data dates: {e}, invalidating cache")
+                    else:
+                        print("Cached data is empty, invalidating cache")
+                except Exception as e:
+                    print(f"Error reading cache file: {e}, invalidating cache")
+            else:
+                print("Cache file is outdated (file modification time)")
+                print(time.ctime(os.path.getmtime(cache_file)))
 
         # Cache doesn't exist or is outdated, try downloading with period
         print(f"Attempting direct download with period={period}")
