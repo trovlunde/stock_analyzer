@@ -2,8 +2,8 @@
 
 ## Current Status
 **Last Updated:** 2026-06-11
-**Tasks Completed:** 3
-**Current Task:** US-004
+**Tasks Completed:** 4
+**Current Task:** none — all complete
 
 ---
 
@@ -16,6 +16,20 @@
 - `prepare_classification_data_cache` accepts `_cache_dir=None` — pass `tmp_path` in tests to avoid touching real cache
 - `prepare_classification_data` returns 3-tuple `(features_df, targets_df, returns_df)`; cache helper unpacks all 3 then returns only `(features_df, targets_df)`
 
+---
+
+## 2026-06-11 - US-004
+- Added `test_train_classifier_batch_no_unpack_error` to `tests/ai/test_fundamental_cache.py`
+- Monkeypatches `prepare_classification_data_cache` in module namespace
+- Two mocked tickers (TICKER_A, TICKER_B) each return 4-sample DataFrames (8 total < 10, skips stratification)
+- Asserts both cache calls happen, no unpack errors, returns `(daily_clf, weekly_clf)` with `.predict` method
+- sklearn UndefinedMetricWarning on test data is benign (tiny dataset, not all classes in test split)
+- Files changed: `tests/ai/test_fundamental_cache.py` (updated)
+- Commands run: `uv run pytest` → 37 passed
+- Ready for PR — closes #2
+- **Learnings for future iterations:**
+  - Monkeypatch `prepare_classification_data_cache` (not just `prepare_classification_data`) when testing `train_classifier`
+  - Keep batch test data < 10 rows total to avoid sklearn stratification edge cases with tiny test splits
 ---
 
 ## 2026-06-11 - US-003

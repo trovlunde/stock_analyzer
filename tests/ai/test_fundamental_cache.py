@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import stock_analysis.ai.fundamental_analysis.fin_statement_classifier as fin_mod
 from stock_analysis.ai.fundamental_analysis.fin_statement_classifier import (
     prepare_classification_data_cache,
+    train_classifier,
 )
 
 _FEATURE_COLS = [
@@ -13,23 +14,24 @@ _FEATURE_COLS = [
 ]
 
 
-def _make_features():
-    idx = pd.date_range("2024-01-01", periods=5, freq="QE")
-    return pd.DataFrame({col: [0.1] * 5 for col in _FEATURE_COLS}, index=idx)
+def _make_features(n=5):
+    idx = pd.date_range("2024-01-01", periods=n, freq="QE")
+    return pd.DataFrame({col: [0.1] * n for col in _FEATURE_COLS}, index=idx)
 
 
-def _make_targets():
-    idx = pd.date_range("2024-01-01", periods=5, freq="QE")
+def _make_targets(n=5):
+    idx = pd.date_range("2024-01-01", periods=n, freq="QE")
+    labels = (["positive", "neutral", "negative", "positive"] * ((n // 4) + 1))[:n]
     return pd.DataFrame(
-        {"daily_target": ["positive"] * 5, "weekly_target": ["positive"] * 5},
+        {"daily_target": labels, "weekly_target": labels},
         index=idx,
     )
 
 
-def _make_returns():
-    idx = pd.date_range("2024-01-01", periods=5, freq="QE")
+def _make_returns(n=5):
+    idx = pd.date_range("2024-01-01", periods=n, freq="QE")
     return pd.DataFrame(
-        {"daily_return": [0.01] * 5, "weekly_return": [0.02] * 5},
+        {"daily_return": [0.01] * n, "weekly_return": [0.02] * n},
         index=idx,
     )
 
@@ -42,7 +44,7 @@ def mock_ticker():
 
 
 def test_cache_miss_returns_two_dataframes(tmp_path, mock_ticker, monkeypatch):
-    features, targets, returns = _make_features(), _make_targets(), _make_returns()
+    features, targets, returns = _make_features(5), _make_targets(5), _make_returns(5)
     monkeypatch.setattr(fin_mod, "prepare_classification_data", lambda t: (features, targets, returns))
 
     result = prepare_classification_data_cache(mock_ticker, _cache_dir=str(tmp_path))
@@ -60,7 +62,7 @@ def test_cache_miss_returns_two_dataframes(tmp_path, mock_ticker, monkeypatch):
 
 
 def test_cache_hit_returns_two_dataframes_without_recompute(tmp_path, mock_ticker, monkeypatch):
-    features, targets, returns = _make_features(), _make_targets(), _make_returns()
+    features, targets, returns = _make_features(5), _make_targets(5), _make_returns(5)
     call_count = {"n": 0}
 
     def fake_prepare(t):
@@ -86,3 +88,30 @@ def test_cache_hit_returns_two_dataframes_without_recompute(tmp_path, mock_ticke
     assert len(X) == len(features)
     assert list(y.columns) == list(targets.columns)
     assert len(y) == len(targets)
+
+
+def test_train_classifier_batch_no_unpack_error(monkeypatch):
+    # 4 samples per ticker = 8 total — below 10 threshold so no stratification
+    features_a = _make_features(4)
+    targets_a = _make_targets(4)
+    features_b = _make_features(4)
+    targets_b = _make_targets(4)
+
+    call_count = {"n": 0}
+
+    def fake_cache(ticker, _cache_dir=None):
+        call_count["n"] += 1
+        if ticker.ticker == "TICKER_A":
+            return features_a.copy(), targets_a.copy()
+        return features_b.copy(), targets_b.copy()
+
+    monkeypatch.setattr(fin_mod, "prepare_classification_data_cache", fake_cache)
+
+    ticker_a = MagicMock(); ticker_a.ticker = "TICKER_A"
+    ticker_b = MagicMock(); ticker_b.ticker = "TICKER_B"
+
+    daily_clf, weekly_clf = train_classifier([ticker_a, ticker_b])
+
+    assert call_count["n"] == 2, "expected one cache call per ticker"
+    assert hasattr(daily_clf, "predict"), "daily_clf must be a fitted classifier"
+    assert hasattr(weekly_clf, "predict"), "weekly_clf must be a fitted classifier"
