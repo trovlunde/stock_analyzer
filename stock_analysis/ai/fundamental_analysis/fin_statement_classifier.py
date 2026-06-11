@@ -147,18 +147,18 @@ def prepare_classification_data(ticker):
     return data[features], data[['daily_target', 'weekly_target']], returns_data
 
 
-def prepare_classification_data_cache(ticker):
+def prepare_classification_data_cache(ticker, _cache_dir=None):
     """Prepare classification data with file-based caching."""
     import os
 
-    # Create cache directory in the project's data folder
-    cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.dirname(__file__)))), 'data', 'fin_classifier_cache')
-    os.makedirs(cache_dir, exist_ok=True)
+    if _cache_dir is None:
+        _cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.dirname(__file__)))), 'data', 'fin_classifier_cache')
+    os.makedirs(_cache_dir, exist_ok=True)
 
     # Create cache filename based on ticker symbol
-    cache_file = os.path.join(cache_dir, f"{ticker.ticker}_data.csv")
-    target_file = os.path.join(cache_dir, f"{ticker.ticker}_targets.csv")
+    cache_file = os.path.join(_cache_dir, f"{ticker.ticker}_data.csv")
+    target_file = os.path.join(_cache_dir, f"{ticker.ticker}_targets.csv")
 
     # Check if cache exists and is recent (less than 30 days old)
     if os.path.exists(cache_file) and os.path.exists(target_file):
