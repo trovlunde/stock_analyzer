@@ -3,7 +3,8 @@ import numpy as np
 from sklearn.model_selection import learning_curve, train_test_split, StratifiedKFold, TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
+from copy import deepcopy
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
@@ -21,9 +22,34 @@ from ...ai.technical_analysis.classifier_comparison import compare_classifiers, 
 from sklearn.utils.class_weight import compute_class_weight
 from ...ai.technical_analysis.rsi_signals import generate_rsi_signals
 from ...ai.technical_analysis.ma_signals import generate_multi_ma_signals
+from ..helpers import classifiers
 
 
-def train_classifier_single_stock(stock_data, use_extra_features=False, predict_weekly=False, threshold=0.005, plot=False, overfit_check=False, classifier=RandomForestClassifier(random_state=42)):
+def temporal_holdout_split(data, holdout_months=None, test_size=0.2):
+    """Split labeled time-series rows into chronological train and holdout sets."""
+    training_data = data[data['Target'].notna()]
+    if holdout_months is not None and holdout_months > 0:
+        cutoff = training_data.index.max() - pd.DateOffset(months=int(holdout_months))
+        train_data = training_data[training_data.index < cutoff]
+        holdout_data = training_data[training_data.index >= cutoff]
+    else:
+        split_idx = int(len(training_data) * (1 - test_size))
+        train_data = training_data.iloc[:split_idx]
+        holdout_data = training_data.iloc[split_idx:]
+    return train_data, holdout_data
+
+
+def train_classifier_single_stock(
+    stock_data,
+    use_extra_features=False,
+    predict_weekly=False,
+    threshold=0.005,
+    plot=False,
+    overfit_check=False,
+    classifier=RandomForestClassifier(random_state=42),
+    eval_split=0.2,
+    verbose=True,
+):
     """Train a three-class classifier."""
     # Get model name and initialize model correctly
     if isinstance(classifier, type):  # If it's a class (not instance)
@@ -34,9 +60,10 @@ def train_classifier_single_stock(stock_data, use_extra_features=False, predict_
         model_name = classifier.__class__.__name__
 
     prediction_type = "Weekly" if predict_weekly else "Daily"
-    print(f"\n{'='*50}")
-    print(f"Training {model_name} for {prediction_type} predictions")
-    print(f"{'='*50}")
+    if verbose:
+        print(f"\n{'='*50}")
+        print(f"Training {model_name} for {prediction_type} predictions")
+        print(f"{'='*50}")
 
     # Prepare features and target
     features = get_features(use_extra_features)
@@ -52,43 +79,50 @@ def train_classifier_single_stock(stock_data, use_extra_features=False, predict_
     X = training_data[features]
     y = training_data['Target']
 
-    # Split training data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42)
+    use_eval_split = eval_split and eval_split > 0
+    if use_eval_split:
+        # Chronological split — never shuffle time-series data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=eval_split, shuffle=False)
+    else:
+        X_train, y_train = X, y
+        X_test, y_test = None, None
 
-    # Scale features using all available feature data (including prediction data)
+    # Fit scaler on training data only to avoid leakage
     scaler = StandardScaler()
-    scaler.fit(stock_data[features])  # Fit on all feature data
+    scaler.fit(X_train)
 
     # Transform all sets
     X_train_scaled = scaler.transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+    X_test_scaled = scaler.transform(X_test) if use_eval_split else None
 
     if contains_new_data:
         # Also prepare the prediction data (rows with NaN targets)
         X_predict = prediction_data[features]
         X_predict_scaled = scaler.transform(X_predict)
 
-        # Combine test and prediction data
-        X_test_full = np.vstack([X_test_scaled, X_predict_scaled])
-        test_indices = np.concatenate([X_test.index, X_predict.index])
-    else:
-        X_test_full = X_test_scaled
+        if use_eval_split:
+            test_indices = np.concatenate([X_test.index, X_predict.index])
+        else:
+            test_indices = X_predict.index
+    elif use_eval_split:
         test_indices = X_test.index
+    else:
+        test_indices = pd.Index([])
 
     # Train model
     model.fit(X_train_scaled, y_train)
 
     # Add after model training but before predictions
-    if overfit_check:
+    if overfit_check and use_eval_split:
         check_overfitting(model, X_train_scaled, X_test_scaled,
                           y_train, y_test, model_name, features)
 
-    # Make predictions
-    y_pred = model.predict(X_test_scaled)
+    # Make predictions on internal eval split when present
+    y_pred = model.predict(X_test_scaled) if use_eval_split else None
 
     # Plot results
-    if plot and hasattr(model, 'feature_importances_'):
+    if plot and verbose and hasattr(model, 'feature_importances_'):
         # Create a simpler, more efficient feature importance plot
         importance = pd.DataFrame({
             'feature': features,
@@ -133,52 +167,71 @@ def train_classifier_single_stock(stock_data, use_extra_features=False, predict_
             'displayModeBar': False
         })
 
-    # Print results
-    print(f"\nClass Distribution for {model_name}:")
-    print(y.value_counts(normalize=True))
+    if verbose:
+        print(f"\nClass Distribution for {model_name}:")
+        print(y.value_counts(normalize=True))
+        if use_eval_split:
+            print(f"\nClassification Report for {model_name}:")
+            print(classification_report(y_test, y_pred))
 
-    print(f"\nClassification Report for {model_name}:")
-    print(classification_report(y_test, y_pred))
-
-    # Create a new data object that includes all the test data
-    full_data = data.copy()
-    full_data.loc[test_indices, 'test_set'] = True
+    # Mark train vs internal-test rows for downstream analysis
+    full_data = stock_data.copy()
+    if len(test_indices) > 0:
+        full_data.loc[test_indices, 'test_set'] = True
     full_data.loc[X_train.index, 'test_set'] = False
 
     return model, scaler, full_data
 
 
-def train_classifier_tickers(tickers, predict_weekly=False, threshold=0.005, plot=False, overfit_check=False, classifier=RandomForestClassifier(random_state=42), use_extra_features=False):
+def train_classifier_tickers(
+    tickers,
+    predict_weekly=False,
+    threshold=0.005,
+    plot=False,
+    overfit_check=False,
+    classifier=RandomForestClassifier(random_state=42),
+    use_extra_features=False,
+    cutoff_date=None,
+    eval_split=0.2,
+    verbose=True,
+):
     """Train a classifier on multiple tickers simultaneously."""
-    # Initialize empty list to store DataFrames
     all_data_frames = []
 
-    print(f"\nPreparing data for {len(tickers)} tickers...")
+    if verbose:
+        print(f"\nPreparing data for {len(tickers)} tickers...")
+        if cutoff_date is not None:
+            print(f"Training cutoff: rows before {pd.Timestamp(cutoff_date).date()}")
 
     # Collect data from all tickers
     for ticker in tickers:
         try:
             stock_data = get_index_data(ticker)
-            # Use cached data preparation
             data = prepare_classification_data_cache(
                 stock_data, predict_weekly, threshold, use_extra_features)
 
             if data is not None:
-                # Add ticker column for reference
+                if cutoff_date is not None:
+                    data = data[data.index < cutoff_date]
+                if len(data) == 0:
+                    continue
+                data = data.copy()
                 data['ticker'] = ticker
                 all_data_frames.append(data)
-                print(f"Successfully processed {ticker}")
+                if verbose:
+                    print(f"Successfully processed {ticker} ({len(data)} rows)")
 
         except Exception as e:
-            print(f"Error processing {ticker}: {e}")
+            if verbose:
+                print(f"Error processing {ticker}: {e}")
             continue
 
     if not all_data_frames:
         raise ValueError("No valid data collected from any ticker")
 
-    # Combine all data frames
     combined_data = pd.concat(all_data_frames, axis=0)
-    print(f"\nCombined dataset shape: {combined_data.shape}")
+    if verbose:
+        print(f"\nCombined dataset shape: {combined_data.shape}")
 
     # Get model name
     if isinstance(classifier, type):  # If it's a class (not instance)
@@ -189,51 +242,51 @@ def train_classifier_tickers(tickers, predict_weekly=False, threshold=0.005, plo
         model_name = classifier.__class__.__name__
 
     prediction_type = "Weekly" if predict_weekly else "Daily"
-    print(f"\n{'='*50}")
-    print(f"Training {model_name} for {prediction_type} predictions")
-    print(f"{'='*50}")
+    if verbose:
+        print(f"\n{'='*50}")
+        print(f"Training {model_name} for {prediction_type} predictions")
+        print(f"{'='*50}")
 
-    # Prepare features and target
     features = get_features(use_extra_features)
-
-    # Split into training data (where we have targets) and prediction data (where we don't)
     training_data = combined_data[combined_data['Target'].notna()]
-    prediction_data = combined_data[combined_data['Target'].isna()]
-
-    # Prepare training sets
     X = training_data[features]
     y = training_data['Target']
 
-    # Split training data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42)
+    use_eval_split = eval_split and eval_split > 0 and cutoff_date is None
+    if use_eval_split:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=eval_split, shuffle=False)
+    else:
+        X_train, y_train = X, y
+        X_test, y_test = None, None
 
-    # Scale features
     scaler = StandardScaler()
-    scaler.fit(X)  # Fit on all feature data
-
-    # Transform all sets
+    scaler.fit(X_train)
     X_train_scaled = scaler.transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+    X_test_scaled = scaler.transform(X_test) if use_eval_split else None
 
-    # Train model
     model.fit(X_train_scaled, y_train)
 
-    if overfit_check:
+    if overfit_check and use_eval_split:
         check_overfitting(model, X_train_scaled, X_test_scaled,
                           y_train, y_test, model_name, features)
 
-    # Make predictions
-    y_pred = model.predict(X_test_scaled)
+    if verbose and use_eval_split:
+        y_pred = model.predict(X_test_scaled)
+        print(f"\nClass Distribution:")
+        print(y.value_counts(normalize=True))
+        print(f"\nInternal chronological classification report:")
+        print(classification_report(y_test, y_pred))
+    elif verbose:
+        print(f"\nClass Distribution:")
+        print(y.value_counts(normalize=True))
+        print(
+            "\nTrained on all pre-cutoff rows; evaluate on the analysis "
+            "ticker holdout for out-of-sample metrics."
+        )
 
-    # Print results
-    print(f"\nClass Distribution:")
-    print(y.value_counts(normalize=True))
-
-    print(f"\nClassification Report:")
-    print(classification_report(y_test, y_pred))
-
-    if plot:
+    if plot and use_eval_split:
+        y_pred = model.predict(X_test_scaled)
         plt.figure(figsize=(8, 6))
         sns.heatmap(confusion_matrix(y_test, y_pred),
                     annot=True,
@@ -259,7 +312,126 @@ def train_classifier_tickers(tickers, predict_weekly=False, threshold=0.005, plo
     return model, scaler, combined_data
 
 
-def simulate_trading(model, scaler, data, investment_amount=100, stock_data=None, threshold=0.005, predict_weekly=False, use_extra_features=False):
+def resolve_backtest_period(
+    prepared_daily,
+    prepared_weekly,
+    stock_data,
+    *,
+    holdout_months=0,
+    cutoff_date=None,
+    train_meta=None,
+):
+    """Resolve out-of-sample rows for trading backtests."""
+    if holdout_months and cutoff_date is not None:
+        eval_daily = prepared_daily[prepared_daily.index >= cutoff_date]
+        eval_weekly = prepared_weekly[prepared_weekly.index >= cutoff_date]
+        eval_stock = stock_data[stock_data.index >= cutoff_date]
+        description = f"temporal holdout ({holdout_months} months)"
+    else:
+        if train_meta is not None and 'test_set' in train_meta.columns:
+            test_index = train_meta.index[train_meta['test_set'] == True]
+        else:
+            _, holdout = temporal_holdout_split(prepared_daily, test_size=0.2)
+            test_index = holdout.index
+
+        eval_daily = prepared_daily.loc[prepared_daily.index.isin(test_index)]
+        eval_weekly = prepared_weekly.loc[prepared_weekly.index.isin(test_index)]
+        eval_stock = stock_data.loc[stock_data.index.isin(test_index)]
+        description = f"internal chronological test set ({len(test_index)} days)"
+
+    if len(eval_daily) == 0 or len(eval_stock) == 0:
+        raise ValueError("No out-of-sample rows available for backtesting")
+
+    return eval_daily, eval_weekly, eval_stock, description
+
+
+def run_movement_backtests(
+    stock_data,
+    daily_model,
+    daily_scaler,
+    prepared_daily,
+    weekly_model,
+    weekly_scaler,
+    prepared_weekly,
+    threshold,
+    use_extra_features,
+    eval_daily,
+    eval_weekly,
+    eval_stock,
+    backtest_label,
+):
+    """Run trading backtests only on out-of-sample evaluation data."""
+    print(f"\n{'='*60}")
+    print(f"Out-of-sample trading backtest: {backtest_label}")
+    print(
+        f"Evaluation window: {eval_stock.index.min().date()} to "
+        f"{eval_stock.index.max().date()} ({len(eval_stock)} days)"
+    )
+    print(f"{'='*60}")
+
+    daily_simulation = simulate_trading(
+        daily_model,
+        daily_scaler,
+        eval_daily,
+        threshold=threshold,
+        stock_data=eval_stock,
+        predict_weekly=False,
+        use_extra_features=use_extra_features,
+        verbose=False,
+    )
+    weekly_simulation = simulate_trading(
+        weekly_model,
+        weekly_scaler,
+        eval_weekly,
+        threshold=threshold,
+        stock_data=eval_stock,
+        predict_weekly=True,
+        use_extra_features=use_extra_features,
+        verbose=False,
+    )
+    combined_signals = full_analysis(
+        eval_stock,
+        eval_daily,
+        daily_model,
+        daily_scaler,
+        eval_weekly,
+        weekly_model,
+        weekly_scaler,
+        threshold=threshold,
+        use_extra_features=use_extra_features,
+        plot=False,
+    )
+
+    analyze_trading_strategies(
+        eval_stock,
+        daily_simulation,
+        initial_investment=10000,
+        leverage=10,
+        signal_type="Daily Model (OOS)",
+    )
+    analyze_trading_strategies(
+        eval_stock,
+        weekly_simulation,
+        initial_investment=10000,
+        leverage=10,
+        signal_type="Weekly Model (OOS)",
+    )
+    analyze_trading_strategies(
+        eval_stock,
+        combined_signals,
+        initial_investment=10000,
+        leverage=10,
+        signal_type="Combined Model (OOS)",
+    )
+
+    return {
+        'daily_simulation': daily_simulation,
+        'weekly_simulation': weekly_simulation,
+        'combined_signals': combined_signals,
+    }
+
+
+def simulate_trading(model, scaler, data, investment_amount=100, stock_data=None, threshold=0.005, predict_weekly=False, use_extra_features=False, verbose=True):
     """Simulate trading based on model predictions."""
     # Get model name
     model_name = model.__class__.__name__
@@ -269,33 +441,34 @@ def simulate_trading(model, scaler, data, investment_amount=100, stock_data=None
 
     # Prepare features for prediction
     X = data[features]
-    print("Simulate trading X", X)
     X_scaled = scaler.transform(X)
 
-    print("\nDebug - Feature order:", features)
-    print("Debug - First row scaled:", X_scaled[0])
-    print("Debug - Model random_state:", model.random_state)
+    if verbose:
+        print("Simulate trading X", X)
+        print("\nDebug - Feature order:", features)
+        print("Debug - First row scaled:", X_scaled[0])
+        print("Debug - Model random_state:", model.random_state)
 
     # Get predictions and probabilities for all data points
     predictions = model.predict(X_scaled)
     probabilities = model.predict_proba(X_scaled)
 
-    print(f"\n{'='*50}")
-    print(
-        f"Trading Simulation Results for {model_name} ({prediction_type} Predictions)")
-    print(f"{'='*50}")
+    if verbose:
+        print(f"\n{'='*50}")
+        print(
+            f"Trading Simulation Results for {model_name} ({prediction_type} Predictions)")
+        print(f"{'='*50}")
 
     # Get the Close prices as a 1D array
     close_prices = stock_data['Close'].values.squeeze()
 
-    # Create simulation DataFrame
+    # Create simulation DataFrame indexed by date for downstream backtests
     simulation = pd.DataFrame({
-        'date': data.index,
         'actual_return': data['return'],
         'prediction': predictions,
-        # Align prices with data index
-        'price': close_prices[stock_data.index.isin(data.index)]
-    })
+        'price': close_prices[stock_data.index.isin(data.index)],
+    }, index=data.index)
+    simulation.index.name = 'date'
 
     # Calculate actual class only where return data is available
     simulation['actual_class'] = pd.cut(simulation['actual_return'],
@@ -339,6 +512,9 @@ def simulate_trading(model, scaler, data, investment_amount=100, stock_data=None
         short_correct = sum((simulation['prediction'] == 'negative') &
                             (simulation['actual_class'] == 'negative'))
         total_short = sum(simulation['prediction'] == 'negative')
+
+        if not verbose:
+            return simulation
 
         # Print results
         print("\nTrading Performance (for known returns):")
@@ -683,13 +859,12 @@ def simulate_trading(model, scaler, data, investment_amount=100, stock_data=None
         # Show the combined figure
         fig.show()
 
-    # Add debug prints
-    print("\nDebug - Latest predictions:")
-    print(f"Latest date: {data.index[-1]}")
-    print(f"Prediction: {predictions[-1]}")
-    print(f"Probabilities: {probabilities[-1]}")
+    if verbose:
+        print("\nDebug - Latest predictions:")
+        print(f"Latest date: {data.index[-1]}")
+        print(f"Prediction: {predictions[-1]}")
+        print(f"Probabilities: {probabilities[-1]}")
 
-    # Return all predictions, including those for dates without known returns
     return simulation
 
 
@@ -815,7 +990,7 @@ def get_recent_predictions(stock_data, daily_data, daily_model, daily_scaler, we
     return results
 
 
-def full_analysis(stock_data, daily_data, daily_model, daily_scaler, weekly_data, weekly_model, weekly_scaler, threshold=0.01, use_extra_features=False):
+def full_analysis(stock_data, daily_data, daily_model, daily_scaler, weekly_data, weekly_model, weekly_scaler, threshold=0.01, use_extra_features=False, plot=True):
     """Analyze stock using both daily and weekly models, showing only where they agree."""
     # Get predictions and probabilities from both models
     features = get_features(use_extra_features)
@@ -853,6 +1028,9 @@ def full_analysis(stock_data, daily_data, daily_model, daily_scaler, weekly_data
     # Add prediction column for trading strategy analysis
     # Since they agree, we can use either one
     agreement_signals['prediction'] = agreement_signals['daily_pred']
+
+    if not plot:
+        return agreement_signals
 
     # Calculate average probability for sizing
     agreement_signals['avg_prob'] = (
@@ -1860,6 +2038,358 @@ def test_model_performance(daily_data, daily_model, daily_scaler, weekly_data, w
     return results
 
 
+DEFAULT_VARIANT_SPECS = [
+    {
+        'name': 'baseline',
+        'threshold': 0.005,
+        'extra_features': False,
+        'n_estimators': 100,
+    },
+    {
+        'name': 'extra_features',
+        'threshold': 0.005,
+        'extra_features': True,
+        'n_estimators': 100,
+    },
+    {
+        'name': 'threshold_1pct',
+        'threshold': 0.01,
+        'extra_features': False,
+        'n_estimators': 100,
+    },
+    {
+        'name': 'threshold_1pct_extra',
+        'threshold': 0.01,
+        'extra_features': True,
+        'n_estimators': 100,
+    },
+    {
+        'name': 'rf_deep',
+        'threshold': 0.005,
+        'extra_features': True,
+        'n_estimators': 200,
+        'max_depth': 10,
+    },
+    {
+        'name': 'rf_shallow',
+        'threshold': 0.005,
+        'extra_features': False,
+        'n_estimators': 50,
+        'max_depth': 3,
+    },
+]
+
+
+def _actual_movement_class(return_val, threshold):
+    if pd.isna(return_val):
+        return None
+    if return_val < -threshold:
+        return 'negative'
+    if return_val > threshold:
+        return 'positive'
+    return 'neutral'
+
+
+def _prediction_accuracy(predictions, actuals):
+    pairs = [(pred, actual) for pred, actual in zip(predictions, actuals) if actual is not None]
+    if not pairs:
+        return None
+    return sum(pred == actual for pred, actual in pairs) / len(pairs)
+
+
+def compute_holdout_metrics(
+    daily_holdout,
+    daily_model,
+    daily_scaler,
+    weekly_holdout,
+    weekly_model,
+    weekly_scaler,
+    threshold,
+    use_extra_features,
+):
+    """Compute holdout metrics for the dual daily+weekly movement classifier pipeline."""
+    features = get_features(use_extra_features)
+    daily_scaled = daily_scaler.transform(daily_holdout[features])
+    weekly_scaled = weekly_scaler.transform(weekly_holdout[features])
+
+    daily_preds = daily_model.predict(daily_scaled)
+    weekly_preds = weekly_model.predict(weekly_scaled)
+    actual_daily = [
+        _actual_movement_class(value, threshold) for value in daily_holdout['return']
+    ]
+    actual_weekly = [
+        _actual_movement_class(value, threshold) for value in weekly_holdout['return']
+    ]
+
+    combined_preds = []
+    for daily_pred, weekly_pred in zip(daily_preds, weekly_preds):
+        if daily_pred == 'positive' and weekly_pred == 'positive':
+            combined_preds.append('positive')
+        elif daily_pred == 'negative' and weekly_pred == 'negative':
+            combined_preds.append('negative')
+        else:
+            combined_preds.append('neutral')
+
+    daily_returns = daily_holdout['return'].tolist()
+    combined_positive_returns = [
+        daily_returns[index]
+        for index, pred in enumerate(combined_preds)
+        if pred == 'positive' and not pd.isna(daily_returns[index])
+    ]
+    combined_negative_returns = [
+        daily_returns[index]
+        for index, pred in enumerate(combined_preds)
+        if pred == 'negative' and not pd.isna(daily_returns[index])
+    ]
+
+    combined_signal_count = sum(pred != 'neutral' for pred in combined_preds)
+    holdout_samples = len(daily_holdout)
+
+    return {
+        'holdout_samples': holdout_samples,
+        'daily_accuracy': _prediction_accuracy(daily_preds, actual_daily),
+        'weekly_accuracy': _prediction_accuracy(weekly_preds, actual_weekly),
+        'combined_accuracy': _prediction_accuracy(combined_preds, actual_daily),
+        'combined_signal_rate': (
+            combined_signal_count / holdout_samples if holdout_samples else None
+        ),
+        'combined_positive_avg_return': (
+            float(np.mean(combined_positive_returns))
+            if combined_positive_returns else None
+        ),
+        'combined_negative_avg_return': (
+            float(np.mean(combined_negative_returns))
+            if combined_negative_returns else None
+        ),
+    }
+
+
+def _build_variant_classifier(variant):
+    params = {
+        'n_estimators': variant.get('n_estimators', 100),
+        'random_state': 42,
+    }
+    if 'max_depth' in variant:
+        params['max_depth'] = variant['max_depth']
+    return RandomForestClassifier(**params)
+
+
+def compare_variants(
+    ticker='^GSPC',
+    period='20y',
+    holdout_months=12,
+    variants=None,
+    verbose=True,
+):
+    """
+    Train multiple movement-classifier pipeline variants on the same train period
+    and compare them on a shared temporal holdout.
+    """
+    if variants is None:
+        variants = DEFAULT_VARIANT_SPECS
+
+    data = get_index_data(ticker, period)
+    if data is None or data.empty:
+        raise ValueError(f"No data for {ticker}")
+
+    rows = []
+    holdout_start = None
+
+    for variant in variants:
+        name = variant['name']
+        threshold = variant['threshold']
+        use_extra_features = variant['extra_features']
+
+        if verbose:
+            print(f"\n{'='*60}")
+            print(f"Variant: {name}")
+            print(f"{'='*60}")
+
+        prepared_daily = prepare_classification_data(
+            data,
+            predict_weekly=False,
+            threshold=threshold,
+            use_extra_features=use_extra_features,
+        ).dropna()
+        prepared_weekly = prepare_classification_data(
+            data,
+            predict_weekly=True,
+            threshold=threshold,
+            use_extra_features=use_extra_features,
+        ).dropna()
+
+        daily_train, daily_holdout = temporal_holdout_split(
+            prepared_daily, holdout_months=holdout_months
+        )
+        weekly_train, weekly_holdout = temporal_holdout_split(
+            prepared_weekly, holdout_months=holdout_months
+        )
+        holdout_start = daily_holdout.index.min()
+
+        classifier = _build_variant_classifier(variant)
+        daily_model, daily_scaler, _ = train_classifier_single_stock(
+            daily_train,
+            use_extra_features=use_extra_features,
+            threshold=threshold,
+            classifier=classifier,
+            eval_split=0,
+            verbose=False,
+        )
+        weekly_model, weekly_scaler, _ = train_classifier_single_stock(
+            weekly_train,
+            predict_weekly=True,
+            use_extra_features=use_extra_features,
+            threshold=threshold,
+            classifier=_build_variant_classifier(variant),
+            eval_split=0,
+            verbose=False,
+        )
+
+        metrics = compute_holdout_metrics(
+            daily_holdout,
+            daily_model,
+            daily_scaler,
+            weekly_holdout,
+            weekly_model,
+            weekly_scaler,
+            threshold,
+            use_extra_features,
+        )
+
+        rows.append({
+            'variant': name,
+            'threshold': threshold,
+            'extra_features': use_extra_features,
+            'n_estimators': variant.get('n_estimators', 100),
+            'max_depth': variant.get('max_depth', 'default'),
+            'train_samples': len(daily_train),
+            **metrics,
+        })
+
+    results = pd.DataFrame(rows).sort_values(
+        'combined_accuracy', ascending=False, na_position='last'
+    ).reset_index(drop=True)
+
+    if verbose:
+        print(f"\n{'='*60}")
+        print(f"Variant comparison for {ticker} (holdout={holdout_months} months)")
+        if holdout_start is not None:
+            print(f"Holdout starts: {holdout_start.date()}")
+        print(f"{'='*60}")
+
+        display_cols = [
+            'variant', 'threshold', 'extra_features', 'n_estimators', 'max_depth',
+            'daily_accuracy', 'weekly_accuracy', 'combined_accuracy',
+            'combined_signal_rate', 'combined_positive_avg_return',
+            'combined_negative_avg_return', 'holdout_samples',
+        ]
+        printable = results[display_cols].copy()
+        for col in [
+            'daily_accuracy', 'weekly_accuracy', 'combined_accuracy',
+            'combined_signal_rate', 'combined_positive_avg_return',
+            'combined_negative_avg_return',
+        ]:
+            printable[col] = printable[col].map(
+                lambda value: f"{value:.2%}" if pd.notna(value) else 'n/a'
+            )
+        print(printable.to_string(index=False))
+
+        best = results.iloc[0]
+        print(
+            f"\nBest variant by combined accuracy: {best['variant']} "
+            f"({best['combined_accuracy']:.2%})"
+        )
+
+    return results
+
+
+def evaluate_all_classifiers(
+    prepared_data,
+    threshold=0.005,
+    use_extra_features=False,
+    test_size=0.2,
+    holdout_months=None,
+    plot=True,
+):
+    """
+    Compare classifiers with time-series CV on the training period,
+    then evaluate the best model on a temporal holdout set.
+    """
+    features = get_features(use_extra_features)
+    train_data, holdout_data = temporal_holdout_split(
+        prepared_data, holdout_months=holdout_months, test_size=test_size
+    )
+
+    if len(train_data) < 30:
+        raise ValueError(f"Insufficient training data: {len(train_data)} samples")
+    if len(holdout_data) < 10:
+        raise ValueError(f"Insufficient holdout data: {len(holdout_data)} samples")
+
+    print(
+        f"\nTemporal split: train={len(train_data)}, holdout={len(holdout_data)}"
+    )
+    if holdout_months:
+        cutoff = holdout_data.index.min()
+        print(f"Holdout starts at: {cutoff.date()}")
+
+    X_train = train_data[features]
+    y_train = train_data['Target'].map({'negative': 0, 'neutral': 1, 'positive': 2})
+    X_holdout = holdout_data[features]
+    y_holdout = holdout_data['Target'].map({'negative': 0, 'neutral': 1, 'positive': 2})
+
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_holdout_scaled = scaler.transform(X_holdout)
+
+    classes = np.unique(y_train)
+    class_weights = compute_class_weight('balanced', classes=classes, y=y_train)
+    class_weight_dict = dict(zip(classes, class_weights))
+
+    results = compare_classifiers(
+        X_train_scaled, y_train, class_weights=class_weight_dict
+    )
+    print_best_configs(results)
+    if plot:
+        plot_classifier_comparison(results)
+
+    best_name = max(results.keys(), key=lambda n: results[n]['cv_results']['f1'])
+    best_params = results[best_name]['best_params']
+    print(
+        f"\nBest classifier: {best_name} "
+        f"(CV F1={results[best_name]['cv_results']['f1']:.4f})"
+    )
+
+    best_clf = deepcopy(classifiers[best_name])
+    best_clf.set_params(**best_params)
+    best_clf.fit(X_train_scaled, y_train)
+
+    y_pred = best_clf.predict(X_holdout_scaled)
+    print(f"\n{'='*50}")
+    print(f"Holdout evaluation: {best_name}")
+    print(f"{'='*50}")
+    print(classification_report(
+        y_holdout, y_pred, target_names=['negative', 'neutral', 'positive']
+    ))
+
+    holdout_metrics = {
+        'accuracy': float(accuracy_score(y_holdout, y_pred)),
+        'f1_weighted': float(f1_score(
+            y_holdout, y_pred, average='weighted', zero_division=0
+        )),
+    }
+
+    return {
+        'comparison_results': results,
+        'best_classifier': best_name,
+        'best_params': best_params,
+        'best_model': best_clf,
+        'scaler': scaler,
+        'holdout_metrics': holdout_metrics,
+        'train_size': len(train_data),
+        'holdout_size': len(holdout_data),
+    }
+
+
 def test_classifiers():
     """Test and compare different classifiers including ensemble (binary and combined), RSI and MA signals."""
     print("Testing classifier comparison")
@@ -1882,16 +2412,20 @@ def test_classifiers():
     target_map = {'negative': 0, 'neutral': 1, 'positive': 2}
     y = y.map(target_map)
 
-    # Scale features
-    scaler = StandardScaler()
-    X = scaler.fit_transform(X)
-
-    # Split data using TimeSeriesSplit
+    # Use the last TimeSeriesSplit fold (largest train, most recent test)
     tscv = TimeSeriesSplit(n_splits=5)
+    train_index, test_index = None, None
     for train_index, test_index in tscv.split(X):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-        break  # Use last split
+        pass
+
+    X_train_raw = X.iloc[train_index]
+    X_test_raw = X.iloc[test_index]
+    y_train = y.iloc[train_index]
+    y_test = y.iloc[test_index]
+
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train_raw)
+    X_test = scaler.transform(X_test_raw)
 
     # Train both ensemble approaches
     print("\nTraining Binary Ensemble Classifier...")
@@ -2050,104 +2584,145 @@ if __name__ == "__main__":
         print("1. Single stock train (train and analyze one stock)")
         print("2. SP500 all tickers trained, single stock analysis")
         print("3. Quit")
-        print("4. Test")
+        print("4. Test strategy comparison (ensemble vs RSI vs MA)")
+        print("5. Compare ML classifiers (temporal holdout)")
+        print("6. Compare pipeline variants (dual-RF configs)")
 
-        mode = input("\nEnter mode (1/2/3/4) [1]: ") or "1"
+        mode = input("\nEnter mode (1/2/3/4/5/6) [1]: ") or "1"
 
         if mode == "3":
             print("\nExiting program...")
             break
 
         if mode == "2":
-            # Get ticker for analysis
-            ticker = input("\nEnter ticker to analyze [^GSPC]: ") or "^GSPC"
-            data = get_index_data(ticker, '20y')
+            analysis_ticker = input("\nEnter ticker to analyze [^GSPC]: ") or "^GSPC"
+            data = get_index_data(analysis_ticker, '20y')
             try:
-                sector = get_ticker(ticker).info['sector']
-            except:
+                sector = get_ticker(analysis_ticker).info['sector']
+            except Exception:
                 sector = None
-            tickers = MarketIndices.get_sp500_tickers()
-            # Filter to only technology sector tickers
+            universe_tickers = MarketIndices.get_sp500_tickers()
             if sector is not None:
                 training_filter = input(
                     f"Enter training filter ({sector})? [y/n] ") or "y"
                 if training_filter == "y":
-                    tech_tickers = []
-                for ticker in tickers:
-                    try:
-                        info = get_ticker(ticker).info
-                        if 'sector' in info and info['sector'] == 'Technology':
-                            tech_tickers.append(ticker)
-                    except:
-                        continue
-                tickers = tech_tickers
-                print(
-                    f"\nFiltered to {len(tickers)} technology sector tickers")
-            yf_tickers = []
-            for ticker in tickers:
-                ticker = get_ticker(ticker)
-                yf_tickers.append(ticker)
+                    sector_tickers = []
+                    for symbol in universe_tickers:
+                        try:
+                            info = get_ticker(symbol).info
+                            if 'sector' in info and info['sector'] == sector:
+                                sector_tickers.append(symbol)
+                        except Exception:
+                            continue
+                    universe_tickers = sector_tickers
+                    print(
+                        f"\nFiltered to {len(universe_tickers)} {sector} tickers")
 
-            threshold = input("Enter threshold [0.01]: ") or 0.01
+            threshold = float(input("Enter threshold [0.01]: ") or 0.01)
             use_extra_features = input("Use extra features? [y/n]: ") or "n"
+            use_extra_features = use_extra_features.lower() == "y"
+            holdout_months = int(input("Holdout months for training and eval [12]: ") or 12)
             overfit_check = False
             plot = False
 
-            print(f"\nAnalyzing {ticker} data using SP500 trained model...")
+            analysis_symbol = analysis_ticker.lstrip('^')
+            training_tickers = [t for t in universe_tickers if t != analysis_symbol]
+            if len(training_tickers) < len(universe_tickers):
+                print(f"Excluding {analysis_symbol} from SP500 training set.")
+            if not training_tickers:
+                print("No training tickers left after exclusion — using full universe.")
+                training_tickers = universe_tickers
+
+            prepared_daily = prepare_classification_data(
+                data, predict_weekly=False, threshold=threshold, use_extra_features=use_extra_features)
+            prepared_weekly = prepare_classification_data(
+                data, predict_weekly=True, threshold=threshold, use_extra_features=use_extra_features)
+            cutoff_date = prepared_daily.index.max() - pd.DateOffset(months=holdout_months)
+
+            print(f"\nAnalyzing {analysis_ticker} with SP500-trained model...")
+            print(
+                f"Temporal holdout: train all tickers before {cutoff_date.date()}, "
+                f"evaluate {analysis_ticker} from {cutoff_date.date()} onward."
+            )
+            print(
+                "Other SP500 names are truncated at the same cutoff to limit "
+                "correlated recent-market leakage."
+            )
 
             try:
-                # Load daily model
-                daily_model, daily_scaler, daily_data = train_classifier_tickers(
-                    tickers, predict_weekly=False, use_extra_features=use_extra_features, threshold=threshold, plot=plot, overfit_check=overfit_check, classifier=RandomForestClassifier(n_estimators=100, random_state=42))
+                daily_model, daily_scaler, _ = train_classifier_tickers(
+                    training_tickers,
+                    predict_weekly=False,
+                    use_extra_features=use_extra_features,
+                    threshold=threshold,
+                    plot=plot,
+                    overfit_check=overfit_check,
+                    classifier=RandomForestClassifier(n_estimators=100, random_state=42),
+                    cutoff_date=cutoff_date,
+                    eval_split=0,
+                )
 
-                weekly_model, weekly_scaler, weekly_data = train_classifier_tickers(
-                    tickers, predict_weekly=True, use_extra_features=use_extra_features, threshold=threshold, plot=plot, overfit_check=overfit_check, classifier=RandomForestClassifier(n_estimators=100, random_state=42))
+                weekly_model, weekly_scaler, _ = train_classifier_tickers(
+                    training_tickers,
+                    predict_weekly=True,
+                    use_extra_features=use_extra_features,
+                    threshold=threshold,
+                    plot=plot,
+                    overfit_check=overfit_check,
+                    classifier=RandomForestClassifier(n_estimators=100, random_state=42),
+                    cutoff_date=cutoff_date,
+                    eval_split=0,
+                )
 
-                # Prepare data for the new ticker
-                daily_data = prepare_classification_data(
-                    data, predict_weekly=False, threshold=threshold, use_extra_features=use_extra_features)
-                weekly_data = prepare_classification_data(
-                    data, predict_weekly=True, threshold=threshold, use_extra_features=use_extra_features)
+                eval_daily, eval_weekly, eval_stock, backtest_label = resolve_backtest_period(
+                    prepared_daily,
+                    prepared_weekly,
+                    data,
+                    holdout_months=holdout_months,
+                    cutoff_date=cutoff_date,
+                )
 
-                # Run simulations and analysis
-                print("\nSimulating daily trading strategy:")
-                daily_simulation = simulate_trading(
-                    daily_model, daily_scaler, daily_data, threshold=threshold, stock_data=data, predict_weekly=False, use_extra_features=use_extra_features)
-
-                print("\nSimulating weekly trading strategy:")
-                weekly_simulation = simulate_trading(
-                    weekly_model, weekly_scaler, weekly_data, threshold=threshold, stock_data=data, predict_weekly=True, use_extra_features=use_extra_features)
-
-                # Get and display recent predictions
                 recent_predictions = get_recent_predictions(
-                    data, daily_data, daily_model, daily_scaler, weekly_data, weekly_model, weekly_scaler, use_extra_features=use_extra_features
+                    data, prepared_daily, daily_model, daily_scaler, prepared_weekly, weekly_model, weekly_scaler, use_extra_features=use_extra_features
                 )
                 print("\nLast 5 Trading Days Predictions:")
                 print(recent_predictions.to_string())
 
-                # Full analysis using pre-trained models
-                agreement_signals = full_analysis(data, daily_data, daily_model, daily_scaler,
-                                                  weekly_data, weekly_model, weekly_scaler, use_extra_features=use_extra_features)
+                full_analysis(
+                    data, prepared_daily, daily_model, daily_scaler,
+                    prepared_weekly, weekly_model, weekly_scaler,
+                    threshold=threshold, use_extra_features=use_extra_features,
+                )
 
-                probability_analysis = analyze_prediction_probabilities(
+                analyze_prediction_probabilities(
                     data,
                     daily_model,
                     daily_scaler,
-                    daily_data,
+                    prepared_daily,
                     weekly_model,
                     weekly_scaler,
-                    weekly_data,
+                    prepared_weekly,
                     use_extra_features=use_extra_features
                 )
                 test_model_performance(
-                    daily_data, daily_model, daily_scaler, weekly_data, weekly_model, weekly_scaler, threshold=threshold, use_extra_features=use_extra_features)
+                    eval_daily, daily_model, daily_scaler, eval_weekly, weekly_model, weekly_scaler,
+                    threshold=threshold, use_extra_features=use_extra_features)
 
-                analyze_trading_strategies(
-                    data, daily_simulation, initial_investment=10000, leverage=10)
-                analyze_trading_strategies(
-                    data, weekly_simulation, initial_investment=10000, leverage=10)
-                analyze_trading_strategies(
-                    data, agreement_signals, initial_investment=10000, leverage=10)
+                run_movement_backtests(
+                    data,
+                    daily_model,
+                    daily_scaler,
+                    prepared_daily,
+                    weekly_model,
+                    weekly_scaler,
+                    prepared_weekly,
+                    threshold,
+                    use_extra_features,
+                    eval_daily,
+                    eval_weekly,
+                    eval_stock,
+                    backtest_label,
+                )
 
             except FileNotFoundError:
                 print("\nError: Pre-trained SP500 models not found.")
@@ -2227,55 +2802,73 @@ if __name__ == "__main__":
                 prepared_weekly_data = prepare_classification_data(
                     data, predict_weekly=True, threshold=threshold, use_extra_features=use_extra_features)
 
-            """
-            evaluate_all_classifiers(
-                prepared_daily_data, threshold=0.01, use_extra_features=use_extra_features)  # Use the variable from user input
-            """
             print(prepared_daily_data.tail())
 
-            # Train both daily and weekly models
-            if test_last_n_months != 0:
-                print("\nTraining daily return classifier:")
-                daily_model, daily_scaler, daily_data = train_classifier_single_stock(
-                    prepared_daily_data[prepared_daily_data.index < cutoff_date], predict_weekly=False, use_extra_features=use_extra_features, threshold=threshold, plot=plot, overfit_check=overfit_check,
-                    classifier=daily_classifier
-                )
-                weekly_model, weekly_scaler, weekly_data = train_classifier_single_stock(
-                    prepared_weekly_data[prepared_weekly_data.index < cutoff_date], predict_weekly=True, use_extra_features=use_extra_features, threshold=threshold, plot=plot, overfit_check=overfit_check,
-                    classifier=weekly_classifier
-                )
-            else:
-                daily_model, daily_scaler, daily_data = train_classifier_single_stock(
-                    prepared_daily_data, predict_weekly=False, use_extra_features=use_extra_features, threshold=threshold, plot=plot, overfit_check=overfit_check,
-                    classifier=daily_classifier
-                )
-                weekly_model, weekly_scaler, weekly_data = train_classifier_single_stock(
-                    prepared_weekly_data, predict_weekly=True, use_extra_features=use_extra_features, threshold=threshold, plot=plot, overfit_check=overfit_check,
-                    classifier=weekly_classifier
+            test_last_n_months = int(test_last_n_months) if test_last_n_months else 0
+            use_holdout = test_last_n_months > 0
+            eval_split = 0 if use_holdout else 0.2
+            train_daily = (
+                prepared_daily_data[prepared_daily_data.index < cutoff_date]
+                if use_holdout else prepared_daily_data
+            )
+            train_weekly = (
+                prepared_weekly_data[prepared_weekly_data.index < cutoff_date]
+                if use_holdout else prepared_weekly_data
+            )
+
+            if not use_holdout:
+                print(
+                    "\nNo holdout months set — training uses an internal 80/20 "
+                    "chronological split; backtests run on the held-out 20% only."
                 )
 
-            print("\nSimulating daily trading strategy:")
-            daily_simulation = simulate_trading(
-                daily_model, daily_scaler, prepared_daily_data, threshold=threshold, stock_data=data, predict_weekly=False, use_extra_features=use_extra_features)
-
+            print("\nTraining daily return classifier:")
+            daily_model, daily_scaler, daily_train_meta = train_classifier_single_stock(
+                train_daily,
+                predict_weekly=False,
+                use_extra_features=use_extra_features,
+                threshold=threshold,
+                plot=plot,
+                overfit_check=overfit_check,
+                classifier=daily_classifier,
+                eval_split=eval_split,
+            )
             print("\nTraining weekly return classifier:")
+            weekly_model, weekly_scaler, weekly_train_meta = train_classifier_single_stock(
+                train_weekly,
+                predict_weekly=True,
+                use_extra_features=use_extra_features,
+                threshold=threshold,
+                plot=plot,
+                overfit_check=overfit_check,
+                classifier=weekly_classifier,
+                eval_split=eval_split,
+            )
 
-            print("\nSimulating weekly trading strategy:")
-            weekly_simulation = simulate_trading(
-                weekly_model, weekly_scaler, prepared_weekly_data, threshold=threshold, stock_data=data, predict_weekly=True, use_extra_features=use_extra_features)
+            eval_daily, eval_weekly, eval_stock, backtest_label = resolve_backtest_period(
+                prepared_daily_data,
+                prepared_weekly_data,
+                data,
+                holdout_months=test_last_n_months if use_holdout else 0,
+                cutoff_date=cutoff_date if use_holdout else None,
+                train_meta=daily_train_meta,
+            )
 
-            # Get and display recent predictions
             recent_predictions = get_recent_predictions(
-                data, prepared_daily_data, daily_model, daily_scaler, prepared_weekly_data, weekly_model, weekly_scaler, threshold=threshold, use_extra_features=use_extra_features
+                data, prepared_daily_data, daily_model, daily_scaler,
+                prepared_weekly_data, weekly_model, weekly_scaler,
+                threshold=threshold, use_extra_features=use_extra_features,
             )
             print("\nLast 5 Trading Days Predictions:")
             print(recent_predictions.to_string())
 
-            # Full analysis using pre-trained models
-            analysis = full_analysis(data, prepared_daily_data, daily_model, daily_scaler,
-                                     prepared_weekly_data, weekly_model, weekly_scaler, use_extra_features=use_extra_features)
+            full_analysis(
+                data, prepared_daily_data, daily_model, daily_scaler,
+                prepared_weekly_data, weekly_model, weekly_scaler,
+                threshold=threshold, use_extra_features=use_extra_features,
+            )
 
-            probability_analysis = analyze_prediction_probabilities(
+            analyze_prediction_probabilities(
                 data,
                 daily_model,
                 daily_scaler,
@@ -2283,62 +2876,73 @@ if __name__ == "__main__":
                 weekly_model,
                 weekly_scaler,
                 prepared_weekly_data,
-                use_extra_features=use_extra_features
+                use_extra_features=use_extra_features,
             )
 
-            # Add the test model performance call
-            if test_last_n_months != 0:
-                print("\nTesting model performance on holdout data:")
-                test_predictions = test_model_performance(
-                    prepared_daily_data[prepared_daily_data.index >=
-                                        cutoff_date],
-                    daily_model,
-                    daily_scaler,
-                    prepared_weekly_data[prepared_weekly_data.index >=
-                                         cutoff_date],
-                    weekly_model,
-                    weekly_scaler,
-                    threshold=float(threshold),
-                    use_extra_features=use_extra_features
-                )
+            print("\nClassification metrics on out-of-sample data:")
+            test_model_performance(
+                eval_daily,
+                daily_model,
+                daily_scaler,
+                eval_weekly,
+                weekly_model,
+                weekly_scaler,
+                threshold=float(threshold),
+                use_extra_features=use_extra_features,
+            )
 
-                # Analyze trading strategies only for test period
-                print("\nAnalyzing trading strategies for daily model (test period):")
-                daily_test_results = test_predictions[['date', 'daily_pred']].rename(
-                    columns={'daily_pred': 'prediction'})
-
-                analyze_trading_strategies(
-                    data[data.index >= cutoff_date], daily_test_results, initial_investment=10000, leverage=10, signal_type="Daily Model")
-
-                print("\nAnalyzing trading strategies for weekly model (test period):")
-                weekly_test_results = test_predictions[['date', 'weekly_pred']].rename(
-                    columns={'weekly_pred': 'prediction'})
-
-                analyze_trading_strategies(
-                    data[data.index >= cutoff_date], weekly_test_results, initial_investment=10000, leverage=10, signal_type="Weekly Model")
-
-                print(
-                    "\nAnalyzing trading strategies for combined signals (test period):")
-                combined_test_results = test_predictions[[
-                    'date', 'prediction']]
-                analyze_trading_strategies(
-                    data[data.index >= cutoff_date], combined_test_results, initial_investment=10000, leverage=10, signal_type="Combined Model")
-            else:
-                # Original analysis for full period
-                print("\nAnalyzing trading strategies for daily model:")
-                analyze_trading_strategies(
-                    data, daily_simulation, initial_investment=10000, leverage=10, signal_type="Daily Model")
-
-                print("\nAnalyzing trading strategies for weekly model:")
-                analyze_trading_strategies(
-                    data, weekly_simulation, initial_investment=10000, leverage=10, signal_type="Weekly Model")
-
-                print("\nAnalyzing trading strategies for combined signals:")
-                analyze_trading_strategies(
-                    data, analysis, initial_investment=10000, leverage=10, signal_type="Combined Model")
+            run_movement_backtests(
+                data,
+                daily_model,
+                daily_scaler,
+                prepared_daily_data,
+                weekly_model,
+                weekly_scaler,
+                prepared_weekly_data,
+                threshold,
+                use_extra_features,
+                eval_daily,
+                eval_weekly,
+                eval_stock,
+                backtest_label,
+            )
 
         elif mode == "4":
             test_classifiers()
 
+        elif mode == "5":
+            ticker = input("\nEnter ticker [^GSPC]: ") or "^GSPC"
+            period = input("Enter period [20y]: ") or "20y"
+            holdout_months = int(input("Holdout months [12]: ") or 12)
+            threshold = float(input("Enter threshold [0.005]: ") or 0.005)
+            use_extra_features = (
+                input("Use extra features? [y/n]: ") or "y"
+            ).lower() == "y"
+
+            data = get_index_data(ticker, period)
+            prepared = prepare_classification_data_enhanced(
+                data,
+                predict_weekly=False,
+                threshold=threshold,
+                use_extra_features=use_extra_features,
+            ).dropna()
+
+            evaluate_all_classifiers(
+                prepared,
+                threshold=threshold,
+                use_extra_features=use_extra_features,
+                holdout_months=holdout_months,
+            )
+
+        elif mode == "6":
+            ticker = input("\nEnter ticker [^GSPC]: ") or "^GSPC"
+            period = input("Enter period [20y]: ") or "20y"
+            holdout_months = int(input("Holdout months [12]: ") or 12)
+            compare_variants(
+                ticker=ticker,
+                period=period,
+                holdout_months=holdout_months,
+            )
+
         else:
-            print("Invalid mode. Please enter 1, 2, or 3.")
+            print("Invalid mode. Please enter 1, 2, 3, 4, 5, or 6.")

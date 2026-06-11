@@ -15301,3 +15301,98 @@ requests.exceptions.ConnectionError: HTTPSConnectionPool(host='finviz.com', port
 2026-06-10 09:10:29,258 - INFO - Added stock: MMA
 2026-06-10 09:10:29,258 - INFO - Added stock: NCRA
 2026-06-10 09:10:29,383 - INFO - Successfully wrote 20 stocks to JSON file
+2026-06-11 14:36:58,519 - INFO - Log file location: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_scrape.log
+2026-06-11 14:36:58,520 - INFO - === Starting Finviz scraping script ===
+2026-06-11 14:36:58,520 - INFO - Starting Finviz scraping...
+2026-06-11 14:36:58,520 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5&ft=4
+2026-06-11 14:37:00,806 - INFO - Successfully scraped 20 stocks
+2026-06-11 14:37:00,810 - INFO - Starting Finviz scraping...
+2026-06-11 14:37:00,810 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15&ft=4&o=-volume
+2026-06-11 14:37:02,682 - INFO - Successfully scraped 11 stocks
+2026-06-11 14:37:02,684 - INFO - Starting Finviz scraping...
+2026-06-11 14:37:02,685 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o2000,sh_price_u3,sh_relvol_o1.5,sh_short_o15,ta_change_u&ft=4&o=-volume
+2026-06-11 14:37:04,536 - INFO - Successfully scraped 7 stocks
+2026-06-11 14:37:04,538 - INFO - Starting Finviz scraping...
+2026-06-11 14:37:04,538 - INFO - Requesting URL: https://finviz.com/screener.ashx?v=111&f=ind_stocksonly,sh_curvol_o5000,sh_price_u1,sh_relvol_o1.5,ta_change_u&ft=4
+2026-06-11 14:37:06,454 - INFO - Successfully scraped 20 stocks
+2026-06-11 14:37:06,457 - INFO - Found 20 stocks matching criteria.
+2026-06-11 14:37:07,583 - WARNING - No exchange found for country: Malaysia
+2026-06-11 14:37:08,849 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2026-06-11 14:37:08,849 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs.json
+2026-06-11 14:37:08,893 - INFO - Added stock: ADTX
+2026-06-11 14:37:08,894 - INFO - Added stock: AKBA
+2026-06-11 14:37:08,894 - INFO - Added stock: DSS
+2026-06-11 14:37:08,894 - INFO - Added stock: FLD
+2026-06-11 14:37:08,895 - INFO - Added stock: GCDT
+2026-06-11 14:37:08,895 - INFO - Added stock: GDC
+2026-06-11 14:37:08,895 - INFO - Added stock: GOSS
+2026-06-11 14:37:08,895 - INFO - Added stock: HKPD
+2026-06-11 14:37:08,895 - INFO - Added stock: IVVD
+2026-06-11 14:37:08,896 - INFO - Added stock: BGM
+2026-06-11 14:37:08,896 - INFO - Added stock: BQ
+2026-06-11 14:37:08,896 - INFO - Added stock: HKIT
+2026-06-11 14:37:08,896 - INFO - Added stock: HXHX
+2026-06-11 14:37:08,896 - INFO - Added stock: CCHH
+2026-06-11 14:37:08,896 - INFO - Added stock: CCTG
+2026-06-11 14:37:08,896 - INFO - Added stock: CGTL
+2026-06-11 14:37:08,896 - INFO - Added stock: CHOW
+2026-06-11 14:37:08,897 - INFO - Added stock: GLE
+2026-06-11 14:37:08,897 - INFO - Added stock: COSM
+2026-06-11 14:37:08,897 - INFO - Added stock: GMEX
+2026-06-11 14:37:09,151 - INFO - Successfully wrote 20 stocks to JSON file
+2026-06-11 14:37:09,152 - INFO - Found 11 stocks matching criteria.
+2026-06-11 14:37:09,152 - WARNING - Error checking market hours for Singapore: Class SGX is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'XCYS', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBEL', 'XBDA', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XBRA', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLIT', 'XLJU', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XRIS', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTAL', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'XZAG', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2026-06-11 14:37:09,717 - WARNING - No exchange found for country: United Kingdom
+2026-06-11 14:37:10,222 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2026-06-11 14:37:10,222 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt.json
+2026-06-11 14:37:10,255 - INFO - Added stock: YYGH
+2026-06-11 14:37:10,255 - INFO - Added stock: NTCL
+2026-06-11 14:37:10,255 - INFO - Added stock: BATL
+2026-06-11 14:37:10,255 - INFO - Added stock: SNBR
+2026-06-11 14:37:10,255 - INFO - Added stock: GOSS
+2026-06-11 14:37:10,255 - INFO - Added stock: MVIS
+2026-06-11 14:37:10,255 - INFO - Added stock: CRMT
+2026-06-11 14:37:10,255 - INFO - Added stock: HRTX
+2026-06-11 14:37:10,255 - INFO - Added stock: GETY
+2026-06-11 14:37:10,256 - INFO - Added stock: CLVT
+2026-06-11 14:37:10,256 - INFO - Added stock: SUGP
+2026-06-11 14:37:10,374 - INFO - Successfully wrote 11 stocks to JSON file
+2026-06-11 14:37:10,375 - INFO - Found 7 stocks matching criteria.
+2026-06-11 14:37:10,375 - WARNING - Error checking market hours for Singapore: Class SGX is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'XCYS', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBEL', 'XBDA', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XBRA', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLIT', 'XLJU', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XRIS', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTAL', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'XZAG', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2026-06-11 14:37:11,398 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2026-06-11 14:37:11,398 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_alt_up.json
+2026-06-11 14:37:11,429 - INFO - Added stock: YYGH
+2026-06-11 14:37:11,431 - INFO - Added stock: NTCL
+2026-06-11 14:37:11,431 - INFO - Added stock: BATL
+2026-06-11 14:37:11,431 - INFO - Added stock: SNBR
+2026-06-11 14:37:11,431 - INFO - Added stock: MVIS
+2026-06-11 14:37:11,431 - INFO - Added stock: HRTX
+2026-06-11 14:37:11,431 - INFO - Added stock: SUGP
+2026-06-11 14:37:11,508 - INFO - Successfully wrote 7 stocks to JSON file
+2026-06-11 14:37:11,509 - INFO - Found 20 stocks matching criteria.
+2026-06-11 14:37:12,117 - WARNING - No exchange found for country: Malaysia
+2026-06-11 14:37:13,971 - WARNING - No exchange found for country: Cayman Islands
+2026-06-11 14:37:13,972 - WARNING - Error checking market hours for Singapore: Class SGX is not one of the registered classes: dict_keys(['ASX', 'BMF', 'B3', 'BSE', 'NSE', 'XNSE', 'CFE', 'CBOE_Futures', 'CBOE_Equity_Options', 'CBOE_Index_Options', 'CME_Equity', 'CBOT_Equity', 'CME_Agriculture', 'CBOT_Agriculture', 'COMEX_Agriculture', 'NYMEX_Agriculture', 'CME_Rate', 'CBOT_Rate', 'CME_InterestRate', 'CBOT_InterestRate', 'CME_Bond', 'CBOT_Bond', 'CMEGlobex_Livestock', 'CMEGlobex_Live_Cattle', 'CMEGlobex_Feeder_Cattle', 'CMEGlobex_Lean_Hog', 'CMEGlobex_Port_Cutout', 'CMEGlobex_Grains', 'CMEGlobex_Oilseeds', 'CME Globex Cryptocurrencies', 'CME Globex Crypto', 'CMEGlobex_EnergyAndMetals', 'CMEGlobex_Energy', 'CMEGlobex_CrudeAndRefined', 'CMEGlobex_NYHarbor', 'CMEGlobex_HO', 'HO', 'CMEGlobex_Crude', 'CMEGlobex_CL', 'CL', 'CMEGlobex_Gas', 'CMEGlobex_RB', 'RB', 'CMEGlobex_MicroCrude', 'CMEGlobex_MCL', 'MCL', 'CMEGlobex_NatGas', 'CMEGlobex_NG', 'NG', 'CMEGlobex_Dutch_NatGas', 'CMEGlobex_TTF', 'TTF', 'CMEGlobex_LastDay_NatGas', 'CMEGlobex_NN', 'NN', 'CMEGlobex_CarbonOffset', 'CMEGlobex_CGO', 'CGO', 'C-GEO', 'CMEGlobex_NGO', 'NGO', 'CMEGlobex_GEO', 'GEO', 'CMEGlobex_Metals', 'CMEGlobex_PreciousMetals', 'CMEGlobex_Gold', 'CMEGlobex_GC', 'GC', 'CMEGlobex_Silver', 'CMEGlobex_SI', 'SI', 'CMEGlobex_Platinum', 'CMEGlobex_PL', 'PL', 'CMEGlobex_BaseMetals', 'CMEGlobex_Copper', 'CMEGlobex_HG', 'HG', 'CMEGlobex_Aluminum', 'CMEGlobex_ALI', 'ALI', 'CMEGlobex_QC', 'QC', 'CMEGlobex_FerrousMetals', 'CMEGlobex_HRC', 'HRC', 'CMEGlobex_BUS', 'BUS', 'CMEGlobex_TIO', 'TIO', 'CME Globex Equity', 'CMEGlobex_FX', 'CME_FX', 'CME_Currency', 'CME Globex Fixed Income', 'CME Globex Interest Rate Products', 'EUREX', 'EUREX_Bond', 'HKEX', 'ICE', 'ICEUS', 'NYFE', 'NYSE', 'stock', 'NASDAQ', 'BATS', 'DJIA', 'DOW', 'IEX', 'Investors_Exchange', 'JPX', 'XJPX', 'LSE', 'OSE', 'SIFMAUS', 'SIFMA_US', 'Capital_Markets_US', 'Financial_Markets_US', 'Bond_Markets_US', 'SIFMAUK', 'SIFMA_UK', 'Capital_Markets_UK', 'Financial_Markets_UK', 'Bond_Markets_UK', 'SIFMAJP', 'SIFMA_JP', 'Capital_Markets_JP', 'Financial_Markets_JP', 'Bond_Markets_JP', 'SIX', 'SSE', 'TASE', 'TSX', 'TSXV', 'TradingCalendar', 'AIXK', 'ASEX', 'BVMF', 'XCYS', 'CMES', 'IEPA', 'XAMS', 'XASX', 'XBEL', 'XBDA', 'XBKK', 'XBOG', 'XBOM', 'XBRU', 'XBSE', 'XBUD', 'XBUE', 'XBRA', 'XCBF', 'XCSE', 'XDUB', 'XDUS', 'XEEE', 'XFRA', 'XETR', 'XHAM', 'XHEL', 'XHKG', 'XICE', 'XIDX', 'XIST', 'XJSE', 'XKAR', 'XKLS', 'XKRX', 'XLIM', 'XLIS', 'XLIT', 'XLJU', 'XLON', 'XLUX', 'XMAD', 'XMEX', 'XMIL', 'XMOS', 'XNYS', 'XNZE', 'XOSL', 'XPAR', 'XPHS', 'XPRA', 'XRIS', 'XSAU', 'XSES', 'XSGO', 'XSHG', 'XSTO', 'XSWX', 'XTAE', 'XTAI', 'XTAL', 'XTKS', 'XTSE', 'XWAR', 'XWBO', 'XZAG', 'us_futures', '24/7', '24/5']). Defaulting to NYSE hours.
+2026-06-11 14:37:13,972 - INFO - Working directory: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs
+2026-06-11 14:37:13,973 - INFO - Attempting to write to: C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis\finviz_recs\finviz_recs_up.json
+2026-06-11 14:37:14,013 - INFO - Added stock: BGM
+2026-06-11 14:37:14,013 - INFO - Added stock: BQ
+2026-06-11 14:37:14,013 - INFO - Added stock: HKIT
+2026-06-11 14:37:14,013 - INFO - Added stock: HXHX
+2026-06-11 14:37:14,014 - INFO - Added stock: IZM
+2026-06-11 14:37:14,014 - INFO - Added stock: CCHH
+2026-06-11 14:37:14,014 - INFO - Added stock: CGTL
+2026-06-11 14:37:14,014 - INFO - Added stock: CHOW
+2026-06-11 14:37:14,014 - INFO - Added stock: GLE
+2026-06-11 14:37:14,014 - INFO - Added stock: COSM
+2026-06-11 14:37:14,015 - INFO - Added stock: DSS
+2026-06-11 14:37:14,015 - INFO - Added stock: FLD
+2026-06-11 14:37:14,015 - INFO - Added stock: GCDT
+2026-06-11 14:37:14,015 - INFO - Added stock: GDC
+2026-06-11 14:37:14,015 - INFO - Added stock: HKPD
+2026-06-11 14:37:14,016 - INFO - Added stock: MVIS
+2026-06-11 14:37:14,016 - INFO - Added stock: NUWE
+2026-06-11 14:37:14,016 - INFO - Added stock: GMEX
+2026-06-11 14:37:14,016 - INFO - Added stock: KWM
+2026-06-11 14:37:14,016 - INFO - Added stock: MPU
+2026-06-11 14:37:14,173 - INFO - Successfully wrote 20 stocks to JSON file

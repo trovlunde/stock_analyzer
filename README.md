@@ -1,4 +1,23 @@
-How to run:
+# Stock Analysis
+
+## Setup
+
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+.
+
+```bash
+# First-time setup (creates .venv and installs dependencies)
+uv sync
+
+# Copy environment config
+cp .env.example .env
+```
+
+After changing `pyproject.toml` dependencies, run `uv sync` again.
+
+### Project plans
+
+- [Stack & tooling improvements](docs/stack-improvement-plan.md) — dependency hygiene, data sources, ML upgrades
+- [Database cache](docs/database-cache-plan.md) — SQLite cache architecture and phase-2 scope
 
 ## Command Line Usage
 
@@ -6,14 +25,8 @@ How to run:
 
 Run the interactive command-line interface:
 
-**Using Poetry:**
 ```bash
-poetry run python -m stock_analysis.main
-```
-
-**Or using pip:**
-```bash
-python -m stock_analysis.main
+uv run python -m stock_analysis.main
 ```
 
 This will start an interactive menu where you can:
@@ -26,14 +39,8 @@ This will start an interactive menu where you can:
 
 Start the Flask web server:
 
-**Using Poetry:**
 ```bash
-poetry run python app.py
-```
-
-**Or using pip:**
-```bash
-python app.py
+uv run python app.py
 ```
 
 The API will be available at `http://localhost:5000` (or the port specified in your `.env` file).
@@ -52,17 +59,54 @@ You can also run individual modules directly:
 
 **Run valuation example:**
 ```bash
-python -m stock_analysis.ai.fundamental_analysis.valuation_example
+uv run python -m stock_analysis.ai.fundamental_analysis.valuation_example
 ```
 
 **Run finviz classifier:**
 ```bash
-python -m stock_analysis.ai.finviz_classifier.finviz_classifier
+uv run python -m stock_analysis.ai.finviz_classifier.finviz_classifier
 ```
 
 **Run technical analysis:**
 ```bash
-python -m stock_analysis.ai.technical_analysis.movement_classification
+uv run python -m stock_analysis.ai.technical_analysis.movement_classification
+```
+
+### ML Model Evaluation
+
+Compare classifiers with a temporal holdout (train on past, test on recent data):
+
+```bash
+# Grid-search classifiers; evaluate best model on last 12 months
+uv run stock-analysis-evaluate compare --ticker ^GSPC --holdout-months 12 --extra-features
+
+# Train daily+weekly RandomForest with out-of-sample PnL backtest
+uv run stock-analysis-evaluate train --ticker ^GSPC --holdout-months 6 --extra-features
+# Without --holdout-months, backtests use the internal chronological 20% test split only
+
+# Compare ensemble vs RSI vs MA strategies on temporal test fold
+uv run stock-analysis-evaluate strategies
+
+# Compare dual-RF pipeline variants on the same holdout (features, threshold, RF params)
+uv run stock-analysis-evaluate variants --ticker ^GSPC --holdout-months 12
+```
+
+Interactive CLI (mode 1 with holdout, or mode 5 for classifier comparison):
+
+```bash
+uv run python -m stock_analysis.ai.technical_analysis.movement_classification
+# Mode 1: enter holdout months when prompted (e.g. 12)
+# Mode 5: compare ML classifiers with temporal holdout
+# Mode 6: compare dual-RF pipeline variants (baseline, extra features, thresholds, RF depth)
+# Mode 2: SP500-trained model — excludes analysis ticker and truncates all tickers at the same holdout cutoff
+```
+
+API training with temporal holdout:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/train/%5EGSPC \
+  -H "Content-Type: application/json" \
+  -d '{"period": "10y", "holdout_months": 12, "use_extra_features": true}'
 ```
 
 ### Using Python Interactively
@@ -88,72 +132,69 @@ all_valuations = valuation.get_all_valuations()
 
 **Analyze a single stock:**
 ```bash
-python -c "from stock_analysis.fetch_stock_data import fetch_stock_data; from stock_analysis.analyze_stock_data import analyze_stock_data; df, _ = fetch_stock_data('AAPL', period='1y'); print(analyze_stock_data(df))"
+uv run python -c "from stock_analysis.fetch_stock_data import fetch_stock_data; from stock_analysis.analyze_stock_data import analyze_stock_data; df, _ = fetch_stock_data('AAPL', period='1y'); print(analyze_stock_data(df))"
 ```
 
 **Find high dividend stocks:**
 ```bash
-python -c "from stock_analysis.stock_finder import find_high_dividend_stocks, display_stocks; import yfinance as yf; stocks = yf.Tickers('AAPL MSFT GOOGL'); result = find_high_dividend_stocks(stocks=stocks); display_stocks(result)"
+uv run python -c "from stock_analysis.stock_finder import find_high_dividend_stocks, display_stocks; import yfinance as yf; stocks = yf.Tickers('AAPL MSFT GOOGL'); result = find_high_dividend_stocks(stocks=stocks); display_stocks(result)"
 ```
 
 **Get market index tickers:**
 ```bash
-python -c "from stock_analysis.market_indices import MarketIndices; print(MarketIndices.get_sp500_tickers())"
+uv run python -c "from stock_analysis.market_indices import MarketIndices; print(MarketIndices.get_sp500_tickers())"
 ```
 
-### Environment Setup
-
-**Using Poetry (Recommended):**
-
-This project uses Poetry for dependency management. Make sure Poetry is installed, then:
+### Tests
 
 ```bash
-# Install all dependencies
-poetry install
-
-# Run commands using Poetry
-poetry run python -m stock_analysis.main
-poetry run python app.py
-
-# Or activate the Poetry shell
-poetry shell
-python -m stock_analysis.main
+uv run pytest
 ```
 
-**Using pip:**
+### Paper Trading (Daily Job)
 
-Alternatively, you can use pip:
+Config-driven paper portfolio. Evaluates US equities with MA crossover signals, queues fills at next open, persists state in SQLite.
+
+**Config:** `config/portfolio.yaml` — watchlist, sizing, strategy defaults, per-ticker overrides.
+
+**Run manually:**
+```bash
+uv run python -m stock_analysis.jobs.daily
+uv run python -m stock_analysis.jobs.daily --dry-run
+uv run python -m stock_analysis.jobs.daily --config config/portfolio.yaml
+```
+
+**Windows Task Scheduler (after US close, ~23:00 CET):**
+- Program: `uv`
+- Arguments: `run python -m stock_analysis.jobs.daily`
+- Start in: project root directory
+- Trigger: weekdays after market close
+
+**Outputs:**
+- State: `data/stock_analysis.db` (`paper_*` tables)
+- Report: `data/reports/YYYY-MM-DD.md`
+
+**Add strategies later:** implement `SignalStrategy` in `stock_analysis/trading/signals/` and register in `registry.py`.
+
+### Docker
 
 ```bash
-pip install -r requirements.txt
-python -m stock_analysis.main
+docker compose up --build
 ```
 
-### Windows PowerShell Examples
+The API is available at `http://localhost:5000`.
 
-```powershell
-# Run interactive CLI
-python -m stock_analysis.main
-
-# Start Flask server
-python app.py
-
-# Run with specific ticker
-python -c "from stock_analysis.fetch_stock_data import fetch_stock_data; df, _ = fetch_stock_data('MSFT', period='6mo'); print(df.head())"
-```
-
-### Linux/Mac Terminal Examples
+### Optional: activate the virtualenv
 
 ```bash
-# Run interactive CLI
-python3 -m stock_analysis.main
+# Windows
+.venv\Scripts\activate
 
-# Start Flask server
-python3 app.py
-
-# Run with specific ticker
-python3 -c "from stock_analysis.fetch_stock_data import fetch_stock_data; df, _ = fetch_stock_data('MSFT', period='6mo'); print(df.head())"
+# Linux/macOS
+source .venv/bin/activate
 ```
+
+After activation you can run `python -m stock_analysis.main` directly without the `uv run` prefix.
 
 ---
 
@@ -407,6 +448,15 @@ This section documents the available functions for stock analysis functionality 
 - `plot_trading_signals(simulation, stock_data, metrics=None, title="Trading Analysis")` - Plots trading signals and performance
 
 ### Data Caching
+
+Market and index OHLCV data are cached in SQLite (`data/stock_analysis.db` by default). Configure with `DATABASE_URL` in `.env`. Legacy CSV files under `data/` are imported automatically on first read. See `docs/database-cache-plan.md` for architecture and phase-2 scope.
+
+**Module:** `stock_analysis.storage`
+
+- `get_cache_store()` - Returns the shared `SqlCacheStore` instance
+- `CacheStore.get(key, max_age=..., validator=...)` - Read cached DataFrame
+- `CacheStore.put(key, df)` - Write cached DataFrame
+- `CacheStore.delete(key)` / `clear_prefix(prefix)` - Invalidate entries
 
 **Module:** `stock_analysis.cache_data`
 

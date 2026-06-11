@@ -1,6 +1,6 @@
-from pathlib import Path
-from datetime import datetime, timedelta
-import pandas as pd
+from datetime import timedelta
+
+from .storage import get_cache_store
 
 
 def get_cached_stock_data(market):
@@ -12,37 +12,18 @@ def get_cached_stock_data(market):
     Returns:
         DataFrame or None: Cached data if valid, None if needs refresh
     """
-    # Create data directory if it doesn't exist
-    data_dir = Path('data')
-    data_dir.mkdir(exist_ok=True)
-
-    # Check for cached file
-    cache_file = data_dir / f"{market}_stock_data.csv"
-    if not cache_file.exists():
-        return None
-
-    # Check file age
-    file_time = datetime.fromtimestamp(cache_file.stat().st_mtime)
-    if datetime.now() - file_time > timedelta(hours=12):
-        return None
-
-    try:
-        # Load cached data
-        return pd.read_csv(cache_file)
-    except Exception:
-        return None
+    return get_cache_store().get(
+        f"market:{market}",
+        max_age=timedelta(hours=12),
+    )
 
 
 def save_stock_data(stocks_df, market):
     """
-    Save stock data to cache file
+    Save stock data to cache
 
     Args:
         stocks_df (DataFrame): Stock data to cache
         market (str): Market identifier
     """
-    data_dir = Path('data')
-    data_dir.mkdir(exist_ok=True)
-
-    cache_file = data_dir / f"{market}_stock_data.csv"
-    stocks_df.to_csv(cache_file, index=False)
+    get_cache_store().put(f"market:{market}", stocks_df)

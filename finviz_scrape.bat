@@ -1,3 +1,3 @@
 @echo off
-cd C:\Users\TrymOverreinLunde\Documents\Kodeprosjekter\Hobbyprosjekter\stock-analysis
-poetry run python "finviz-recs\finviz_scrape.py"
+cd /d "%~dp0"
+uv run python finviz_recs\finviz_scrape.py

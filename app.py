@@ -5,7 +5,13 @@ from dotenv import load_dotenv
 import logging
 import sys
 from stock_analysis.ai.model_manager import ModelManager
-from stock_analysis.ai.technical_analysis.movement_classification import train_classifier_single_stock, train_classifier_tickers
+from stock_analysis.ai.technical_analysis.movement_classification import (
+    train_classifier_single_stock,
+    train_classifier_tickers,
+    temporal_holdout_split,
+    test_model_performance,
+)
+from stock_analysis.ai.technical_analysis.prepare_classification_data import prepare_classification_data
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
 from stock_analysis.ai.helpers import get_index_data
@@ -187,6 +193,7 @@ def train_movement_classifier(ticker):
         threshold = float(params.get('threshold', 0.005))
         use_extra_features = params.get('use_extra_features', False)
         period = params.get('period', '5y')
+        holdout_months = int(params.get('holdout_months', 0))
 
         # Get stock data
         logger.info(f"Fetching data for {ticker} over period {period}")
@@ -202,7 +209,6 @@ def train_movement_classifier(ticker):
 
         # Prepare data for training
         logger.info("Preparing data for training")
-        from stock_analysis.ai.technical_analysis.movement_classification import prepare_classification_data
         prepared_data = prepare_classification_data(
             data,
             predict_weekly=False,
@@ -216,6 +222,21 @@ def train_movement_classifier(ticker):
             use_extra_features=use_extra_features
         )
 
+        if holdout_months > 0:
+            daily_train, daily_holdout = temporal_holdout_split(
+                prepared_data, holdout_months=holdout_months
+            )
+            weekly_train, weekly_holdout = temporal_holdout_split(
+                prepared_weekly_data, holdout_months=holdout_months
+            )
+            logger.info(
+                f"Temporal holdout: {holdout_months} months "
+                f"(daily train={len(daily_train)}, holdout={len(daily_holdout)})"
+            )
+        else:
+            daily_train, daily_holdout = prepared_data, None
+            weekly_train, weekly_holdout = prepared_weekly_data, None
+
         # Train models
         logger.info("Initializing classifiers")
         daily_classifier = RandomForestClassifier(
@@ -227,7 +248,7 @@ def train_movement_classifier(ticker):
         logger.info("Training daily model")
         try:
             daily_model, daily_scaler, daily_data = train_classifier_single_stock(
-                prepared_data,
+                daily_train,
                 predict_weekly=False,
                 threshold=threshold,
                 use_extra_features=use_extra_features,
@@ -242,7 +263,7 @@ def train_movement_classifier(ticker):
         logger.info("Training weekly model")
         try:
             weekly_model, weekly_scaler, weekly_data = train_classifier_single_stock(
-                prepared_weekly_data,
+                weekly_train,
                 predict_weekly=True,
                 threshold=threshold,
                 use_extra_features=use_extra_features,
@@ -300,11 +321,34 @@ def train_movement_classifier(ticker):
             logger.error(f"Error saving models: {str(e)}")
             raise
 
+        holdout_metrics = None
+        if holdout_months > 0 and daily_holdout is not None and len(daily_holdout) > 0:
+            logger.info("Evaluating models on temporal holdout set")
+            test_model_performance(
+                daily_holdout,
+                daily_model,
+                daily_scaler,
+                weekly_holdout,
+                weekly_model,
+                weekly_scaler,
+                threshold=threshold,
+                use_extra_features=use_extra_features,
+            )
+            holdout_metrics = {
+                'holdout_months': holdout_months,
+                'holdout_samples': len(daily_holdout),
+                'holdout_start': str(daily_holdout.index.min().date()),
+            }
+            metadata['holdout_months'] = holdout_months
+
         logger.info(f"Successfully trained and saved models for {ticker}")
-        return jsonify({
+        response = {
             'message': f'Successfully trained models for {ticker}',
-            'metadata': metadata
-        })
+            'metadata': metadata,
+        }
+        if holdout_metrics:
+            response['holdout_metrics'] = holdout_metrics
+        return jsonify(response)
 
     except Exception as e:
         logger.error(f"Error training models for {ticker}: {str(e)}")

@@ -1,0 +1,27 @@
+portfolio:
+  name: paper-us
+  enabled: true
+  initial_cash: 100000
+  max_positions: 10
+  position_size_pct: 0.10
+  long_only: true
+  # stop_loss_pct: 0.08  # optional — disabled by default
+
+schedule:
+  timezone: America/New_York
+  run_after_close: true
+
+costs:
+  model: equity
+  commission_per_trade: 1.00
+  slippage_pct: 0.0005
+
+defaults:
+  strategy: ma_crossover
+  ma_short: 20
+  ma_long: 50
+
+positions:
+  - ticker: AAPL
+  - ticker: MSFT
+  - ticker: GOOGL

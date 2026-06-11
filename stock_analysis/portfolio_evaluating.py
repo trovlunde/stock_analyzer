@@ -5,6 +5,26 @@ from plotly.subplots import make_subplots
 from stock_analysis.trading_cost_analysis import MiniFutureAnalyzer
 
 
+def normalize_trading_signals(signals: pd.DataFrame) -> pd.DataFrame:
+    """Ensure signals use a DatetimeIndex and a single prediction column."""
+    signals = signals.copy()
+    if 'prediction' not in signals.columns:
+        if 'daily_pred' in signals.columns:
+            signals = signals.rename(columns={'daily_pred': 'prediction'})
+        elif 'weekly_pred' in signals.columns:
+            signals = signals.rename(columns={'weekly_pred': 'prediction'})
+        else:
+            raise ValueError("signals must include a 'prediction' column")
+
+    if 'date' in signals.columns:
+        signals = signals.set_index('date')
+    elif signals.index.name == 'date':
+        signals.index.name = None
+
+    signals.index = pd.to_datetime(signals.index)
+    return signals[['prediction']]
+
+
 def analyze_trading_strategies(stock_data, signals, initial_investment=10000, leverage=10, signal_type=""):
     """
     Analyze two different trading strategies based on signals:
@@ -21,6 +41,8 @@ def analyze_trading_strategies(stock_data, signals, initial_investment=10000, le
     Returns:
         dict: Results of both strategies including daily values and metrics
     """
+    signals = normalize_trading_signals(signals)
+
     # Check and align data ranges
     first_signal_date = signals.index.min()
     last_signal_date = signals.index.max()
@@ -305,13 +327,13 @@ def plot_trading_analysis(stock_data, results, title="Trading Analysis"):
         row=1, col=1
     )
 
-    # Add long signals
+    # Add long signals — use Price from results (same row as Date), not integer index
     long_mask_day = results['Day_Trading_Position'] == 'long'
     if long_mask_day.any():
         fig.add_trace(
             go.Scatter(
                 x=results.loc[long_mask_day, 'Date'],
-                y=stock_data.loc[long_mask_day.index, 'Close'],
+                y=results.loc[long_mask_day, 'Price'],
                 mode='markers',
                 name='Day Trade Long',
                 marker=dict(
@@ -330,7 +352,7 @@ def plot_trading_analysis(stock_data, results, title="Trading Analysis"):
         fig.add_trace(
             go.Scatter(
                 x=results.loc[short_mask_day, 'Date'],
-                y=stock_data.loc[short_mask_day.index, 'Close'],
+                y=results.loc[short_mask_day, 'Price'],
                 mode='markers',
                 name='Day Trade Short',
                 marker=dict(
@@ -349,7 +371,7 @@ def plot_trading_analysis(stock_data, results, title="Trading Analysis"):
         fig.add_trace(
             go.Scatter(
                 x=results.loc[long_mask_pos, 'Date'],
-                y=stock_data.loc[long_mask_pos.index, 'Close'],
+                y=results.loc[long_mask_pos, 'Price'],
                 mode='markers',
                 name='Position Long',
                 marker=dict(
@@ -367,7 +389,7 @@ def plot_trading_analysis(stock_data, results, title="Trading Analysis"):
         fig.add_trace(
             go.Scatter(
                 x=results.loc[short_mask_pos, 'Date'],
-                y=stock_data.loc[short_mask_pos.index, 'Close'],
+                y=results.loc[short_mask_pos, 'Price'],
                 mode='markers',
                 name='Position Short',
                 marker=dict(

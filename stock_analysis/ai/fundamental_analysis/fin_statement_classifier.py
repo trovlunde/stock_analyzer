@@ -23,7 +23,7 @@ def prepare_classification_data(ticker):
 
     # Calculate revenue growth series
     revenue_series = quarterly_fins.loc['Total Revenue']
-    revenue_growth = revenue_series.pct_change()
+    revenue_growth = revenue_series.pct_change(fill_method=None)
 
     # Create financial features
     fin_features = []
@@ -177,7 +177,7 @@ def prepare_classification_data_cache(ticker):
         y.to_csv(target_file)
         print(f"Cached data for {ticker.ticker}")
 
-        return X, y, returns
+        return X, y
     except Exception as e:
         print(f"Error processing {ticker.ticker}: {str(e)}")
         return None

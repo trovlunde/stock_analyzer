@@ -1,8 +1,9 @@
 import yfinance as yf
 import pandas as pd
-import os
-import time
+from datetime import timedelta
 from sklearn.neighbors import KNeighborsClassifier
+
+from ..storage import get_cache_store
 from sklearn.svm import SVC
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -16,134 +17,71 @@ def get_ticker(ticker):
     return yf.Ticker(ticker)
 
 
+def _index_cache_key(ticker, period, start_date=None):
+    if start_date is not None:
+        return f"index:{ticker}:{period}:{start_date}"
+    return f"index:{ticker}:{period}"
+
+
+def _index_data_fresh(df):
+    if df.empty:
+        return False
+    try:
+        latest_date = pd.Timestamp(df.index.max())
+        days_old = (pd.Timestamp.now() - latest_date).days
+        return -1 <= days_old <= 1
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 def get_index_data(ticker, period='10y', start_date=None):
     """Get index data with proper cache handling."""
-    CACHE_DIR = f'data/{ticker}_cache'
-    cache_file = os.path.join(CACHE_DIR, f'{ticker}_{period}.csv')
+    store = get_cache_store()
+    parsed_start = pd.Timestamp(start_date).date() if start_date is not None else None
+    key = _index_cache_key(ticker, period, parsed_start)
+    max_age = timedelta(hours=12)
 
-    if start_date is not None:
-        start_date = pd.Timestamp(start_date).date()
-        cache_file = os.path.join(
-            CACHE_DIR, f'{ticker}_{period}_{start_date}.csv')
-
-    # Add debug prints
     print(f"Attempting to get data for {ticker} over {period}")
+
+    cached = store.get(key, max_age=max_age, validator=_index_data_fresh)
+    if cached is not None:
+        latest_date = pd.Timestamp(cached.index.max()).date()
+        print(f"Using cached data (latest date: {latest_date})")
+        return cached
 
     try:
         lookback = int(period.split('y')[0])
-        if start_date is not None:
-            print(f"Using start date: {start_date}")
-            if os.path.exists(cache_file):
-                file_age_ok = os.path.getmtime(cache_file) > pd.Timestamp.now().timestamp() - (12 * 60 * 60)
-                
-                if file_age_ok:
-                    try:
-                        cached_data = pd.read_csv(
-                            cache_file, index_col=0, parse_dates=True)
-                        
-                        # Check data freshness
-                        if not cached_data.empty:
-                            try:
-                                latest_date = pd.Timestamp(cached_data.index.max())
-                                now = pd.Timestamp.now()
-                                days_old = (now - latest_date).days
-                                
-                                if days_old > 1:
-                                    print(f"Cache data is {days_old} days old (latest date: {latest_date.date()}), invalidating cache")
-                                elif days_old < -1:
-                                    print(f"Cache data has future dates (latest: {latest_date.date()}), invalidating cache")
-                                else:
-                                    print(f"Using cached data (latest date: {latest_date.date()})")
-                                    return cached_data
-                            except (ValueError, TypeError, AttributeError) as e:
-                                print(f"Error checking cache data dates: {e}, invalidating cache")
-                        else:
-                            print("Cached data is empty, invalidating cache")
-                    except Exception as e:
-                        print(f"Error reading cache file: {e}, invalidating cache")
-                else:
-                    print("Cache file is outdated (file modification time)")
-            else:
-                print("Cache file does not exist or is outdated")
-                end_date = start_date
-                start_date = end_date - pd.DateOffset(years=lookback)
-                index_data = yf.download(ticker, start=start_date, end=end_date)
-                os.makedirs(CACHE_DIR, exist_ok=True)
-                index_data.columns = index_data.columns.get_level_values(
-                    0)  # Remove multi-index if present
-                index_data.to_csv(cache_file)
-                return index_data
 
-        # Check cache first
-        if os.path.exists(cache_file):
-            print(f"Found cache file: {cache_file}")
-            # Check both file modification time and data freshness
-            file_age_ok = os.path.getmtime(cache_file) > pd.Timestamp.now().timestamp() - (12 * 60 * 60)
-            
-            if file_age_ok:
-                # Read the cached data to check data freshness
-                try:
-                    cached_data = pd.read_csv(
-                        cache_file, index_col=0, parse_dates=True)
-                    
-                    # Check if data is recent enough (latest date should be within 1 day of today)
-                    if not cached_data.empty:
-                        try:
-                            latest_date = pd.Timestamp(cached_data.index.max())
-                            # Check if it's a valid date (not too far in the future or past)
-                            now = pd.Timestamp.now()
-                            days_old = (now - latest_date).days
-                            
-                            # If data is more than 1 day old, invalidate cache
-                            if days_old > 1:
-                                print(f"Cache data is {days_old} days old (latest date: {latest_date.date()}), invalidating cache")
-                            elif days_old < -1:
-                                print(f"Cache data has future dates (latest: {latest_date.date()}), invalidating cache")
-                            else:
-                                print(f"Using cached data (latest date: {latest_date.date()})")
-                                return cached_data
-                        except (ValueError, TypeError, AttributeError) as e:
-                            print(f"Error checking cache data dates: {e}, invalidating cache")
-                    else:
-                        print("Cached data is empty, invalidating cache")
-                except Exception as e:
-                    print(f"Error reading cache file: {e}, invalidating cache")
-            else:
-                print("Cache file is outdated (file modification time)")
-                print(time.ctime(os.path.getmtime(cache_file)))
+        if parsed_start is not None:
+            print(f"Using start date: {parsed_start}")
+            end_date = parsed_start
+            download_start = end_date - pd.DateOffset(years=lookback)
+            index_data = yf.download(ticker, start=download_start, end=end_date)
+        else:
+            print(f"Attempting direct download with period={period}")
+            index_data = yf.download(ticker, period=period)
 
-        # Cache doesn't exist or is outdated, try downloading with period
-        print(f"Attempting direct download with period={period}")
-        index_data = yf.download(ticker, period=period)
+            if index_data.empty:
+                print("Period download failed, trying with explicit dates")
+                end_date = pd.Timestamp.now()
+                download_start = end_date - pd.Timedelta(days=365 * lookback)
+                print(f"Downloading from {download_start} to {end_date}")
+                index_data = yf.download(ticker, start=download_start, end=end_date)
 
-        if index_data.empty:
-            print("Period download failed, trying with explicit dates")
-            end_date = pd.Timestamp.now()
-            start_date = end_date - pd.Timedelta(days=365 * lookback)
-            print(f"Downloading from {start_date} to {end_date}")
-            index_data = yf.download(ticker, start=start_date, end=end_date)
-
-        if index_data.empty:
-            print("Explicit dates failed, trying max period")
-            index_data = yf.download(ticker, period='max')
+            if index_data.empty:
+                print("Explicit dates failed, trying max period")
+                index_data = yf.download(ticker, period='max')
 
         if index_data.empty:
             raise ValueError(f"No data retrieved for {ticker}")
 
-        # Save to cache - ensure data is in the correct format
-        print(f"Saving data to cache: {cache_file}")
-        os.makedirs(CACHE_DIR, exist_ok=True)
-
-        # Clean up column names and save
-        index_data.columns = index_data.columns.get_level_values(
-            0)  # Remove multi-index if present
-        index_data.to_csv(cache_file)
-
+        index_data.columns = index_data.columns.get_level_values(0)
+        print(f"Saving data to cache: {key}")
+        store.put(key, index_data)
         return index_data
 
     except Exception as e:
         print(f"Error retrieving {ticker} data: {e}")
-        # If all else fails, try one last direct download
         try:
             print("Attempting final fallback download")
             return yf.download(ticker, period=period)
