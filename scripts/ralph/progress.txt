@@ -2,8 +2,8 @@
 
 ## Current Status
 **Last Updated:** 2026-06-11
-**Tasks Completed:** 1
-**Current Task:** US-002
+**Tasks Completed:** 2
+**Current Task:** US-003
 
 ---
 
@@ -16,6 +16,14 @@
 - `prepare_classification_data_cache` accepts `_cache_dir=None` — pass `tmp_path` in tests to avoid touching real cache
 - `prepare_classification_data` returns 3-tuple `(features_df, targets_df, returns_df)`; cache helper unpacks all 3 then returns only `(features_df, targets_df)`
 
+---
+
+## 2026-06-11 - US-002
+- Verified cache-miss path: `X, y, returns = prepare_classification_data(ticker)` then `return X, y` — two-tuple only ✓
+- Verified cache-hit path: `return X, y` — two-tuple only ✓
+- Verified sole caller `train_classifier`: `X, y = result` after `if result is not None` — no third-value unpack ✓
+- No code changes needed — contract already correct in committed code
+- Commands run: `uv run pytest` → 34 passed
 ---
 
 ## 2026-06-11 - US-001
