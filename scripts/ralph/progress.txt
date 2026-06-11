@@ -2,8 +2,8 @@
 
 ## Current Status
 **Last Updated:** 2026-06-11
-**Tasks Completed:** 2
-**Current Task:** US-003
+**Tasks Completed:** 3
+**Current Task:** US-004
 
 ---
 
@@ -16,6 +16,18 @@
 - `prepare_classification_data_cache` accepts `_cache_dir=None` — pass `tmp_path` in tests to avoid touching real cache
 - `prepare_classification_data` returns 3-tuple `(features_df, targets_df, returns_df)`; cache helper unpacks all 3 then returns only `(features_df, targets_df)`
 
+---
+
+## 2026-06-11 - US-003
+- Created `tests/ai/test_fundamental_cache.py` with two tests:
+  - `test_cache_miss_returns_two_dataframes`: monkeypatches `prepare_classification_data`, calls with `tmp_path`, asserts `(X, y)` tuple + CSV files written
+  - `test_cache_hit_returns_two_dataframes_without_recompute`: verifies second call returns `(X, y)` without re-calling `prepare_classification_data`
+- No yfinance or network calls — uses `MagicMock` ticker and `monkeypatch.setattr` on module attribute
+- Files changed: `tests/ai/test_fundamental_cache.py` (new)
+- Commands run: `uv run pytest` → 36 passed
+- **Learnings for future iterations:**
+  - Patch `prepare_classification_data` via `monkeypatch.setattr(fin_mod, "prepare_classification_data", ...)` not via string path — module-level import makes string patching unreliable
+  - `_cache_dir` injection lets tests use `tmp_path` without touching real cache dir
 ---
 
 ## 2026-06-11 - US-002
