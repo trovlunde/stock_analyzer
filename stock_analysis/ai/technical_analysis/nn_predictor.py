@@ -15,19 +15,19 @@ def prepare_data(data, predict_weekly=False):
 
     if predict_weekly:
         X['target'] = data['Close'].pct_change(
-            periods=5).shift(-4)
+            periods=5, fill_method=None).shift(-4)
     else:
-        X['target'] = data['Close'].pct_change().shift(-1)
+        X['target'] = data['Close'].pct_change(fill_method=None).shift(-1)
 
-    X['return_1d'] = data['Close'].pct_change()
-    X['return_2d'] = data['Close'].pct_change(2)
-    X['return_5d'] = data['Close'].pct_change(5)
+    X['return_1d'] = data['Close'].pct_change(fill_method=None)
+    X['return_2d'] = data['Close'].pct_change(2, fill_method=None)
+    X['return_5d'] = data['Close'].pct_change(5, fill_method=None)
 
-    X['volume_1d'] = data['Volume'].pct_change()
-    X['volume_5d'] = data['Volume'].pct_change(5)
+    X['volume_1d'] = data['Volume'].pct_change(fill_method=None)
+    X['volume_5d'] = data['Volume'].pct_change(5, fill_method=None)
 
-    X['volatility_5d'] = data['Close'].pct_change().rolling(5).std()
-    X['volatility_21d'] = data['Close'].pct_change().rolling(21).std()
+    X['volatility_5d'] = data['Close'].pct_change(fill_method=None).rolling(5).std()
+    X['volatility_21d'] = data['Close'].pct_change(fill_method=None).rolling(21).std()
 
     X['ma_5d'] = data['Close'].rolling(5).mean() / data['Close'] - 1
     X['ma_21d'] = data['Close'].rolling(21).mean() / data['Close'] - 1

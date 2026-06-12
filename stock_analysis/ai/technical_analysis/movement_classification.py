@@ -723,16 +723,16 @@ def simulate_trading(model, scaler, data, investment_amount=100, stock_data=None
 
         # Get today's prediction and probabilities
         today_features = pd.DataFrame({
-            'prev_day_return': [stock_data['Close'].pct_change().iloc[-1]],
-            'prev_2day_return': [stock_data['Close'].pct_change().shift(1).iloc[-1]],
-            'prev_week_return': [stock_data['Close'].pct_change(periods=5).iloc[-1]]
+            'prev_day_return': [stock_data['Close'].pct_change(fill_method=None).iloc[-1]],
+            'prev_2day_return': [stock_data['Close'].pct_change(fill_method=None).shift(1).iloc[-1]],
+            'prev_week_return': [stock_data['Close'].pct_change(periods=5, fill_method=None).iloc[-1]]
         })
         if use_extra_features:
             # Calculate volatility
             today_features['volatility_5d'] = [
-                stock_data['Close'].pct_change().rolling(5).std().iloc[-1] * np.sqrt(252/5)]
+                stock_data['Close'].pct_change(fill_method=None).rolling(5).std().iloc[-1] * np.sqrt(252/5)]
             today_features['volatility_21d'] = [
-                stock_data['Close'].pct_change().rolling(21).std().iloc[-1] * np.sqrt(252/21)]
+                stock_data['Close'].pct_change(fill_method=None).rolling(21).std().iloc[-1] * np.sqrt(252/21)]
 
             # Moving averages relative to current price
             today_features['ma_5d'] = [stock_data['Close'].rolling(
@@ -892,7 +892,7 @@ def get_recent_predictions(stock_data, daily_data, daily_model, daily_scaler, we
 
     # Get the numeric values first
     close_values = stock_data['Close'].tail(days).values
-    returns = stock_data['Close'].pct_change().tail(days).values
+    returns = stock_data['Close'].pct_change(fill_method=None).tail(days).values
 
     # Create results table with formatted values and probabilities
     results = pd.DataFrame({

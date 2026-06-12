@@ -18,7 +18,7 @@ def linear_reg_sig_days(filter_consecutive=True, show_filtered=False):
     sp500.info()
 
     # Calculate returns
-    sp500['return'] = sp500['Close'].pct_change()
+    sp500['return'] = sp500['Close'].pct_change(fill_method=None)
 
     # Get significant changes
     if filter_consecutive:
