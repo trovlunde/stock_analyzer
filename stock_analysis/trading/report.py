@@ -16,6 +16,7 @@ def write_daily_report(
     decisions: list[tuple[str, DecisionResult]],
     dry_run: bool,
     skipped: str | None = None,
+    portfolio_metrics: dict | None = None,
 ) -> Path:
     report_dir.mkdir(parents=True, exist_ok=True)
     path = report_dir / f"{session_date.isoformat()}.md"
@@ -57,6 +58,24 @@ def write_daily_report(
             )
         elif decision.skipped_reason:
             lines.append(f"- No order: {decision.skipped_reason}")
+        lines.append("")
+
+    if portfolio_metrics is not None:
+        lines.extend(["", "## Portfolio metrics", ""])
+        calmar = portfolio_metrics.get("calmar")
+        sortino = portfolio_metrics.get("sortino")
+        rolling_sharpe = portfolio_metrics.get("rolling_sharpe")
+        has_rolling = rolling_sharpe is not None and len(rolling_sharpe) > 0
+        has_data = calmar is not None or sortino is not None or has_rolling
+        if not has_data:
+            lines.append("Insufficient history to compute metrics.")
+        else:
+            lines.append(f"- Calmar ratio: {calmar:.4f}" if calmar is not None else "- Calmar ratio: N/A")
+            lines.append(f"- Sortino ratio: {sortino:.4f}" if sortino is not None else "- Sortino ratio: N/A")
+            if has_rolling:
+                lines.append(f"- Rolling Sharpe (latest): {rolling_sharpe.iloc[-1]:.4f}")
+            else:
+                lines.append("- Rolling Sharpe (latest): N/A")
         lines.append("")
 
     path.write_text("\n".join(lines), encoding="utf-8")
