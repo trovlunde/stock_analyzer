@@ -1,0 +1,65 @@
+{
+  "project": "stock-analysis",
+  "branchName": "ralph/issue-2-fundamental-cache-contract",
+  "description": "Fix fundamental classification cache return contract — GitHub trovlunde/stock_analyzer#2",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/2",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Audit fundamental cache return paths",
+      "description": "As a developer, I want every success path of the fundamental classification cache helper audited so that callers never receive an inconsistent tuple length.",
+      "acceptanceCriteria": [
+        "All success return paths of prepare_classification_data_cache (fundamental classifier) return exactly two DataFrames (features, targets)",
+        "returns data from prepare_classification_data stays internal or is persisted separately — not returned from the cache helper",
+        "Document findings in scripts/ralph/progress.txt if any path still violates the contract",
+        "uv run pytest passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#2"
+    },
+    {
+      "id": "US-002",
+      "title": "Normalize cache miss path to (X, y) only",
+      "description": "As a developer, I want the cache-miss compute path to return the same two-tuple as the cache-hit path so train_classifier never fails to unpack.",
+      "acceptanceCriteria": [
+        "Fresh-compute branch returns (features_df, targets_df) only — same shape as cache-hit branch",
+        "No caller of the fundamental cache helper expects or unpacks a third returns DataFrame",
+        "uv run pytest passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#2"
+    },
+    {
+      "id": "US-003",
+      "title": "Add regression test for cache round-trip",
+      "description": "As a developer, I want a pytest that exercises cache miss → write → hit → read without network so the return-contract bug cannot regress.",
+      "acceptanceCriteria": [
+        "New test under tests/ mocks prepare_classification_data and uses tmp_path for cache files",
+        "Test asserts first call (miss) returns two DataFrames and writes cache files",
+        "Test asserts second call (hit) returns two DataFrames with matching columns and row count",
+        "Test does not call yfinance or any live market API",
+        "Prior art pattern from tests/storage/test_cache_store.py (round-trip, TTL-style isolation)",
+        "uv run pytest passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#2"
+    },
+    {
+      "id": "US-004",
+      "title": "Verify batch training unpacks cached results",
+      "description": "As a developer running SP500 fundamental classifier training, I want train_classifier to aggregate mocked tickers without unpack errors.",
+      "acceptanceCriteria": [
+        "Test calls train_classifier with two mocked tickers: first cache miss, second cache hit",
+        "No 'too many values to unpack' or tuple-length errors during aggregation",
+        "train_classifier returns daily and weekly classifier objects on success",
+        "uv run pytest passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#2"
+    }
+  ]
+}

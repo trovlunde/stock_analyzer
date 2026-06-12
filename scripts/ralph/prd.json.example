@@ -1,0 +1,33 @@
+{
+  "project": "stock-analysis",
+  "branchName": "ralph/example-feature",
+  "description": "Example feature - replace with your PRD conversion output",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add example regression test",
+      "description": "As a developer, I want an example test so that Ralph quality checks are understood.",
+      "acceptanceCriteria": [
+        "Add a minimal passing test under tests/",
+        "uv run pytest passes",
+        "No network access required in the new test"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Wire example into existing module",
+      "description": "As a maintainer, I want a second small story so dependency ordering is clear.",
+      "acceptanceCriteria": [
+        "Touch only files required for the story",
+        "uv run pytest passes",
+        "Update scripts/ralph/progress.txt with learnings"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+# Ralph Agent Instructions
+
+You are an autonomous coding agent working on the **stock-analysis** Python project.
+
+Work from the **repository root** (parent of `scripts/ralph/`). Ralph state files live in `scripts/ralph/`.
+
+## Your Task
+
+1. Read the PRD at `scripts/ralph/prd.json`
+2. Read the progress log at `scripts/ralph/progress.txt` (check **Codebase Patterns** first)
+3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from `main`.
+4. Pick the **highest priority** user story where `passes: false`
+5. Implement that **single** user story
+6. Run quality checks (see below)
+7. Update `AGENTS.md` files if you discover reusable patterns (see below)
+8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
+9. Update `scripts/ralph/prd.json` to set `passes: true` for the completed story
+10. Append your progress to `scripts/ralph/progress.txt`
+
+## Quality Checks (stock-analysis)
+
+Run from repository root:
+
+```bash
+uv run pytest
+```
+
+- Do **not** commit if tests fail
+- Add dependencies with `uv add` / `uv add --dev`; keep `pyproject.toml` and `uv.lock` in sync
+- Prefer tests with fixtures/mocks — avoid live `yfinance` or network calls in CI
+- Match existing patterns: temporal holdout evaluation, `CacheStore` protocol, `uv` for all Python commands
+
+## Progress Report Format
+
+APPEND to `scripts/ralph/progress.txt` (never replace):
+
+```
+## [Date/Time] - [Story ID]
+Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
+- What was implemented
+- Files changed
+- **Learnings for future iterations:**
+  - Patterns discovered
+  - Gotchas encountered
+  - Useful context
+---
+```
+
+Include the thread URL when available so future iterations can use `read_thread`.
+
+## Consolidate Patterns
+
+Add reusable learnings to the `## Codebase Patterns` section at the **top** of `scripts/ralph/progress.txt`.
+
+## Update AGENTS.md Files
+
+Before committing, add durable module conventions to `AGENTS.md` in the repo root or nearest package directory.
+
+## Browser / UI Stories
+
+For Flask UI or report output changes, verify in the browser using the dev-browser skill when available.
+
+## Stop Condition
+
+After completing a user story, check if ALL stories have `passes: true`.
+
+If ALL stories are complete and passing, reply with:
+
+<promise>COMPLETE</promise>
+
+## Important
+
+- **One story per iteration**
+- Keep changes minimal and focused
+- Read Codebase Patterns before starting
+- See root `AGENTS.md` for project layout and conventions

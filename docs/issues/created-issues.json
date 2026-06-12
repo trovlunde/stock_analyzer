@@ -1,0 +1,54 @@
+﻿[
+    {
+        "Title":  "Epic: Stack \u0026 tooling improvements",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/1"
+    },
+    {
+        "Title":  "Fix fundamental classification cache return contract",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/2"
+    },
+    {
+        "Title":  "Consolidate technical-analysis libraries to pandas-ta",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/3"
+    },
+    {
+        "Title":  "Resolve orphaned neural-network predictor module",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/4"
+    },
+    {
+        "Title":  "Audit pct_change for pandas 3.x deprecation",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/5"
+    },
+    {
+        "Title":  "Add gradient-boosted classifiers to evaluate CLI",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/6"
+    },
+    {
+        "Title":  "Richer portfolio metrics in daily paper-trading reports",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/7"
+    },
+    {
+        "Title":  "SEC EDGAR fundamentals fallback when Yahoo data is empty",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/8"
+    },
+    {
+        "Title":  "Add statsmodels for time-series diagnostics",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/9"
+    },
+    {
+        "Title":  "Introduce MarketDataProvider protocol",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/10"
+    },
+    {
+        "Title":  "Spike Polars and DuckDB for batch analytics",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/11"
+    },
+    {
+        "Title":  "Consolidate visualization dependencies on Plotly",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/12"
+    },
+    {
+        "Title":  "Evaluate FastAPI migration for Flask API",
+        "Url":  "https://github.com/trovlunde/stock_analyzer/issues/13"
+    }
+]
