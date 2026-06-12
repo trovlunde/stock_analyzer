@@ -255,3 +255,28 @@ class PortfolioStore:
                     filled_at=_utcnow(),
                 )
             )
+
+    def get_equity_curve(self, portfolio_id: int) -> list[tuple[str, float]]:
+        """Return (session_date, portfolio_value) pairs ordered by date from completed non-dry-run runs."""
+        with self.engine.connect() as conn:
+            rows = conn.execute(
+                select(paper_runs.c.summary_json).where(
+                    paper_runs.c.portfolio_id == portfolio_id,
+                    paper_runs.c.dry_run == False,  # noqa: E712
+                    paper_runs.c.finished_at.isnot(None),
+                    paper_runs.c.summary_json.isnot(None),
+                )
+            ).mappings().all()
+
+        points: list[tuple[str, float]] = []
+        for row in rows:
+            try:
+                summary = json.loads(row["summary_json"])
+                session_date = summary.get("session_date")
+                portfolio_value = summary.get("portfolio_value")
+                if session_date and portfolio_value is not None:
+                    points.append((str(session_date), float(portfolio_value)))
+            except (json.JSONDecodeError, ValueError, TypeError):
+                continue
+
+        return sorted(points, key=lambda x: x[0])
