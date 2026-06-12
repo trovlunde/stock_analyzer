@@ -22,6 +22,7 @@ from stock_analysis.trading.market_calendar import (
     next_trading_day_after,
 )
 from stock_analysis.trading.paper_broker import PaperBroker
+from stock_analysis.trading.portfolio_metrics import compute_portfolio_metrics
 from stock_analysis.trading.report import write_daily_report
 from stock_analysis.trading.signals import get_signal_strategy
 
@@ -186,6 +187,17 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
     if not dry_run:
         store.finish_run(run_id, "completed", summary)
 
+    portfolio_metrics = None
+    if not dry_run:
+        equity_curve = store.get_equity_curve(state.id)
+        today_str = today.isoformat()
+        if not equity_curve or equity_curve[-1][0] != today_str:
+            equity_curve.append((today_str, total_value))
+        if len(equity_curve) >= 2:
+            values = pd.Series([v for _, v in equity_curve], dtype=float)
+            returns = values.pct_change().dropna()
+            portfolio_metrics = compute_portfolio_metrics(returns)
+
     report_path = write_daily_report(
         Path("data/reports"),
         today,
@@ -195,6 +207,7 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
         fills=fills,
         decisions=decisions,
         dry_run=dry_run,
+        portfolio_metrics=portfolio_metrics,
     )
 
     logger.info(
