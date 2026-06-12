@@ -1,0 +1,74 @@
+## Codebase Patterns
+- Use `uv run pytest` from repo root
+- Classifiers registered in `stock_analysis/ai/helpers.py` as `classifiers` dict
+- `get_classifier_param_grid()` in `stock_analysis/ai/technical_analysis/classifier_comparison.py`
+- `compare_classifiers` uses `classifiers` dict + param_grid for GridSearchCV with TimeSeriesSplit
+- `evaluate_all_classifiers` in `stock_analysis/ai/technical_analysis/movement_classification.py`
+- CLI entry: `stock-analysis-evaluate compare` → `stock_analysis/cli/evaluate_models.py:cmd_compare`
+- LGBMClassifier needs `verbose=-1` to suppress training output
+
+## Current Status
+**Last Updated:** Fri, Jun 12, 2026
+**Tasks Completed:** 5
+**Current Task:** none — all complete
+
+---
+
+## Fri Jun 12, 2026 - US-001
+- Added `lightgbm>=4.6.0` via `uv add lightgbm`
+- Imported `LGBMClassifier` in `stock_analysis/ai/helpers.py`
+- Registered `"LightGBM": LGBMClassifier(n_estimators=100, random_state=42, verbose=-1)` in `classifiers` dict
+- Added LightGBM param grid to `get_classifier_param_grid()`: n_estimators, max_depth, learning_rate, num_leaves
+- `uv run pytest`: 43 passed
+- **Learnings for future iterations:**
+  - LGBMClassifier is sklearn-compatible, slots directly into GridSearchCV
+  - `verbose=-1` suppresses LightGBM training output (otherwise very noisy)
+  - `max_depth=-1` in LightGBM means unlimited depth (leaf-wise growth controlled by num_leaves)
+---
+
+## Fri Jun 12, 2026 - US-002
+- Added `classifier_names=None` param to `compare_classifiers` in `classifier_comparison.py`
+- Filters `classifiers` dict to only named classifiers when `classifier_names` is not None; default unchanged
+- Added `classifier_names=None` param to `evaluate_all_classifiers` in `movement_classification.py`; passes through to `compare_classifiers`
+- Return dict shape unchanged (`comparison_results`, `best_classifier`, `holdout_metrics`, `holdout_size`)
+- `uv run pytest`: 43 passed
+- **Learnings for future iterations:**
+  - `classifiers` dict is the single registry; filtering it by name list is the minimal approach
+  - `evaluate_all_classifiers` holdout split happens before classifier selection — size is independent of filter
+---
+
+## Fri Jun 12, 2026 - US-003
+- Added `--classifier NAME [NAME ...]` arg to `compare` subparser in `stock_analysis/cli/evaluate_models.py`
+- Added `_resolve_classifier_names()` helper: case-insensitive lookup against `classifiers` registry keys; `all`/None → None (run all)
+- Wired through `cmd_compare` → `evaluate_all_classifiers(classifier_names=...)`
+- Imported `classifiers` registry into CLI module for name resolution
+- `uv run pytest`: 43 passed
+- **Learnings for future iterations:**
+  - `classifiers` dict keys are mixed-case ("LightGBM", "Random Forest") — case-insensitive resolution is needed for a good CLI UX
+  - `getattr(args, "classifier", None)` safer than `args.classifier` if arg ever removed from subparser
+  - `nargs="+"` allows `--classifier lightgbm` and `--classifier "Random Forest" LightGBM`
+---
+
+## Fri Jun 12, 2026 - US-004
+- Added `tests/ai/test_lightgbm_compare.py` with two tests on synthetic fixture (no yfinance)
+- Fixture: 80 business-day rows, 3-class cycle (positive/negative/neutral), base features only
+- Patched `get_classifier_param_grid` to minimal grids (n_estimators=10) for fast CI execution
+- `test_lightgbm_in_comparison_results`: asserts 'LightGBM' in comparison_results when classifier_names=['LightGBM']
+- `test_holdout_size_invariant_to_classifier_selection`: asserts holdout_size identical for LightGBM vs Random Forest runs on same fixture
+- `uv run pytest`: 45 passed
+- **Learnings for future iterations:**
+  - Patch `get_classifier_param_grid` via `unittest.mock.patch` with `side_effect=fn` (not `return_value`) when the function is called multiple times and state must reset
+  - Holdout split precedes classifier selection — size truly invariant; test confirms this contract
+  - LGBMClassifier emits sklearn UserWarning about feature names when fit with DataFrame but predicted on ndarray; harmless, no need to suppress
+---
+
+## Fri Jun 12, 2026 - US-005
+- Updated README `### ML Model Evaluation` section: added `--classifier lightgbm` / `--classifier` examples and booster vs ensemble tradeoff table
+- Updated `stock_analysis/cli/evaluate_models.py`: expanded `compare` subparser `description` and `--classifier` help text with booster tradeoffs and when-to-prefer guidance
+- `uv run pytest`: 45 passed
+- **Learnings for future iterations:**
+  - argparse `add_parser(description=...)` renders in `--help` under the subcommand's usage block; `help=` is shown in the parent parser's subcommand list
+  - README table (Markdown pipe table) is the cleanest way to document multi-dimension tradeoffs
+
+Ready for PR — closes #6
+---

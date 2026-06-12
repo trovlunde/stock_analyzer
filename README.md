@@ -82,8 +82,14 @@ uv run python -m stock_analysis.ai.technical_analysis.movement_classification
 Compare classifiers with a temporal holdout (train on past, test on recent data):
 
 ```bash
-# Grid-search classifiers; evaluate best model on last 12 months
+# Grid-search all classifiers (sklearn + LightGBM); evaluate best on last 12 months
 uv run stock-analysis-evaluate compare --ticker ^GSPC --holdout-months 12 --extra-features
+
+# Run only the LightGBM booster (faster grid-search, leaf-wise trees)
+uv run stock-analysis-evaluate compare --ticker ^GSPC --holdout-months 12 --classifier lightgbm
+
+# Run only sklearn ensembles (Random Forest, Voting Classifier, etc.)
+uv run stock-analysis-evaluate compare --ticker ^GSPC --holdout-months 12 --classifier "Random Forest" "Voting Classifier"
 
 # Train daily+weekly RandomForest with out-of-sample PnL backtest
 uv run stock-analysis-evaluate train --ticker ^GSPC --holdout-months 6 --extra-features
@@ -95,6 +101,17 @@ uv run stock-analysis-evaluate strategies
 # Compare dual-RF pipeline variants on the same holdout (features, threshold, RF params)
 uv run stock-analysis-evaluate variants --ticker ^GSPC --holdout-months 12
 ```
+
+**Booster vs ensemble tradeoffs:**
+
+| | LightGBM | sklearn ensembles (RF, Voting) |
+|---|---|---|
+| Speed | Fast grid-search (leaf-wise growth) | Slower — many tree estimators |
+| Tabular data | Often best-in-class on tabular | Competitive; more tuning options |
+| Install weight | ~15 MB extra dependency | Bundled with scikit-learn |
+| When to prefer | Small dataset, fast iteration, production scoring | Interpretability, no extra deps, voting ensembles |
+
+Use `--classifier lightgbm` for a quick booster benchmark; omit `--classifier` to grid-search all registered classifiers and let CV pick the best.
 
 Interactive CLI (mode 1 with holdout, or mode 5 for classifier comparison):
 

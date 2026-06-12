@@ -1,0 +1,79 @@
+{
+  "project": "stock-analysis",
+  "branchName": "ralph/issue-6-lightgbm-evaluate-cli",
+  "description": "Add gradient-boosted classifiers to evaluate CLI — GitHub trovlunde/stock_analyzer#6",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/6",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add lightgbm dependency and register LightGBM classifier",
+      "description": "As a maintainer, I want LightGBM available as a sklearn-compatible classifier in the movement-classification registry so boosters can join GridSearchCV + TimeSeriesSplit.",
+      "acceptanceCriteria": [
+        "`uv add lightgbm`; import succeeds in CI without network",
+        "`LGBMClassifier` registered in `classifiers` (helpers) or a dedicated booster registry consumed by `compare_classifiers`",
+        "`get_classifier_param_grid()` includes a reasonable LightGBM param grid (e.g. n_estimators, max_depth, learning_rate)",
+        "LightGBM entry follows existing `set_params` / `fit` / `predict` sklearn-compatible pattern",
+        "uv run pytest passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#6"
+    },
+    {
+      "id": "US-002",
+      "title": "Extend evaluation layer for optional classifier selection",
+      "description": "As a quant hobbyist, I want `compare_classifiers` and `evaluate_all_classifiers` to accept an optional classifier filter so boosters run in the same pipeline without changing holdout split sizes.",
+      "acceptanceCriteria": [
+        "`compare_classifiers(..., classifier_names=None)` runs only named classifiers when provided; default runs existing sklearn grid",
+        "`evaluate_all_classifiers(..., classifier_names=None)` passes filter through; `holdout_size` and `temporal_holdout_split` semantics unchanged",
+        "Return dict shape unchanged: `comparison_results`, `best_classifier`, `holdout_metrics`, `holdout_size`",
+        "uv run pytest passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#6"
+    },
+    {
+      "id": "US-003",
+      "title": "Add --classifier flag to compare CLI subcommand",
+      "description": "As a user, I want `stock-analysis-evaluate compare --classifier lightgbm` so I can evaluate boosters with the same `--holdout-months` and `--extra-features` flags.",
+      "acceptanceCriteria": [
+        "`compare` subcommand accepts `--classifier` (e.g. `lightgbm`, `all`, or sklearn name); documented in argparse help",
+        "Flag wired through `cmd_compare` → `evaluate_all_classifiers`",
+        "`--holdout-months`, `--extra-features`, `--threshold`, and `--test-size` behavior unchanged",
+        "uv run pytest passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#6"
+    },
+    {
+      "id": "US-004",
+      "title": "P1 pytest: LightGBM in compare output with matching holdout size",
+      "description": "As a maintainer, I want a fast regression test on synthetic prepared data proving LightGBM participates in comparison and holdout row count matches the sklearn baseline.",
+      "acceptanceCriteria": [
+        "New test uses synthetic prepared-data fixture (no live yfinance)",
+        "Fixture has enough rows and class variety for temporal split (train ≥30, holdout ≥10)",
+        "With `--classifier lightgbm` or `classifier_names=['LightGBM']`, `comparison_results` includes LightGBM",
+        "Same fixture: `holdout_size` with LightGBM equals `holdout_size` with sklearn-only default run",
+        "uv run pytest passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#6"
+    },
+    {
+      "id": "US-005",
+      "title": "Document booster vs ensemble tradeoffs in README and CLI help",
+      "description": "As a user, I want guidance on when to prefer LightGBM boosters over sklearn ensembles (speed, tabular performance, install weight).",
+      "acceptanceCriteria": [
+        "README ML Model Evaluation section mentions `--classifier lightgbm` and booster vs ensemble tradeoffs",
+        "CLI `--help` on `compare` references classifier selection and when to prefer boosters",
+        "uv run pytest passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#6"
+    }
+  ]
+}
