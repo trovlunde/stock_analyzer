@@ -359,6 +359,12 @@ def load_historical_signals(file_name='finviz_recs_up.json'):
             return None
 
         return df
+    except FileNotFoundError:
+        print(
+            f"Error loading historical signals: finviz_recs/{file_name} not found. "
+            "Run finviz_scrape.bat or `uv run python finviz_recs/finviz_scrape.py` from the repo root."
+        )
+        return None
     except Exception as e:
         print(f"Error loading historical signals: {str(e)}")
         return None

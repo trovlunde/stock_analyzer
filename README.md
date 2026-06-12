@@ -64,8 +64,11 @@ You can also run individual modules directly:
 uv run python -m stock_analysis.ai.fundamental_analysis.valuation_example
 ```
 
-**Run finviz classifier:**
+**Run finviz classifier** (requires local scrape data under `finviz_recs/`, not committed to git):
 ```bash
+# From repo root — populates finviz_recs/*.json (Windows: finviz_scrape.bat)
+uv run python finviz_recs/finviz_scrape.py
+
 uv run python -m stock_analysis.ai.finviz_classifier.finviz_classifier
 ```
 

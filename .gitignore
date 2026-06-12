@@ -23,3 +23,7 @@ scripts/ralph/progress.txt
 scripts/ralph/.last-branch
 scripts/ralph/.iteration-*.log
 screenshots/
+
+# Finviz scrape outputs (generated locally — run finviz_scrape.bat or finviz_recs/finviz_scrape.py)
+finviz_recs/*.json
+finviz_recs/finviz_scrape.log
