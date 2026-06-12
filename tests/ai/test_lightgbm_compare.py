@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 import pandas as pd
 import numpy as np
@@ -55,6 +57,26 @@ def test_lightgbm_in_comparison_results(mock_grid, prepared_data):
         classifier_names=["LightGBM"],
     )
     assert "LightGBM" in result["comparison_results"]
+
+
+@patch(
+    "stock_analysis.ai.technical_analysis.classifier_comparison.get_classifier_param_grid",
+    side_effect=_minimal_param_grid,
+)
+def test_lightgbm_no_feature_name_warning(mock_grid, prepared_data):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        evaluate_all_classifiers(
+            prepared_data,
+            plot=False,
+            classifier_names=["LightGBM"],
+        )
+    feature_name_warnings = [
+        w for w in caught
+        if issubclass(w.category, UserWarning)
+        and "feature names" in str(w.message).lower()
+    ]
+    assert feature_name_warnings == []
 
 
 @patch(
