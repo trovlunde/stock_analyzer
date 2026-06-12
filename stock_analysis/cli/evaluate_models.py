@@ -4,7 +4,7 @@ import argparse
 
 import pandas as pd
 
-from stock_analysis.ai.helpers import get_index_data
+from stock_analysis.ai.helpers import get_index_data, classifiers as _classifiers_registry
 from stock_analysis.ai.technical_analysis.movement_classification import (
     compare_variants,
     evaluate_all_classifiers,
@@ -40,11 +40,29 @@ def _prepare_data(ticker, period, threshold, use_extra_features, enhanced):
     return data, prepared.dropna()
 
 
+def _resolve_classifier_names(names):
+    """Resolve CLI --classifier values to registry keys; None means all."""
+    if names is None:
+        return None
+    if len(names) == 1 and names[0].lower() == "all":
+        return None
+    lower_map = {k.lower(): k for k in _classifiers_registry}
+    resolved = []
+    for name in names:
+        canonical = lower_map.get(name.lower())
+        if canonical is None:
+            available = list(_classifiers_registry.keys())
+            raise ValueError(f"Unknown classifier {name!r}. Available: {available}")
+        resolved.append(canonical)
+    return resolved
+
+
 def cmd_compare(args):
     """Compare multiple classifiers with temporal holdout."""
     _, prepared = _prepare_data(
         args.ticker, args.period, args.threshold, args.extra_features, enhanced=True
     )
+    classifier_names = _resolve_classifier_names(getattr(args, "classifier", None))
     result = evaluate_all_classifiers(
         prepared,
         threshold=args.threshold,
@@ -52,6 +70,7 @@ def cmd_compare(args):
         holdout_months=args.holdout_months,
         test_size=args.test_size,
         plot=not args.no_plot,
+        classifier_names=classifier_names,
     )
     metrics = result["holdout_metrics"]
     print(
@@ -176,6 +195,17 @@ def build_parser():
     compare.add_argument("--threshold", type=float, default=0.005)
     compare.add_argument("--extra-features", action="store_true")
     compare.add_argument("--no-plot", action="store_true")
+    compare.add_argument(
+        "--classifier",
+        nargs="+",
+        default=None,
+        metavar="NAME",
+        help=(
+            "Classifier(s) to evaluate (case-insensitive). "
+            "Use 'all' or omit for all classifiers. "
+            "E.g. --classifier lightgbm  or  --classifier 'Random Forest' LightGBM"
+        ),
+    )
     compare.set_defaults(func=cmd_compare)
 
     train = sub.add_parser(
