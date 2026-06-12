@@ -7,14 +7,32 @@ Started: Fri, Jun 12, 2026  8:37:21
 - nn_predictor lives at `stock_analysis/ai/technical_analysis/nn_predictor.py`
 - nn_predictor is NOT imported by any production path (daily job, evaluate CLI) — experimental module only
 - Public API to preserve: `train_nn_predictor(data, predict_weekly, test_size, do_tuning)` → `(model, scaler, history)`; `predict_returns(model, scaler, data, predict_weekly)` → `pd.Series` indexed to prepared feature rows; `prepare_data(data, predict_weekly)` → DataFrame
+- nn_predictor history object is a dict `{'loss': model.loss_curve_}` — sklearn MLPRegressor's loss_curve_ is a list of training losses per iteration; no val_loss key
+- MLPRegressor.loss_curve_ is only available after .fit() — ensure model is fitted before accessing
 
 ---
 
 ## Current Status
 **Last Updated:** Fri, Jun 12, 2026
-**Tasks Completed:** 1
-**Current Task:** US-002
+**Tasks Completed:** 2
+**Current Task:** US-003
 
+---
+
+## Fri, Jun 12, 2026 - US-002
+- Rewrote `train_nn_predictor` to use `sklearn.neural_network.MLPRegressor` with `early_stopping=True`
+- Replaced `keras_tuner.Hyperband` with `RandomizedSearchCV` over MLP hyperparameters for `do_tuning=True`
+- Removed all `tensorflow`, `keras`, `keras_tuner` imports — module now fully sklearn-based
+- Removed `tf.nn.softmax` debug print and `create_nn_model`/`create_tunable_model` Keras helpers
+- `history` return value is now `{'loss': model.loss_curve_}` dict — compatible with US-003 visualization
+- Feature importance permutation uses `mean_squared_error` instead of `model.evaluate()`
+- `predict_returns` uses `model.predict()` directly (sklearn API, no `.flatten()` needed)
+- Files changed: `stock_analysis/ai/technical_analysis/nn_predictor.py`
+- Commands run: `uv run pytest` → 39 passed, 16 warnings
+- **Learnings for future iterations:**
+  - `RandomizedSearchCV` with `MLPRegressor(early_stopping=True)` works — best_estimator_ has `loss_curve_` after refit
+  - No `keras_tuner/` directory is created (was a side effect of kt.Hyperband)
+  - `MLPRegressor` has no `val_loss` in `loss_curve_` — only training loss per iteration
 ---
 
 ## Fri, Jun 12, 2026 - US-001
