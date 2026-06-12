@@ -1740,7 +1740,6 @@ dependencies = [
     { name = "scipy" },
     { name = "seaborn" },
     { name = "sqlalchemy" },
-    { name = "ta" },
     { name = "tqdm" },
     { name = "yfinance" },
 ]
@@ -1773,23 +1772,12 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.12.0" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "sqlalchemy", specifier = ">=2.0" },
-    { name = "ta", specifier = ">=0.11.0" },
     { name = "tqdm", specifier = ">=4.66.1" },
     { name = "yfinance", specifier = ">=0.2.54" },
 ]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8.0" }]
-
-[[package]]
-name = "ta"
-version = "0.11.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "pandas" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e0/9a/37d92a6b470dc9088612c2399a68f1a9ac22872d4e1eff416818e22ab11b/ta-0.11.0.tar.gz", hash = "sha256:de86af43418420bd6b088a2ea9b95483071bf453c522a8441bc2f12bcf8493fd", size = 25308, upload-time = "2023-11-02T13:53:35.434Z" }
 
 [[package]]
 name = "threadpoolctl"

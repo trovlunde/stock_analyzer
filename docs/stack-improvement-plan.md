@@ -28,8 +28,8 @@ Assessment of the stock-analysis dependency stack, data sources, and ML tooling 
 
 **File:** `stock_analysis/ai/fundamental_analysis/fin_statement_classifier.py`
 
-- [ ] Return `(X, y)` consistently from `prepare_classification_data_cache()` (drop `returns` from the return tuple, or unpack three values everywhere callers expect it)
-- [ ] Add a regression test that exercises cache miss → cache hit path
+- [x] Return `(X, y)` consistently from `prepare_classification_data_cache()` (drop `returns` from the return tuple, or unpack three values everywhere callers expect it)
+- [x] Add a regression test that exercises cache miss → cache hit path
 
 ### 1.2 Consolidate technical-analysis libraries
 
@@ -38,10 +38,10 @@ Assessment of the stock-analysis dependency stack, data sources, and ML tooling 
 | Module | Current |
 |--------|---------|
 | `analyze_stock_data.py` | `pandas_ta` |
-| `prepare_classification_data.py` | `ta` |
+| `prepare_classification_data.py` | `pandas-ta` |
 
-- [ ] Migrate `prepare_classification_data.py` to `pandas-ta`
-- [ ] Remove `ta` from `pyproject.toml`
+- [x] Migrate `prepare_classification_data.py` to `pandas-ta`
+- [x] Remove `ta` from `pyproject.toml`
 - [ ] Run tests / smoke-eval on movement classifier after migration
 
 ### 1.3 Resolve orphaned neural-network module
