@@ -19,7 +19,7 @@ def sp500_analysis():
     # Calculate moving averages and returns
     sp500['50ma'] = sp500['Close'].rolling(window=50).mean()
     sp500['200ma'] = sp500['Close'].rolling(window=200).mean()
-    sp500['return'] = sp500['Close'].pct_change()
+    sp500['return'] = sp500['Close'].pct_change(fill_method=None)
 
     # Create figure
     fig = go.Figure()
@@ -93,9 +93,9 @@ def sp500_analysis():
     # Calculate prior returns
     significant_changes['prior_day_return'] = sp500['return'].shift(1)
     significant_changes['prior_week_return'] = sp500['Close'].pct_change(
-        periods=5)  # 5 trading days
+        periods=5, fill_method=None)  # 5 trading days
     significant_changes['prior_month_return'] = sp500['Close'].pct_change(
-        periods=21)  # ~21 trading days
+        periods=21, fill_method=None)  # ~21 trading days
 
     # Format the table
     table_df = pd.DataFrame({
@@ -151,7 +151,7 @@ def sp500_analysis():
 
     # ... rest of the code ...
 
-    sp500['return'] = sp500['Close'].pct_change()
+    sp500['return'] = sp500['Close'].pct_change(fill_method=None)
 
     plt.figure(figsize=(15, 5))
     plt.title('S&P 500 Daily Return')
