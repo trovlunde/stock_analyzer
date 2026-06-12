@@ -2310,6 +2310,7 @@ def evaluate_all_classifiers(
     test_size=0.2,
     holdout_months=None,
     plot=True,
+    classifier_names=None,
 ):
     """
     Compare classifiers with time-series CV on the training period,
@@ -2346,7 +2347,8 @@ def evaluate_all_classifiers(
     class_weight_dict = dict(zip(classes, class_weights))
 
     results = compare_classifiers(
-        X_train_scaled, y_train, class_weights=class_weight_dict
+        X_train_scaled, y_train, class_weights=class_weight_dict,
+        classifier_names=classifier_names,
     )
     print_best_configs(results)
     if plot:

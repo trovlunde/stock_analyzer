@@ -42,7 +42,7 @@ def get_classifier_param_grid():
     }
 
 
-def compare_classifiers(X, y, cv=5, class_weights=None):
+def compare_classifiers(X, y, cv=5, class_weights=None, classifier_names=None):
     """
     Evaluate classifiers with class weights and stratified CV.
     """
@@ -60,7 +60,13 @@ def compare_classifiers(X, y, cv=5, class_weights=None):
     tscv = TimeSeriesSplit(n_splits=5)
     cv = tscv  # Replace standard CV with time series CV
 
-    for name, clf in classifiers.items():
+    active_classifiers = (
+        {n: c for n, c in classifiers.items() if n in classifier_names}
+        if classifier_names is not None
+        else classifiers
+    )
+
+    for name, clf in active_classifiers.items():
         if name in param_grid:
             print(f"\nTuning {name}...")
 
