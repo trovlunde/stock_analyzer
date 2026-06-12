@@ -210,8 +210,6 @@ empyrical - For financial risk metrics
 QuantStats - For detailed portfolio analytics
 mlfinlab - For machine learning-based financial analysis
 
-tensorflow - For machine learning
-keras - For machine learning, on top of tensorflow
 scikit-learn - For machine learning
 
 zipline - For backtesting
@@ -404,8 +402,10 @@ This section documents the available functions for stock analysis functionality 
 
 **Module:** `stock_analysis.ai.technical_analysis.nn_predictor`
 
-- `train_nn_predictor(data, predict_weekly=False, test_size=0.2, do_tuning=True)` - Trains neural network predictor
-- `predict_returns(model, scaler, data, predict_weekly=False)` - Makes return predictions using trained model
+> **Experimental** — not wired into `stock-analysis-daily` or `stock-analysis-evaluate`. Uses `sklearn.neural_network.MLPRegressor` backend (no TensorFlow or Keras required).
+
+- `train_nn_predictor(data, predict_weekly=False, test_size=0.2, do_tuning=True)` - Trains MLP regressor; `do_tuning=True` runs `RandomizedSearchCV` over hyperparameters. Returns `(model, scaler, history)`.
+- `predict_returns(model, scaler, data, predict_weekly=False)` - Makes return predictions using trained model; returns `pd.Series` aligned to prepared feature index.
 
 **Module:** `stock_analysis.ai.technical_analysis.intraday_volatility_analysis`
 

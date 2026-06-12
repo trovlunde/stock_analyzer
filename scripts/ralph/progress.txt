@@ -16,9 +16,17 @@ Started: Fri, Jun 12, 2026  8:37:21
 
 ## Current Status
 **Last Updated:** Fri, Jun 12, 2026
-**Tasks Completed:** 4
-**Current Task:** US-005
+**Tasks Completed:** 5
+**Current Task:** none — all complete
 
+---
+
+## Fri, Jun 12, 2026 - US-005
+- Removed `tensorflow` and `keras` lines from README.md dependency notes section (lines ~213-216)
+- Updated nn_predictor module docs in README.md: added experimental note, sklearn MLPRegressor backend, not wired into daily/evaluate CLI
+- Files changed: `README.md`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` → 41 passed, 18 warnings
+- Ready for PR — closes #4
 ---
 
 ## Fri, Jun 12, 2026 - US-004
