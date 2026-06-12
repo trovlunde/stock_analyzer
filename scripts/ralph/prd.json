@@ -1,65 +1,82 @@
 {
   "project": "stock-analysis",
-  "branchName": "ralph/issue-2-fundamental-cache-contract",
-  "description": "Fix fundamental classification cache return contract — GitHub trovlunde/stock_analyzer#2",
-  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/2",
+  "branchName": "ralph/issue-4-nn-predictor-mlp",
+  "description": "Resolve orphaned neural-network predictor module — GitHub trovlunde/stock_analyzer#4",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/4",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Audit fundamental cache return paths",
-      "description": "As a developer, I want every success path of the fundamental classification cache helper audited so that callers never receive an inconsistent tuple length.",
+      "title": "Audit nn_predictor public API and callers",
+      "description": "As a developer, I want the nn_predictor module surface documented before rewrite so public contracts are preserved and scope stays bounded.",
       "acceptanceCriteria": [
-        "All success return paths of prepare_classification_data_cache (fundamental classifier) return exactly two DataFrames (features, targets)",
-        "returns data from prepare_classification_data stays internal or is persisted separately — not returned from the cache helper",
-        "Document findings in scripts/ralph/progress.txt if any path still violates the contract",
+        "Confirm train_nn_predictor, predict_returns, and prepare_data are the public entry points to preserve",
+        "Confirm module is not imported by daily job, evaluate CLI, or other production paths",
+        "Document return contracts (model, scaler, history tuple; predict_returns Series index alignment) in scripts/ralph/progress.txt",
         "uv run pytest passes"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#2"
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
     },
     {
       "id": "US-002",
-      "title": "Normalize cache miss path to (X, y) only",
-      "description": "As a developer, I want the cache-miss compute path to return the same two-tuple as the cache-hit path so train_classifier never fails to unpack.",
+      "title": "Rewrite training with sklearn MLPRegressor",
+      "description": "As a developer on a clean uv sync, I want nn_predictor to train without TensorFlow so import and training work with declared dependencies only.",
       "acceptanceCriteria": [
-        "Fresh-compute branch returns (features_df, targets_df) only — same shape as cache-hit branch",
-        "No caller of the fundamental cache helper expects or unpacks a third returns DataFrame",
+        "Remove tensorflow, keras, and keras_tuner imports from nn_predictor module",
+        "train_nn_predictor uses sklearn.neural_network.MLPRegressor with early_stopping for comparable feed-forward regression",
+        "do_tuning=True uses sklearn-native search (GridSearchCV or RandomizedSearchCV) over MLP hyperparameters — not keras-tuner Hyperband",
+        "No keras_tuner/ directory creation or TensorFlow-specific APIs remain",
         "uv run pytest passes"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#2"
+      "passes": false,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
     },
     {
       "id": "US-003",
-      "title": "Add regression test for cache round-trip",
-      "description": "As a developer, I want a pytest that exercises cache miss → write → hit → read without network so the return-contract bug cannot regress.",
+      "title": "Adapt predict and visualization for sklearn API",
+      "description": "As a developer using nn_predictor after the rewrite, I want predict_returns and training charts to work with sklearn models instead of Keras history objects.",
       "acceptanceCriteria": [
-        "New test under tests/ mocks prepare_classification_data and uses tmp_path for cache files",
-        "Test asserts first call (miss) returns two DataFrames and writes cache files",
-        "Test asserts second call (hit) returns two DataFrames with matching columns and row count",
-        "Test does not call yfinance or any live market API",
-        "Prior art pattern from tests/storage/test_cache_store.py (round-trip, TTL-style isolation)",
+        "predict_returns calls sklearn model.predict on scaled features and returns pd.Series aligned to prepared feature index",
+        "Training visualization uses sklearn loss_curve_ or equivalent — not keras history.history",
+        "Remove tf.nn.softmax debug print and any dead Keras-only code paths",
+        "Public signatures of train_nn_predictor and predict_returns unchanged",
         "uv run pytest passes"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#2"
+      "passes": false,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
     },
     {
       "id": "US-004",
-      "title": "Verify batch training unpacks cached results",
-      "description": "As a developer running SP500 fundamental classifier training, I want train_classifier to aggregate mocked tickers without unpack errors.",
+      "title": "Add pytest for import and synthetic training",
+      "description": "As a maintainer, I want regression tests that prove nn_predictor imports and trains on fixture data without network calls.",
       "acceptanceCriteria": [
-        "Test calls train_classifier with two mocked tickers: first cache miss, second cache hit",
-        "No 'too many values to unpack' or tuple-length errors during aggregation",
-        "train_classifier returns daily and weekly classifier objects on success",
+        "New test under tests/ imports train_nn_predictor without ModuleNotFoundError",
+        "Test builds synthetic OHLCV DataFrame (Close, Volume columns, enough rows for rolling features)",
+        "Test calls train_nn_predictor with do_tuning=False and asserts model, scaler, history returned",
+        "Test calls predict_returns and asserts Series length matches prepared feature rows",
+        "No yfinance or live market API calls in tests",
         "uv run pytest passes"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#2"
+      "passes": false,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
+    },
+    {
+      "id": "US-005",
+      "title": "Update README for sklearn MLP backend",
+      "description": "As a developer reading project docs, I want README to match what uv sync actually installs for nn_predictor.",
+      "acceptanceCriteria": [
+        "Remove tensorflow and keras from required dependency list in README",
+        "nn_predictor module docs state sklearn MLPRegressor backend",
+        "Note module is experimental and not wired into stock-analysis-daily or stock-analysis-evaluate",
+        "uv run pytest passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
     }
   ]
 }
