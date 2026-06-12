@@ -186,7 +186,16 @@ def build_parser():
     sub = parser.add_subparsers(dest="command", required=True)
 
     compare = sub.add_parser(
-        "compare", help="Grid-search classifiers, evaluate best on holdout"
+        "compare",
+        help="Grid-search classifiers, evaluate best on holdout",
+        description=(
+            "Grid-search registered classifiers with TimeSeriesSplit CV, then evaluate the "
+            "best model on a temporal holdout set. Includes both sklearn ensembles (Random "
+            "Forest, SVM, KNN, Voting) and LightGBM boosters. Use --classifier to target a "
+            "specific model family: 'lightgbm' for fast leaf-wise boosting (best on tabular "
+            "data, ~15 MB extra dep); sklearn ensembles for no extra deps or voting combos. "
+            "Omit --classifier to let CV pick the best across all registered classifiers."
+        ),
     )
     compare.add_argument("--ticker", default="^GSPC")
     compare.add_argument("--period", default="20y")
@@ -202,7 +211,10 @@ def build_parser():
         metavar="NAME",
         help=(
             "Classifier(s) to evaluate (case-insensitive). "
-            "Use 'all' or omit for all classifiers. "
+            "Use 'all' or omit to run every registered classifier. "
+            "Prefer 'lightgbm' for fast tabular boosting (leaf-wise trees, often best CV F1). "
+            "Prefer sklearn ensembles ('Random Forest', 'Voting Classifier') when you need "
+            "no extra dependencies or interpretable feature importances. "
             "E.g. --classifier lightgbm  or  --classifier 'Random Forest' LightGBM"
         ),
     )
