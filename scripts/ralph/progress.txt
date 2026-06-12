@@ -14,9 +14,22 @@ Started: Fri, Jun 12, 2026  8:37:21
 
 ## Current Status
 **Last Updated:** Fri, Jun 12, 2026
-**Tasks Completed:** 2
-**Current Task:** US-003
+**Tasks Completed:** 3
+**Current Task:** US-004
 
+---
+
+## Fri, Jun 12, 2026 - US-003
+- No code changes required — US-002 already satisfied all US-003 acceptance criteria
+- `predict_returns` uses `model.predict()` with sklearn, returns `pd.Series(predictions, index=features.index)`
+- Training visualization uses `history['loss']` = `model.loss_curve_` (set line 108, plotted line 118-120)
+- No tf/keras imports or dead code paths remain
+- Public signatures of `train_nn_predictor` and `predict_returns` unchanged
+- Files changed: `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` → 39 passed, 16 warnings
+- **Learnings for future iterations:**
+  - When US-002 scope overlaps US-003, verify criteria before implementing to avoid double work
+  - `history['loss']` dict pattern covers US-003 visualization requirement out of the box
 ---
 
 ## Fri, Jun 12, 2026 - US-002
