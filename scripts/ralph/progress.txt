@@ -9,14 +9,27 @@ Started: Fri, Jun 12, 2026  8:37:21
 - Public API to preserve: `train_nn_predictor(data, predict_weekly, test_size, do_tuning)` → `(model, scaler, history)`; `predict_returns(model, scaler, data, predict_weekly)` → `pd.Series` indexed to prepared feature rows; `prepare_data(data, predict_weekly)` → DataFrame
 - nn_predictor history object is a dict `{'loss': model.loss_curve_}` — sklearn MLPRegressor's loss_curve_ is a list of training losses per iteration; no val_loss key
 - MLPRegressor.loss_curve_ is only available after .fit() — ensure model is fitted before accessing
+- `RSI(data, window=N)` expects a DataFrame with a `Close` column — do NOT pass `data['Close']` (Series); pass full DataFrame and let RSI extract 'Close' internally
+- Synthetic OHLCV fixture for nn_predictor tests needs ≥200 rows (rolling 21d windows + outlier filtering drop ~40+ rows)
 
 ---
 
 ## Current Status
 **Last Updated:** Fri, Jun 12, 2026
-**Tasks Completed:** 3
-**Current Task:** US-004
+**Tasks Completed:** 4
+**Current Task:** US-005
 
+---
+
+## Fri, Jun 12, 2026 - US-004
+- Added `tests/ai/test_nn_predictor.py` with two tests: `test_train_nn_predictor_returns_model_scaler_history` and `test_predict_returns_length_matches_prepared_features`
+- Synthetic OHLCV fixture uses 200 rows, `np.random.default_rng(42)`, DatetimeIndex with business-day freq
+- Fixed bug in `nn_predictor.prepare_data`: `RSI(data['Close'], ...)` → `RSI(data, ...)` — RSI helper expects DataFrame not Series
+- Files changed: `tests/ai/test_nn_predictor.py` (new), `stock_analysis/ai/technical_analysis/nn_predictor.py`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` → 41 passed, 18 warnings
+- **Learnings for future iterations:**
+  - `RSI` in `stock_analysis/ai/helpers.py` always does `data.copy()['Close']` — always pass DataFrame, never a pre-extracted Series
+  - `ConvergenceWarning` from MLPRegressor on synthetic 200-row data is benign — model still fits and tests pass
 ---
 
 ## Fri, Jun 12, 2026 - US-003

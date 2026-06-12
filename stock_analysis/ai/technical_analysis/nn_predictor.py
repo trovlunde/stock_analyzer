@@ -32,8 +32,8 @@ def prepare_data(data, predict_weekly=False):
     X['ma_5d'] = data['Close'].rolling(5).mean() / data['Close'] - 1
     X['ma_21d'] = data['Close'].rolling(21).mean() / data['Close'] - 1
 
-    X['rsi_5d'] = RSI(data['Close'], window=5)
-    X['rsi_21d'] = RSI(data['Close'], window=21)
+    X['rsi_5d'] = RSI(data, window=5)
+    X['rsi_21d'] = RSI(data, window=21)
 
     X = X.replace([np.inf, -np.inf], np.nan)
     X = X.dropna()
