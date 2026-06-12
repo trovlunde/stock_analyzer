@@ -6,8 +6,35 @@
 
 ## Current Status
 **Last Updated:** 2026-06-12
-**Tasks Completed:** 1
-**Current Task:** US-002
+**Tasks Completed:** 4
+**Current Task:** none — all complete
+
+Ready for PR — closes #5
+
+---
+
+## 2026-06-12 - US-002
+- Added fill_method=None to all pct_change calls in technical analysis modules
+- Files: prepare_classification_data.py, movement_classification.py, nn_predictor.py, linear_reg_sig_days.py
+- Commands run: `uv run pytest` → 41 passed
+- **Learnings:** Multi-line pct_change calls (spanning two lines) require matching the surrounding context; replace_all only matches single-line patterns
+
+---
+
+## 2026-06-12 - US-003
+- Added fill_method=None to all remaining pct_change call sites
+- Files: ai/helpers.py, ai/metrics.py, sp500_analysis.py, analyze_stock_data.py, portfolio_evaluating.py
+- Commands run: `uv run pytest` → 41 passed
+- **Learnings:** Remaining FutureWarnings after this story are for fillna(method=) — separate issue, out of scope
+
+---
+
+## 2026-06-12 - US-004
+- Added tests/test_pct_change_no_futurewarning.py with 2 regression tests
+- Tests cover: prepare_classification_data (technical path), calculate_sharpe_ratio (metrics path)
+- Pattern: warnings.catch_warnings(record=True) + filter for FutureWarning where "pct_change" and "fill_method" in message
+- Commands run: `uv run pytest` → 43 passed
+- pandas 2.3.3 FutureWarning message: "The default fill_method='pad' in Series.pct_change is deprecated..."
 
 ---
 
