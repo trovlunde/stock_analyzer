@@ -1,82 +1,62 @@
 {
   "project": "stock-analysis",
-  "branchName": "ralph/issue-4-nn-predictor-mlp",
-  "description": "Resolve orphaned neural-network predictor module — GitHub trovlunde/stock_analyzer#4",
-  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/4",
+  "branchName": "ralph/issue-5-pct-change-deprecation",
+  "description": "Audit pct_change for pandas 3.x deprecation — GitHub trovlunde/stock_analyzer#5",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/5",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Audit nn_predictor public API and callers",
-      "description": "As a developer, I want the nn_predictor module surface documented before rewrite so public contracts are preserved and scope stays bounded.",
+      "title": "Audit pct_change call sites in stock_analysis",
+      "description": "As a maintainer, I want a complete inventory of pct_change usage before edits so no call site is missed and the one existing fill_method=None fix is confirmed.",
       "acceptanceCriteria": [
-        "Confirm train_nn_predictor, predict_returns, and prepare_data are the public entry points to preserve",
-        "Confirm module is not imported by daily job, evaluate CLI, or other production paths",
-        "Document return contracts (model, scaler, history tuple; predict_returns Series index alignment) in scripts/ralph/progress.txt",
+        "Grep stock_analysis/ for pct_change and list every module and approximate call count in scripts/ralph/progress.txt",
+        "Confirm fundamental financial-statement revenue_growth already uses fill_method=None",
+        "Confirm no pct_change calls exist outside stock_analysis/ package that are in scope (note any in tests if found)",
         "uv run pytest passes"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#4"
+      "notes": "GitHub: trovlunde/stock_analyzer#5"
     },
     {
       "id": "US-002",
-      "title": "Rewrite training with sklearn MLPRegressor",
-      "description": "As a developer on a clean uv sync, I want nn_predictor to train without TensorFlow so import and training work with declared dependencies only.",
+      "title": "Add fill_method=None to technical analysis pct_change calls",
+      "description": "As a developer running technical classifiers, I want explicit fill_method on return and volatility features so pandas deprecation warnings stay silent.",
       "acceptanceCriteria": [
-        "Remove tensorflow, keras, and keras_tuner imports from nn_predictor module",
-        "train_nn_predictor uses sklearn.neural_network.MLPRegressor with early_stopping for comparable feed-forward regression",
-        "do_tuning=True uses sklearn-native search (GridSearchCV or RandomizedSearchCV) over MLP hyperparameters — not keras-tuner Hyperband",
-        "No keras_tuner/ directory creation or TensorFlow-specific APIs remain",
+        "Every pct_change call in technical analysis modules (prepare_classification_data, movement_classification, nn_predictor, linear_reg_sig_days) passes fill_method=None explicitly",
+        "Existing periods, shift, and rolling chains unchanged aside from the new keyword",
         "uv run pytest passes"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#4"
+      "passes": false,
+      "notes": "GitHub: trovlunde/stock_analyzer#5"
     },
     {
       "id": "US-003",
-      "title": "Adapt predict and visualization for sklearn API",
-      "description": "As a developer using nn_predictor after the rewrite, I want predict_returns and training charts to work with sklearn models instead of Keras history objects.",
+      "title": "Add fill_method=None to remaining pct_change call sites",
+      "description": "As a developer running portfolio and market analysis helpers, I want all remaining pct_change calls to opt out of deprecated forward-fill behavior.",
       "acceptanceCriteria": [
-        "predict_returns calls sklearn model.predict on scaled features and returns pd.Series aligned to prepared feature index",
-        "Training visualization uses sklearn loss_curve_ or equivalent — not keras history.history",
-        "Remove tf.nn.softmax debug print and any dead Keras-only code paths",
-        "Public signatures of train_nn_predictor and predict_returns unchanged",
+        "Every pct_change call in helpers, metrics, sp500_analysis, analyze_stock_data, and portfolio_evaluating passes fill_method=None explicitly",
+        "Fundamental fin_statement_classifier revenue_growth call remains fill_method=None (no regression)",
         "uv run pytest passes"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#4"
+      "passes": false,
+      "notes": "GitHub: trovlunde/stock_analyzer#5"
     },
     {
       "id": "US-004",
-      "title": "Add pytest for import and synthetic training",
-      "description": "As a maintainer, I want regression tests that prove nn_predictor imports and trains on fixture data without network calls.",
+      "title": "Add regression test for pct_change FutureWarning",
+      "description": "As a maintainer, I want a pytest that fails if pct_change deprecation warnings return so the fix cannot silently regress.",
       "acceptanceCriteria": [
-        "New test under tests/ imports train_nn_predictor without ModuleNotFoundError",
-        "Test builds synthetic OHLCV DataFrame (Close, Volume columns, enough rows for rolling features)",
-        "Test calls train_nn_predictor with do_tuning=False and asserts model, scaler, history returned",
-        "Test calls predict_returns and asserts Series length matches prepared feature rows",
-        "No yfinance or live market API calls in tests",
+        "New test under tests/ exercises at least one technical prepare_classification_data path and one fundamental or metrics path using synthetic DataFrames (no yfinance)",
+        "Test uses warnings.catch_warnings or pytest.warns to assert no FutureWarning mentioning pct_change fill_method",
+        "Repo-wide grep of stock_analysis/ shows fill_method=None at every pct_change call site",
         "uv run pytest passes"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#4"
-    },
-    {
-      "id": "US-005",
-      "title": "Update README for sklearn MLP backend",
-      "description": "As a developer reading project docs, I want README to match what uv sync actually installs for nn_predictor.",
-      "acceptanceCriteria": [
-        "Remove tensorflow and keras from required dependency list in README",
-        "nn_predictor module docs state sklearn MLPRegressor backend",
-        "Note module is experimental and not wired into stock-analysis-daily or stock-analysis-evaluate",
-        "uv run pytest passes"
-      ],
-      "priority": 5,
-      "passes": true,
-      "notes": "GitHub: trovlunde/stock_analyzer#4"
+      "passes": false,
+      "notes": "GitHub: trovlunde/stock_analyzer#5"
     }
   ]
 }

@@ -1,85 +1,43 @@
-# Ralph Progress Log
-Started: Fri, Jun 12, 2026  8:37:21
----
-
 ## Codebase Patterns
 - Use `uv run pytest` from repo root
-- nn_predictor lives at `stock_analysis/ai/technical_analysis/nn_predictor.py`
-- nn_predictor is NOT imported by any production path (daily job, evaluate CLI) — experimental module only
-- Public API to preserve: `train_nn_predictor(data, predict_weekly, test_size, do_tuning)` → `(model, scaler, history)`; `predict_returns(model, scaler, data, predict_weekly)` → `pd.Series` indexed to prepared feature rows; `prepare_data(data, predict_weekly)` → DataFrame
-- nn_predictor history object is a dict `{'loss': model.loss_curve_}` — sklearn MLPRegressor's loss_curve_ is a list of training losses per iteration; no val_loss key
-- MLPRegressor.loss_curve_ is only available after .fit() — ensure model is fitted before accessing
-- `RSI(data, window=N)` expects a DataFrame with a `Close` column — do NOT pass `data['Close']` (Series); pass full DataFrame and let RSI extract 'Close' internally
-- Synthetic OHLCV fixture for nn_predictor tests needs ≥200 rows (rolling 21d windows + outlier filtering drop ~40+ rows)
-
----
+- `fin_statement_classifier.py` revenue_growth already uses `fill_method=None` — do not regress
+- pct_change calls without fill_method=None generate FutureWarning in pandas 3.x; fix: add `fill_method=None` to every call
+- No pct_change calls exist in tests/ — regression tests must be added (US-004)
 
 ## Current Status
-**Last Updated:** Fri, Jun 12, 2026
-**Tasks Completed:** 5
-**Current Task:** none — all complete
+**Last Updated:** 2026-06-12
+**Tasks Completed:** 1
+**Current Task:** US-002
 
 ---
 
-## Fri, Jun 12, 2026 - US-005
-- Removed `tensorflow` and `keras` lines from README.md dependency notes section (lines ~213-216)
-- Updated nn_predictor module docs in README.md: added experimental note, sklearn MLPRegressor backend, not wired into daily/evaluate CLI
-- Files changed: `README.md`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+# Ralph Progress Log
+Started: Fri, Jun 12, 2026  8:55:59
+---
+
+## 2026-06-12 - US-001
+- Audited all pct_change call sites in stock_analysis/
+- Files changed: scripts/ralph/progress.txt, scripts/ralph/prd.json
 - Commands run: `uv run pytest` → 41 passed, 18 warnings
-- Ready for PR — closes #4
----
 
-## Fri, Jun 12, 2026 - US-004
-- Added `tests/ai/test_nn_predictor.py` with two tests: `test_train_nn_predictor_returns_model_scaler_history` and `test_predict_returns_length_matches_prepared_features`
-- Synthetic OHLCV fixture uses 200 rows, `np.random.default_rng(42)`, DatetimeIndex with business-day freq
-- Fixed bug in `nn_predictor.prepare_data`: `RSI(data['Close'], ...)` → `RSI(data, ...)` — RSI helper expects DataFrame not Series
-- Files changed: `tests/ai/test_nn_predictor.py` (new), `stock_analysis/ai/technical_analysis/nn_predictor.py`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
-- Commands run: `uv run pytest` → 41 passed, 18 warnings
-- **Learnings for future iterations:**
-  - `RSI` in `stock_analysis/ai/helpers.py` always does `data.copy()['Close']` — always pass DataFrame, never a pre-extracted Series
-  - `ConvergenceWarning` from MLPRegressor on synthetic 200-row data is benign — model still fits and tests pass
----
+### pct_change inventory (missing fill_method=None unless noted):
+| Module | ~Calls |
+|--------|--------|
+| stock_analysis/sp500_analysis.py | 4 |
+| stock_analysis/analyze_stock_data.py | 4 |
+| stock_analysis/portfolio_evaluating.py | 2 |
+| stock_analysis/ai/helpers.py | 2 |
+| stock_analysis/ai/metrics.py | 1 |
+| stock_analysis/ai/technical_analysis/linear_reg_sig_days.py | 1 |
+| stock_analysis/ai/fundamental_analysis/fin_statement_classifier.py | 1 (already fill_method=None ✓) |
+| stock_analysis/ai/technical_analysis/movement_classification.py | 6 |
+| stock_analysis/ai/technical_analysis/nn_predictor.py | 9 |
+| stock_analysis/ai/technical_analysis/prepare_classification_data.py | ~18 |
 
-## Fri, Jun 12, 2026 - US-003
-- No code changes required — US-002 already satisfied all US-003 acceptance criteria
-- `predict_returns` uses `model.predict()` with sklearn, returns `pd.Series(predictions, index=features.index)`
-- Training visualization uses `history['loss']` = `model.loss_curve_` (set line 108, plotted line 118-120)
-- No tf/keras imports or dead code paths remain
-- Public signatures of `train_nn_predictor` and `predict_returns` unchanged
-- Files changed: `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
-- Commands run: `uv run pytest` → 39 passed, 16 warnings
-- **Learnings for future iterations:**
-  - When US-002 scope overlaps US-003, verify criteria before implementing to avoid double work
-  - `history['loss']` dict pattern covers US-003 visualization requirement out of the box
----
+- Confirmed fin_statement_classifier.py revenue_growth uses fill_method=None (no action needed)
+- Confirmed no pct_change calls outside stock_analysis/ (tests/ has zero)
 
-## Fri, Jun 12, 2026 - US-002
-- Rewrote `train_nn_predictor` to use `sklearn.neural_network.MLPRegressor` with `early_stopping=True`
-- Replaced `keras_tuner.Hyperband` with `RandomizedSearchCV` over MLP hyperparameters for `do_tuning=True`
-- Removed all `tensorflow`, `keras`, `keras_tuner` imports — module now fully sklearn-based
-- Removed `tf.nn.softmax` debug print and `create_nn_model`/`create_tunable_model` Keras helpers
-- `history` return value is now `{'loss': model.loss_curve_}` dict — compatible with US-003 visualization
-- Feature importance permutation uses `mean_squared_error` instead of `model.evaluate()`
-- `predict_returns` uses `model.predict()` directly (sklearn API, no `.flatten()` needed)
-- Files changed: `stock_analysis/ai/technical_analysis/nn_predictor.py`
-- Commands run: `uv run pytest` → 39 passed, 16 warnings
 - **Learnings for future iterations:**
-  - `RandomizedSearchCV` with `MLPRegressor(early_stopping=True)` works — best_estimator_ has `loss_curve_` after refit
-  - No `keras_tuner/` directory is created (was a side effect of kt.Hyperband)
-  - `MLPRegressor` has no `val_loss` in `loss_curve_` — only training loss per iteration
----
-
-## Fri, Jun 12, 2026 - US-001
-- Audited nn_predictor module at `stock_analysis/ai/technical_analysis/nn_predictor.py`
-- Confirmed public entry points: `train_nn_predictor`, `predict_returns`, `prepare_data`
-- Confirmed NOT imported by daily job (`stock_analysis/jobs/daily.py`), evaluate CLI, or any production path — only referenced in docs/*.md and README.md
-- Return contracts:
-  - `train_nn_predictor` (line 265) → `(model, scaler, history)` tuple
-  - `predict_returns` (line 275) → `pd.Series(predictions, index=features.index)` — aligned to prepared feature index
-- Imports found: `tensorflow as tf`, `from tensorflow import keras`, `keras_tuner as kt` — all to be removed in US-002
-- `uv run pytest` → 39 passed, 16 warnings
-- **Learnings for future iterations:**
-  - Module has `if __name__ == "__main__"` block using live yfinance — do not import at test collection time
-  - `create_nn_model` and `create_tunable_model` are internal helpers, not part of public API
-  - `plot_results` is also internal, only called from `__main__` block
+  - US-002 scope: prepare_classification_data, movement_classification, nn_predictor, linear_reg_sig_days
+  - US-003 scope: helpers, metrics, sp500_analysis, analyze_stock_data, portfolio_evaluating
 ---
