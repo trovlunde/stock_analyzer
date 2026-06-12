@@ -1,0 +1,62 @@
+{
+  "project": "stock-analysis",
+  "branchName": "ralph/issue-5-pct-change-deprecation",
+  "description": "Audit pct_change for pandas 3.x deprecation — GitHub trovlunde/stock_analyzer#5",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/5",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Audit pct_change call sites in stock_analysis",
+      "description": "As a maintainer, I want a complete inventory of pct_change usage before edits so no call site is missed and the one existing fill_method=None fix is confirmed.",
+      "acceptanceCriteria": [
+        "Grep stock_analysis/ for pct_change and list every module and approximate call count in scripts/ralph/progress.txt",
+        "Confirm fundamental financial-statement revenue_growth already uses fill_method=None",
+        "Confirm no pct_change calls exist outside stock_analysis/ package that are in scope (note any in tests if found)",
+        "uv run pytest passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#5"
+    },
+    {
+      "id": "US-002",
+      "title": "Add fill_method=None to technical analysis pct_change calls",
+      "description": "As a developer running technical classifiers, I want explicit fill_method on return and volatility features so pandas deprecation warnings stay silent.",
+      "acceptanceCriteria": [
+        "Every pct_change call in technical analysis modules (prepare_classification_data, movement_classification, nn_predictor, linear_reg_sig_days) passes fill_method=None explicitly",
+        "Existing periods, shift, and rolling chains unchanged aside from the new keyword",
+        "uv run pytest passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#5"
+    },
+    {
+      "id": "US-003",
+      "title": "Add fill_method=None to remaining pct_change call sites",
+      "description": "As a developer running portfolio and market analysis helpers, I want all remaining pct_change calls to opt out of deprecated forward-fill behavior.",
+      "acceptanceCriteria": [
+        "Every pct_change call in helpers, metrics, sp500_analysis, analyze_stock_data, and portfolio_evaluating passes fill_method=None explicitly",
+        "Fundamental fin_statement_classifier revenue_growth call remains fill_method=None (no regression)",
+        "uv run pytest passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#5"
+    },
+    {
+      "id": "US-004",
+      "title": "Add regression test for pct_change FutureWarning",
+      "description": "As a maintainer, I want a pytest that fails if pct_change deprecation warnings return so the fix cannot silently regress.",
+      "acceptanceCriteria": [
+        "New test under tests/ exercises at least one technical prepare_classification_data path and one fundamental or metrics path using synthetic DataFrames (no yfinance)",
+        "Test uses warnings.catch_warnings or pytest.warns to assert no FutureWarning mentioning pct_change fill_method",
+        "Repo-wide grep of stock_analysis/ shows fill_method=None at every pct_change call site",
+        "uv run pytest passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#5"
+    }
+  ]
+}

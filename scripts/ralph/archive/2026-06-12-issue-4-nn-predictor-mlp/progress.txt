@@ -1,0 +1,85 @@
+﻿# Ralph Progress Log
+Started: Fri, Jun 12, 2026  8:37:21
+---
+
+## Codebase Patterns
+- Use `uv run pytest` from repo root
+- nn_predictor lives at `stock_analysis/ai/technical_analysis/nn_predictor.py`
+- nn_predictor is NOT imported by any production path (daily job, evaluate CLI) ΓÇö experimental module only
+- Public API to preserve: `train_nn_predictor(data, predict_weekly, test_size, do_tuning)` ΓåÆ `(model, scaler, history)`; `predict_returns(model, scaler, data, predict_weekly)` ΓåÆ `pd.Series` indexed to prepared feature rows; `prepare_data(data, predict_weekly)` ΓåÆ DataFrame
+- nn_predictor history object is a dict `{'loss': model.loss_curve_}` ΓÇö sklearn MLPRegressor's loss_curve_ is a list of training losses per iteration; no val_loss key
+- MLPRegressor.loss_curve_ is only available after .fit() ΓÇö ensure model is fitted before accessing
+- `RSI(data, window=N)` expects a DataFrame with a `Close` column ΓÇö do NOT pass `data['Close']` (Series); pass full DataFrame and let RSI extract 'Close' internally
+- Synthetic OHLCV fixture for nn_predictor tests needs ΓëÑ200 rows (rolling 21d windows + outlier filtering drop ~40+ rows)
+
+---
+
+## Current Status
+**Last Updated:** Fri, Jun 12, 2026
+**Tasks Completed:** 5
+**Current Task:** none ΓÇö all complete
+
+---
+
+## Fri, Jun 12, 2026 - US-005
+- Removed `tensorflow` and `keras` lines from README.md dependency notes section (lines ~213-216)
+- Updated nn_predictor module docs in README.md: added experimental note, sklearn MLPRegressor backend, not wired into daily/evaluate CLI
+- Files changed: `README.md`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` ΓåÆ 41 passed, 18 warnings
+- Ready for PR ΓÇö closes #4
+---
+
+## Fri, Jun 12, 2026 - US-004
+- Added `tests/ai/test_nn_predictor.py` with two tests: `test_train_nn_predictor_returns_model_scaler_history` and `test_predict_returns_length_matches_prepared_features`
+- Synthetic OHLCV fixture uses 200 rows, `np.random.default_rng(42)`, DatetimeIndex with business-day freq
+- Fixed bug in `nn_predictor.prepare_data`: `RSI(data['Close'], ...)` ΓåÆ `RSI(data, ...)` ΓÇö RSI helper expects DataFrame not Series
+- Files changed: `tests/ai/test_nn_predictor.py` (new), `stock_analysis/ai/technical_analysis/nn_predictor.py`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` ΓåÆ 41 passed, 18 warnings
+- **Learnings for future iterations:**
+  - `RSI` in `stock_analysis/ai/helpers.py` always does `data.copy()['Close']` ΓÇö always pass DataFrame, never a pre-extracted Series
+  - `ConvergenceWarning` from MLPRegressor on synthetic 200-row data is benign ΓÇö model still fits and tests pass
+---
+
+## Fri, Jun 12, 2026 - US-003
+- No code changes required ΓÇö US-002 already satisfied all US-003 acceptance criteria
+- `predict_returns` uses `model.predict()` with sklearn, returns `pd.Series(predictions, index=features.index)`
+- Training visualization uses `history['loss']` = `model.loss_curve_` (set line 108, plotted line 118-120)
+- No tf/keras imports or dead code paths remain
+- Public signatures of `train_nn_predictor` and `predict_returns` unchanged
+- Files changed: `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` ΓåÆ 39 passed, 16 warnings
+- **Learnings for future iterations:**
+  - When US-002 scope overlaps US-003, verify criteria before implementing to avoid double work
+  - `history['loss']` dict pattern covers US-003 visualization requirement out of the box
+---
+
+## Fri, Jun 12, 2026 - US-002
+- Rewrote `train_nn_predictor` to use `sklearn.neural_network.MLPRegressor` with `early_stopping=True`
+- Replaced `keras_tuner.Hyperband` with `RandomizedSearchCV` over MLP hyperparameters for `do_tuning=True`
+- Removed all `tensorflow`, `keras`, `keras_tuner` imports ΓÇö module now fully sklearn-based
+- Removed `tf.nn.softmax` debug print and `create_nn_model`/`create_tunable_model` Keras helpers
+- `history` return value is now `{'loss': model.loss_curve_}` dict ΓÇö compatible with US-003 visualization
+- Feature importance permutation uses `mean_squared_error` instead of `model.evaluate()`
+- `predict_returns` uses `model.predict()` directly (sklearn API, no `.flatten()` needed)
+- Files changed: `stock_analysis/ai/technical_analysis/nn_predictor.py`
+- Commands run: `uv run pytest` ΓåÆ 39 passed, 16 warnings
+- **Learnings for future iterations:**
+  - `RandomizedSearchCV` with `MLPRegressor(early_stopping=True)` works ΓÇö best_estimator_ has `loss_curve_` after refit
+  - No `keras_tuner/` directory is created (was a side effect of kt.Hyperband)
+  - `MLPRegressor` has no `val_loss` in `loss_curve_` ΓÇö only training loss per iteration
+---
+
+## Fri, Jun 12, 2026 - US-001
+- Audited nn_predictor module at `stock_analysis/ai/technical_analysis/nn_predictor.py`
+- Confirmed public entry points: `train_nn_predictor`, `predict_returns`, `prepare_data`
+- Confirmed NOT imported by daily job (`stock_analysis/jobs/daily.py`), evaluate CLI, or any production path ΓÇö only referenced in docs/*.md and README.md
+- Return contracts:
+  - `train_nn_predictor` (line 265) ΓåÆ `(model, scaler, history)` tuple
+  - `predict_returns` (line 275) ΓåÆ `pd.Series(predictions, index=features.index)` ΓÇö aligned to prepared feature index
+- Imports found: `tensorflow as tf`, `from tensorflow import keras`, `keras_tuner as kt` ΓÇö all to be removed in US-002
+- `uv run pytest` ΓåÆ 39 passed, 16 warnings
+- **Learnings for future iterations:**
+  - Module has `if __name__ == "__main__"` block using live yfinance ΓÇö do not import at test collection time
+  - `create_nn_model` and `create_tunable_model` are internal helpers, not part of public API
+  - `plot_results` is also internal, only called from `__main__` block
+---
