@@ -15,7 +15,7 @@
         "uv run pytest passes"
       ],
       "priority": 1,
-      "passes": true,
+      "passes": false,
       "notes": "GitHub: trovlunde/stock_analyzer#4"
     },
     {
@@ -30,7 +30,7 @@
         "uv run pytest passes"
       ],
       "priority": 2,
-      "passes": true,
+      "passes": false,
       "notes": "GitHub: trovlunde/stock_analyzer#4"
     },
     {
@@ -45,7 +45,7 @@
         "uv run pytest passes"
       ],
       "priority": 3,
-      "passes": true,
+      "passes": false,
       "notes": "GitHub: trovlunde/stock_analyzer#4"
     },
     {
@@ -61,7 +61,7 @@
         "uv run pytest passes"
       ],
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "notes": "GitHub: trovlunde/stock_analyzer#4"
     },
     {
@@ -75,7 +75,7 @@
         "uv run pytest passes"
       ],
       "priority": 5,
-      "passes": true,
+      "passes": false,
       "notes": "GitHub: trovlunde/stock_analyzer#4"
     }
   ]

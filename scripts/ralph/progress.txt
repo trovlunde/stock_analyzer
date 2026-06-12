@@ -1,67 +1,85 @@
 # Ralph Progress Log
+Started: Fri, Jun 12, 2026  8:37:21
+---
+
+## Codebase Patterns
+- Use `uv run pytest` from repo root
+- nn_predictor lives at `stock_analysis/ai/technical_analysis/nn_predictor.py`
+- nn_predictor is NOT imported by any production path (daily job, evaluate CLI) — experimental module only
+- Public API to preserve: `train_nn_predictor(data, predict_weekly, test_size, do_tuning)` → `(model, scaler, history)`; `predict_returns(model, scaler, data, predict_weekly)` → `pd.Series` indexed to prepared feature rows; `prepare_data(data, predict_weekly)` → DataFrame
+- nn_predictor history object is a dict `{'loss': model.loss_curve_}` — sklearn MLPRegressor's loss_curve_ is a list of training losses per iteration; no val_loss key
+- MLPRegressor.loss_curve_ is only available after .fit() — ensure model is fitted before accessing
+- `RSI(data, window=N)` expects a DataFrame with a `Close` column — do NOT pass `data['Close']` (Series); pass full DataFrame and let RSI extract 'Close' internally
+- Synthetic OHLCV fixture for nn_predictor tests needs ≥200 rows (rolling 21d windows + outlier filtering drop ~40+ rows)
+
+---
 
 ## Current Status
-**Last Updated:** 2026-06-11
-**Tasks Completed:** 4
+**Last Updated:** Fri, Jun 12, 2026
+**Tasks Completed:** 5
 **Current Task:** none — all complete
 
 ---
 
-## Codebase Patterns
-- Run tests with `uv run pytest` from repository root
-- Package management: `uv add` / `uv sync` — never pip install into the project venv manually
-- Tests should use fixtures/mocks; avoid live market data in CI
-- Fundamental classification cache contract: success paths return `(X, y)` DataFrames
-- CLI entry points: `stock-analysis-daily`, `stock-analysis-evaluate` (see pyproject.toml)
-- `prepare_classification_data_cache` accepts `_cache_dir=None` — pass `tmp_path` in tests to avoid touching real cache
-- `prepare_classification_data` returns 3-tuple `(features_df, targets_df, returns_df)`; cache helper unpacks all 3 then returns only `(features_df, targets_df)`
-
+## Fri, Jun 12, 2026 - US-005
+- Removed `tensorflow` and `keras` lines from README.md dependency notes section (lines ~213-216)
+- Updated nn_predictor module docs in README.md: added experimental note, sklearn MLPRegressor backend, not wired into daily/evaluate CLI
+- Files changed: `README.md`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` → 41 passed, 18 warnings
+- Ready for PR — closes #4
 ---
 
-## 2026-06-11 - US-004
-- Added `test_train_classifier_batch_no_unpack_error` to `tests/ai/test_fundamental_cache.py`
-- Monkeypatches `prepare_classification_data_cache` in module namespace
-- Two mocked tickers (TICKER_A, TICKER_B) each return 4-sample DataFrames (8 total < 10, skips stratification)
-- Asserts both cache calls happen, no unpack errors, returns `(daily_clf, weekly_clf)` with `.predict` method
-- sklearn UndefinedMetricWarning on test data is benign (tiny dataset, not all classes in test split)
-- Files changed: `tests/ai/test_fundamental_cache.py` (updated)
-- Commands run: `uv run pytest` → 37 passed
-- Ready for PR — closes #2
+## Fri, Jun 12, 2026 - US-004
+- Added `tests/ai/test_nn_predictor.py` with two tests: `test_train_nn_predictor_returns_model_scaler_history` and `test_predict_returns_length_matches_prepared_features`
+- Synthetic OHLCV fixture uses 200 rows, `np.random.default_rng(42)`, DatetimeIndex with business-day freq
+- Fixed bug in `nn_predictor.prepare_data`: `RSI(data['Close'], ...)` → `RSI(data, ...)` — RSI helper expects DataFrame not Series
+- Files changed: `tests/ai/test_nn_predictor.py` (new), `stock_analysis/ai/technical_analysis/nn_predictor.py`, `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` → 41 passed, 18 warnings
 - **Learnings for future iterations:**
-  - Monkeypatch `prepare_classification_data_cache` (not just `prepare_classification_data`) when testing `train_classifier`
-  - Keep batch test data < 10 rows total to avoid sklearn stratification edge cases with tiny test splits
+  - `RSI` in `stock_analysis/ai/helpers.py` always does `data.copy()['Close']` — always pass DataFrame, never a pre-extracted Series
+  - `ConvergenceWarning` from MLPRegressor on synthetic 200-row data is benign — model still fits and tests pass
 ---
 
-## 2026-06-11 - US-003
-- Created `tests/ai/test_fundamental_cache.py` with two tests:
-  - `test_cache_miss_returns_two_dataframes`: monkeypatches `prepare_classification_data`, calls with `tmp_path`, asserts `(X, y)` tuple + CSV files written
-  - `test_cache_hit_returns_two_dataframes_without_recompute`: verifies second call returns `(X, y)` without re-calling `prepare_classification_data`
-- No yfinance or network calls — uses `MagicMock` ticker and `monkeypatch.setattr` on module attribute
-- Files changed: `tests/ai/test_fundamental_cache.py` (new)
-- Commands run: `uv run pytest` → 36 passed
+## Fri, Jun 12, 2026 - US-003
+- No code changes required — US-002 already satisfied all US-003 acceptance criteria
+- `predict_returns` uses `model.predict()` with sklearn, returns `pd.Series(predictions, index=features.index)`
+- Training visualization uses `history['loss']` = `model.loss_curve_` (set line 108, plotted line 118-120)
+- No tf/keras imports or dead code paths remain
+- Public signatures of `train_nn_predictor` and `predict_returns` unchanged
+- Files changed: `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`
+- Commands run: `uv run pytest` → 39 passed, 16 warnings
 - **Learnings for future iterations:**
-  - Patch `prepare_classification_data` via `monkeypatch.setattr(fin_mod, "prepare_classification_data", ...)` not via string path — module-level import makes string patching unreliable
-  - `_cache_dir` injection lets tests use `tmp_path` without touching real cache dir
+  - When US-002 scope overlaps US-003, verify criteria before implementing to avoid double work
+  - `history['loss']` dict pattern covers US-003 visualization requirement out of the box
 ---
 
-## 2026-06-11 - US-002
-- Verified cache-miss path: `X, y, returns = prepare_classification_data(ticker)` then `return X, y` — two-tuple only ✓
-- Verified cache-hit path: `return X, y` — two-tuple only ✓
-- Verified sole caller `train_classifier`: `X, y = result` after `if result is not None` — no third-value unpack ✓
-- No code changes needed — contract already correct in committed code
-- Commands run: `uv run pytest` → 34 passed
----
-
-## 2026-06-11 - US-001
-- Audited all return paths of `prepare_classification_data_cache`
-- Cache-hit path (lines 164-169): reads X and y from CSV, returns `(X, y)` — contract satisfied
-- Cache-miss path (lines 171-180): unpacks 3-tuple from `prepare_classification_data`, saves X and y to CSV, returns `(X, y)` — contract satisfied
-- Error path (lines 181-183): returns `None`; caller in `train_classifier` guards with `if result is not None` before unpacking — contract satisfied
-- No path violates the `(X, y)` two-tuple contract
-- Added `_cache_dir=None` parameter to enable `tmp_path`-based test isolation without touching production cache
-- Files changed: `stock_analysis/ai/fundamental_analysis/fin_statement_classifier.py`
-- Commands run: `uv run pytest` → 34 passed
+## Fri, Jun 12, 2026 - US-002
+- Rewrote `train_nn_predictor` to use `sklearn.neural_network.MLPRegressor` with `early_stopping=True`
+- Replaced `keras_tuner.Hyperband` with `RandomizedSearchCV` over MLP hyperparameters for `do_tuning=True`
+- Removed all `tensorflow`, `keras`, `keras_tuner` imports — module now fully sklearn-based
+- Removed `tf.nn.softmax` debug print and `create_nn_model`/`create_tunable_model` Keras helpers
+- `history` return value is now `{'loss': model.loss_curve_}` dict — compatible with US-003 visualization
+- Feature importance permutation uses `mean_squared_error` instead of `model.evaluate()`
+- `predict_returns` uses `model.predict()` directly (sklearn API, no `.flatten()` needed)
+- Files changed: `stock_analysis/ai/technical_analysis/nn_predictor.py`
+- Commands run: `uv run pytest` → 39 passed, 16 warnings
 - **Learnings for future iterations:**
-  - `prepare_classification_data` 3rd return value (`returns_data`) is internal to that function's callers — `evaluate_classifier` uses it directly, but cache helper discards it appropriately
-  - `_cache_dir` injection pattern is already in place; US-003 test can use `tmp_path` directly
+  - `RandomizedSearchCV` with `MLPRegressor(early_stopping=True)` works — best_estimator_ has `loss_curve_` after refit
+  - No `keras_tuner/` directory is created (was a side effect of kt.Hyperband)
+  - `MLPRegressor` has no `val_loss` in `loss_curve_` — only training loss per iteration
+---
+
+## Fri, Jun 12, 2026 - US-001
+- Audited nn_predictor module at `stock_analysis/ai/technical_analysis/nn_predictor.py`
+- Confirmed public entry points: `train_nn_predictor`, `predict_returns`, `prepare_data`
+- Confirmed NOT imported by daily job (`stock_analysis/jobs/daily.py`), evaluate CLI, or any production path — only referenced in docs/*.md and README.md
+- Return contracts:
+  - `train_nn_predictor` (line 265) → `(model, scaler, history)` tuple
+  - `predict_returns` (line 275) → `pd.Series(predictions, index=features.index)` — aligned to prepared feature index
+- Imports found: `tensorflow as tf`, `from tensorflow import keras`, `keras_tuner as kt` — all to be removed in US-002
+- `uv run pytest` → 39 passed, 16 warnings
+- **Learnings for future iterations:**
+  - Module has `if __name__ == "__main__"` block using live yfinance — do not import at test collection time
+  - `create_nn_model` and `create_tunable_model` are internal helpers, not part of public API
+  - `plot_results` is also internal, only called from `__main__` block
 ---
