@@ -1,0 +1,84 @@
+{
+  "project": "stock-analysis",
+  "branchName": "ralph/issue-7-portfolio-metrics",
+  "description": "Richer portfolio metrics in daily paper-trading reports — GitHub trovlunde/stock_analyzer#7",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/7",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add empyrical and portfolio metrics module",
+      "description": "As a maintainer, I want Calmar, Sortino, and rolling Sharpe computed via empyrical so daily reports stop relying on hand-rolled math.",
+      "acceptanceCriteria": [
+        "`uv add empyrical`; import succeeds in CI",
+        "New module (e.g. `stock_analysis/trading/portfolio_metrics.py`) exposes `compute_portfolio_metrics(returns, *, rolling_window=63)` returning Calmar, Sortino, and rolling Sharpe",
+        "Uses empyrical functions — not duplicated Sharpe/drawdown formulas from legacy `ai/metrics.py`",
+        "Handles short series gracefully (returns None or empty for metrics when insufficient data)",
+        "uv run pytest passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#7"
+    },
+    {
+      "id": "US-002",
+      "title": "PortfolioStore equity curve from completed runs",
+      "description": "As the daily job, I want ordered historical portfolio values from `paper_runs` summaries so metrics can be computed on an equity curve.",
+      "acceptanceCriteria": [
+        "`PortfolioStore` gains a read method returning ordered `(session_date, portfolio_value)` from completed non–dry-run runs for a portfolio",
+        "Parses `summary_json` fields `session_date` and `portfolio_value` written by `run_daily`",
+        "Excludes dry-run runs and runs without `finished_at` / valid summary",
+        "Unit test uses in-memory SQLite fixture with mocked run rows (no network)",
+        "uv run pytest passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#7"
+    },
+    {
+      "id": "US-003",
+      "title": "Portfolio metrics section in daily markdown report",
+      "description": "As a paper-trading user, I want Calmar, Sortino, and rolling Sharpe in `data/reports/YYYY-MM-DD.md` when enough history exists.",
+      "acceptanceCriteria": [
+        "`write_daily_report` accepts optional portfolio metrics dict and renders a `## Portfolio metrics` section",
+        "Section lists Calmar, Sortino, and latest rolling Sharpe (or summary stat) with sensible formatting",
+        "When metrics unavailable (insufficient history), section notes insufficient history instead of bogus values",
+        "Existing fills/signals sections unchanged",
+        "uv run pytest passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#7"
+    },
+    {
+      "id": "US-004",
+      "title": "Wire daily job to compute and pass metrics",
+      "description": "As the daily job, I want to build an equity curve after each session and pass computed metrics to the report writer without changing broker or decision logic.",
+      "acceptanceCriteria": [
+        "`run_daily` loads equity curve via new store method, appends current `total_value` for today",
+        "Calls `compute_portfolio_metrics` on daily returns derived from equity values",
+        "Passes metrics to `write_daily_report` on normal trading-day path",
+        "Dry-run and NYSE-closed paths unchanged in broker/decision behavior; may omit metrics or show note",
+        "`PaperBroker`, `decide`, and order queueing logic untouched",
+        "uv run pytest passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#7"
+    },
+    {
+      "id": "US-005",
+      "title": "P1 pytest: known returns and report integration",
+      "description": "As a maintainer, I want regression tests on synthetic data proving metric accuracy and report output without network or live yfinance.",
+      "acceptanceCriteria": [
+        "Test: fixed synthetic daily return series → Calmar, Sortino, rolling Sharpe within tolerance vs empyrical reference",
+        "Test: `write_daily_report` with metrics dict produces markdown containing `## Portfolio metrics` and expected values",
+        "Tests use fixtures/mocks only — no live DB or yfinance",
+        "Existing `tests/trading/test_paper_broker.py` and `tests/trading/test_decision.py` still pass",
+        "uv run pytest passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#7"
+    }
+  ]
+}

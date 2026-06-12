@@ -1,0 +1,81 @@
+## Codebase Patterns
+- Use `uv run pytest` from repo root
+- empyrical 0.5.5 fails to build on Python 3.12+ (SafeConfigParser removed); use `empyrical-reloaded` instead — imports as `empyrical`
+- Paper trading modules: stock_analysis/trading/; tests: tests/trading/
+- Daily returns series for empyrical must be pd.Series of float pct changes (not portfolio values)
+
+## Current Status
+**Last Updated:** 2026-06-12
+**Tasks Completed:** 5
+**Current Task:** none — all complete
+
+---
+
+## 2026-06-12 - US-005
+- Created `tests/trading/test_portfolio_metrics.py` with 6 tests on synthetic data
+- Synthetic 252-day return series via `np.random.default_rng(42)` — no network
+- Tests verify Calmar, Sortino, rolling Sharpe (window=63) match empyrical directly within 1e-9 tolerance
+- Tests cover short series (<2 returns), insufficient rolling window, empty series
+- Existing `test_report.py`, `test_paper_broker.py`, `test_decision.py` all pass
+- Files changed: `tests/trading/test_portfolio_metrics.py`
+- Commands run: `uv run pytest` → 57 passed
+- **Learnings for future iterations:**
+  - `np.random.default_rng(42)` preferred over `np.random.seed` — reproducible, no global state
+  - Metric tests compare our wrapper vs direct empyrical call — tolerance 1e-9 (deterministic)
+  - Report integration tests already existed in `test_report.py` from US-003; no duplication needed
+
+Ready for PR — closes #7
+---
+
+## 2026-06-12 - US-004
+- Wired `run_daily` to load equity curve, append today's value, compute metrics, pass to report
+- Imports `compute_portfolio_metrics` from `stock_analysis.trading.portfolio_metrics`
+- After `finish_run`, calls `store.get_equity_curve(state.id)`; appends today if not already present
+- Derives `pd.Series` pct_change returns from equity values; passes to `compute_portfolio_metrics`
+- Passes `portfolio_metrics` to `write_daily_report` on normal trading-day path
+- Dry-run and NYSE-closed paths: `portfolio_metrics=None` (report omits section)
+- `PaperBroker`, `decide`, order queueing logic untouched
+- Files changed: `stock_analysis/jobs/daily.py`
+- Commands run: `uv run pytest` → 51 passed
+- **Learnings for future iterations:**
+  - Equity curve from DB already contains today after `finish_run`; append with dedup check for safety
+  - `pd.Series.pct_change().dropna()` converts equity values to daily returns for empyrical
+---
+
+## 2026-06-12 - US-003
+- Added `portfolio_metrics: dict | None = None` param to `write_daily_report`
+- Renders `## Portfolio metrics` section when dict provided; lists Calmar, Sortino, latest rolling Sharpe
+- Shows "Insufficient history" when all metric values are None/empty
+- Created `tests/trading/test_report.py` with 5 tests (no network, no live DB)
+- Files changed: `stock_analysis/trading/report.py`, `tests/trading/test_report.py`
+- Commands run: `uv run pytest` → 51 passed
+- **Learnings for future iterations:**
+  - `rolling_sharpe` in metrics dict is a pd.Series; use `.iloc[-1]` for latest value, check `len > 0` before access
+  - "has_data" check: any of calmar/sortino/rolling_sharpe non-None/non-empty → show values; else "Insufficient history"
+---
+
+## 2026-06-12 - US-002
+- Added `get_equity_curve(portfolio_id)` to `PortfolioStore`
+- Queries `paper_runs` filtering: `dry_run=False`, `finished_at IS NOT NULL`, `summary_json IS NOT NULL`
+- Parses JSON, extracts `session_date` + `portfolio_value`, skips invalid rows, returns sorted by date
+- Added `test_get_equity_curve` to `tests/storage/test_portfolio_store.py` (in-memory SQLite, no network)
+- Files changed: `stock_analysis/storage/portfolio_store.py`, `tests/storage/test_portfolio_store.py`
+- Commands run: `uv run pytest` → 46 passed
+- **Learnings for future iterations:**
+  - `paper_runs.c.dry_run == False` with SQLAlchemy requires `# noqa: E712` (identity vs equality lint)
+  - `finished_at` is set by `finish_run()` calling `_utcnow()`; unfinished runs have `NULL` automatically
+  - equity curve returns `list[tuple[str, float]]` — session_date as ISO string, portfolio_value as float
+---
+
+## 2026-06-12 - US-001
+- Created `stock_analysis/trading/portfolio_metrics.py` with `compute_portfolio_metrics(returns, *, rolling_window=63)`
+- Added `empyrical-reloaded==0.5.12` via `uv add empyrical-reloaded` (empyrical 0.5.5 broken on Python 3.12)
+- Uses `empyrical.calmar_ratio`, `empyrical.sortino_ratio`, `empyrical.roll_sharpe_ratio`
+- Short-series guard: returns None/empty Series when len < 2 or < rolling_window
+- Files changed: `stock_analysis/trading/portfolio_metrics.py`, `pyproject.toml`, `uv.lock`
+- Commands run: `uv run pytest` → 45 passed
+- **Learnings for future iterations:**
+  - empyrical-reloaded installs as `empyrical` namespace — `import empyrical` works
+  - roll_sharpe_ratio signature: `(arr, window, ...)` — parameter is `window` not `rolling_window`
+  - calmar_ratio and sortino_ratio can return NaN/inf on bad inputs; guard with np.isfinite()
+---
