@@ -18,7 +18,7 @@ def analyze_stock_data(df):
         dict: Dictionary containing analysis results
     """
     # Calculate daily returns
-    df['Returns'] = df['Close'].pct_change()
+    df['Returns'] = df['Close'].pct_change(fill_method=None)
 
     # Calculate volatility (annualized)
     volatility = df['Returns'].std() * np.sqrt(252)
@@ -109,8 +109,8 @@ def analyze_stock_vs_sp500(stock_df, sp500_ticker='^GSPC', period=None):
         sp500_aligned = sp500_df.loc[common_dates]
 
         # Calculate returns
-        stock_returns = stock_aligned['Close'].pct_change().dropna()
-        sp500_returns = sp500_aligned['Close'].pct_change().dropna()
+        stock_returns = stock_aligned['Close'].pct_change(fill_method=None).dropna()
+        sp500_returns = sp500_aligned['Close'].pct_change(fill_method=None).dropna()
 
         # Align returns
         common_returns = stock_returns.index.intersection(sp500_returns.index)
@@ -167,7 +167,7 @@ def analyze_portfolio_correlation(stock_data):
     # Create returns DataFrame
     returns_df = pd.DataFrame()
     for ticker, df in stock_data.items():
-        returns_df[ticker] = df['Close'].pct_change()
+        returns_df[ticker] = df['Close'].pct_change(fill_method=None)
 
     # Calculate correlation matrix
     correlation_matrix = returns_df.corr()

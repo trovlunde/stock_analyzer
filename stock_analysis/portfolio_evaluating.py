@@ -282,7 +282,7 @@ def calculate_max_drawdown(values):
 
 def calculate_sharpe_ratio(values, risk_free_rate=0.02):
     """Calculate the Sharpe ratio for a series of values"""
-    returns = pd.Series(values).pct_change().dropna()
+    returns = pd.Series(values).pct_change(fill_method=None).dropna()
     excess_returns = returns - (risk_free_rate / 252)  # Daily risk-free rate
     if len(excess_returns) > 0:
         return np.sqrt(252) * (excess_returns.mean() / excess_returns.std())
@@ -299,7 +299,7 @@ def plot_trading_analysis(stock_data, results, title="Trading Analysis"):
         title (str): Plot title
     """
     # Calculate next day returns (shift -1 to get next day's return)
-    next_day_returns = stock_data['Close'].pct_change().shift(-1) * 100
+    next_day_returns = stock_data['Close'].pct_change(fill_method=None).shift(-1) * 100
 
     # Create figure with three subplots instead of two
     fig = make_subplots(rows=3, cols=1,

@@ -1,0 +1,82 @@
+﻿{
+  "project": "stock-analysis",
+  "branchName": "ralph/issue-4-nn-predictor-mlp",
+  "description": "Resolve orphaned neural-network predictor module ΓÇö GitHub trovlunde/stock_analyzer#4",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/4",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Audit nn_predictor public API and callers",
+      "description": "As a developer, I want the nn_predictor module surface documented before rewrite so public contracts are preserved and scope stays bounded.",
+      "acceptanceCriteria": [
+        "Confirm train_nn_predictor, predict_returns, and prepare_data are the public entry points to preserve",
+        "Confirm module is not imported by daily job, evaluate CLI, or other production paths",
+        "Document return contracts (model, scaler, history tuple; predict_returns Series index alignment) in scripts/ralph/progress.txt",
+        "uv run pytest passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
+    },
+    {
+      "id": "US-002",
+      "title": "Rewrite training with sklearn MLPRegressor",
+      "description": "As a developer on a clean uv sync, I want nn_predictor to train without TensorFlow so import and training work with declared dependencies only.",
+      "acceptanceCriteria": [
+        "Remove tensorflow, keras, and keras_tuner imports from nn_predictor module",
+        "train_nn_predictor uses sklearn.neural_network.MLPRegressor with early_stopping for comparable feed-forward regression",
+        "do_tuning=True uses sklearn-native search (GridSearchCV or RandomizedSearchCV) over MLP hyperparameters ΓÇö not keras-tuner Hyperband",
+        "No keras_tuner/ directory creation or TensorFlow-specific APIs remain",
+        "uv run pytest passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
+    },
+    {
+      "id": "US-003",
+      "title": "Adapt predict and visualization for sklearn API",
+      "description": "As a developer using nn_predictor after the rewrite, I want predict_returns and training charts to work with sklearn models instead of Keras history objects.",
+      "acceptanceCriteria": [
+        "predict_returns calls sklearn model.predict on scaled features and returns pd.Series aligned to prepared feature index",
+        "Training visualization uses sklearn loss_curve_ or equivalent ΓÇö not keras history.history",
+        "Remove tf.nn.softmax debug print and any dead Keras-only code paths",
+        "Public signatures of train_nn_predictor and predict_returns unchanged",
+        "uv run pytest passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
+    },
+    {
+      "id": "US-004",
+      "title": "Add pytest for import and synthetic training",
+      "description": "As a maintainer, I want regression tests that prove nn_predictor imports and trains on fixture data without network calls.",
+      "acceptanceCriteria": [
+        "New test under tests/ imports train_nn_predictor without ModuleNotFoundError",
+        "Test builds synthetic OHLCV DataFrame (Close, Volume columns, enough rows for rolling features)",
+        "Test calls train_nn_predictor with do_tuning=False and asserts model, scaler, history returned",
+        "Test calls predict_returns and asserts Series length matches prepared feature rows",
+        "No yfinance or live market API calls in tests",
+        "uv run pytest passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
+    },
+    {
+      "id": "US-005",
+      "title": "Update README for sklearn MLP backend",
+      "description": "As a developer reading project docs, I want README to match what uv sync actually installs for nn_predictor.",
+      "acceptanceCriteria": [
+        "Remove tensorflow and keras from required dependency list in README",
+        "nn_predictor module docs state sklearn MLPRegressor backend",
+        "Note module is experimental and not wired into stock-analysis-daily or stock-analysis-evaluate",
+        "uv run pytest passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#4"
+    }
+  ]
+}

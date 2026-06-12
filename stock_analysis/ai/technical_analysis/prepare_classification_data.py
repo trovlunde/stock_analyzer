@@ -14,17 +14,17 @@ def prepare_classification_data(stock_data, predict_weekly=False, threshold=0.01
     # Target: today's or next week's return (only needed for training)
     if predict_weekly:
         data['return'] = stock_data['Close'].pct_change(
-            periods=5).shift(-4)  # Next week's return
+            periods=5, fill_method=None).shift(-4)  # Next week's return
     else:
         data['return'] = stock_data['Close'].pct_change(
-        ).shift(-1)  # Tomorrow's return
+            fill_method=None).shift(-1)  # Tomorrow's return
 
     # Base features (all must be from past data)
-    data['prev_day_return'] = stock_data['Close'].pct_change()  # Today's return
-    data['prev_2day_return'] = stock_data['Close'].pct_change().shift(
+    data['prev_day_return'] = stock_data['Close'].pct_change(fill_method=None)  # Today's return
+    data['prev_2day_return'] = stock_data['Close'].pct_change(fill_method=None).shift(
         1)  # Yesterday's return
     data['prev_week_return'] = stock_data['Close'].pct_change(
-        periods=5)  # Past week's return
+        periods=5, fill_method=None)  # Past week's return
 
     # Extra features
     if use_extra_features:
@@ -35,9 +35,9 @@ def prepare_classification_data(stock_data, predict_weekly=False, threshold=0.01
             5).mean() / stock_data['Volume'].rolling(21).mean()
 
         # Calculate volatility using annualized standard deviation of returns
-        data['volatility_5d'] = stock_data['Close'].pct_change().rolling(
+        data['volatility_5d'] = stock_data['Close'].pct_change(fill_method=None).rolling(
             5).std() * np.sqrt(252/5)
-        data['volatility_21d'] = stock_data['Close'].pct_change().rolling(
+        data['volatility_21d'] = stock_data['Close'].pct_change(fill_method=None).rolling(
             21).std() * np.sqrt(252/21)
 
         # Moving averages relative to current price
@@ -77,17 +77,17 @@ def prepare_classification_data_enhanced(stock_data, predict_weekly=False, thres
     # Target: today's or next week's return (only needed for training)
     if predict_weekly:
         data['return'] = stock_data['Close'].pct_change(
-            periods=5).shift(-4)  # Next week's return
+            periods=5, fill_method=None).shift(-4)  # Next week's return
     else:
         data['return'] = stock_data['Close'].pct_change(
-        ).shift(-1)  # Tomorrow's return
+            fill_method=None).shift(-1)  # Tomorrow's return
 
     # Base features (all must be from past data)
-    data['prev_day_return'] = stock_data['Close'].pct_change()  # Today's return
-    data['prev_2day_return'] = stock_data['Close'].pct_change().shift(
+    data['prev_day_return'] = stock_data['Close'].pct_change(fill_method=None)  # Today's return
+    data['prev_2day_return'] = stock_data['Close'].pct_change(fill_method=None).shift(
         1)  # Yesterday's return
     data['prev_week_return'] = stock_data['Close'].pct_change(
-        periods=5)  # Past week's return
+        periods=5, fill_method=None)  # Past week's return
 
     # Extra features
     if use_extra_features:
@@ -98,9 +98,9 @@ def prepare_classification_data_enhanced(stock_data, predict_weekly=False, thres
             5).mean() / stock_data['Volume'].rolling(21).mean()
 
         # Calculate volatility using annualized standard deviation of returns
-        data['volatility_5d'] = stock_data['Close'].pct_change().rolling(
+        data['volatility_5d'] = stock_data['Close'].pct_change(fill_method=None).rolling(
             5).std() * np.sqrt(252/5)
-        data['volatility_21d'] = stock_data['Close'].pct_change().rolling(
+        data['volatility_21d'] = stock_data['Close'].pct_change(fill_method=None).rolling(
             21).std() * np.sqrt(252/21)
 
         # Moving averages relative to current price
@@ -113,7 +113,7 @@ def prepare_classification_data_enhanced(stock_data, predict_weekly=False, thres
         data['rsi_5d'] = RSI(stock_data, window=5)
         data['rsi_21d'] = RSI(stock_data, window=21)
 
-        data['momentum'] = stock_data['Close'].pct_change(20)
+        data['momentum'] = stock_data['Close'].pct_change(20, fill_method=None)
         data['bollinger_band_position'] = (stock_data['Close'] - stock_data['Close'].rolling(20).mean()) / \
             (stock_data['Close'].rolling(20).std() * 2)
 
@@ -176,11 +176,11 @@ def prepare_classification_data_iterative(stock_data, predict_weekly=False, thre
         temp_data = pd.DataFrame(index=[window_end], columns=feature_columns)
 
         # Calculate base features (always included)
-        temp_data['prev_day_return'] = window_data['Close'].pct_change().iloc[-1]
-        temp_data['prev_2day_return'] = window_data['Close'].pct_change().shift(
+        temp_data['prev_day_return'] = window_data['Close'].pct_change(fill_method=None).iloc[-1]
+        temp_data['prev_2day_return'] = window_data['Close'].pct_change(fill_method=None).shift(
             1).iloc[-1]
         temp_data['prev_week_return'] = window_data['Close'].pct_change(
-            periods=5).iloc[-1]
+            periods=5, fill_method=None).iloc[-1]
 
         if use_extra_features:
             # Volume features
@@ -190,9 +190,9 @@ def prepare_classification_data_iterative(stock_data, predict_weekly=False, thre
                                       window_data['Volume'].rolling(21).mean().iloc[-1])
 
             # Volatility features
-            temp_data['volatility_5d'] = (window_data['Close'].pct_change().rolling(5).std().iloc[-1] *
+            temp_data['volatility_5d'] = (window_data['Close'].pct_change(fill_method=None).rolling(5).std().iloc[-1] *
                                           np.sqrt(252/5))
-            temp_data['volatility_21d'] = (window_data['Close'].pct_change().rolling(21).std().iloc[-1] *
+            temp_data['volatility_21d'] = (window_data['Close'].pct_change(fill_method=None).rolling(21).std().iloc[-1] *
                                            np.sqrt(252/21))
 
             # Moving averages
@@ -212,9 +212,9 @@ def prepare_classification_data_iterative(stock_data, predict_weekly=False, thre
     # Calculate returns for target (using full dataset to get actual returns)
     if predict_weekly:
         final_data['return'] = stock_data['Close'].pct_change(
-            periods=5).shift(-4)
+            periods=5, fill_method=None).shift(-4)
     else:
-        final_data['return'] = stock_data['Close'].pct_change().shift(-1)
+        final_data['return'] = stock_data['Close'].pct_change(fill_method=None).shift(-1)
 
     # Create categorical target
     final_data['Target'] = pd.cut(final_data['return'],

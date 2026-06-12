@@ -121,13 +121,13 @@ def get_significant_changes(data, filter_consecutive=False, filter_return=0.03):
     # Calculate returns first
     data = data.copy()
     if 'return' not in data.columns:
-        data['return'] = data['Close'].pct_change()
+        data['return'] = data['Close'].pct_change(fill_method=None)
 
     significant_changes = data[abs(data['return']) > filter_return].copy()
     significant_changes['prior_day_return'] = data['return'].shift(1)
     significant_changes['prior_5day_return'] = data['return'].shift(5)
     significant_changes['prior_month_return'] = data['Close'].pct_change(
-        periods=21)
+        periods=21, fill_method=None)
     significant_changes['RSI_5d'] = RSI(data, window=5)
 
     # Calculate time since last significant change

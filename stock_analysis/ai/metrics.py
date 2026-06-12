@@ -18,7 +18,7 @@ def calculate_max_drawdown(values):
 
 def calculate_sharpe_ratio(values, risk_free_rate=0.02):
     """Calculate the Sharpe ratio for a series of values"""
-    returns = pd.Series(values).pct_change().dropna()
+    returns = pd.Series(values).pct_change(fill_method=None).dropna()
     excess_returns = returns - (risk_free_rate / 252)  # Daily risk-free rate
     if len(excess_returns) > 0:
         return np.sqrt(252) * (excess_returns.mean() / excess_returns.std())
