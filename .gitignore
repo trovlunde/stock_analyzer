@@ -13,3 +13,13 @@ __pycache__/
 *.pyzw
 
 *.csv
+
+# Agent caches (sandbox / uv)
+.cache/
+
+# Ralph working files (generated during runs)
+scripts/ralph/prd.json
+scripts/ralph/progress.txt
+scripts/ralph/.last-branch
+scripts/ralph/.iteration-*.log
+screenshots/

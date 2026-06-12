@@ -1,0 +1,33 @@
+{
+  "env": {
+    "XDG_CACHE_HOME": ".cache",
+    "UV_CACHE_DIR": ".cache/uv"
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:files.pythonhosted.org)"
+    ],
+    "deny": [
+      "Bash(sudo *)",
+      "Bash(docker *)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)"
+    ],
+    "ask": [
+      "Bash(git push:*)"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "sandbox": {
+    "enabled": false,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": true,
+    "network": {
+      "allowLocalBinding": true
+    }
+  }
+}

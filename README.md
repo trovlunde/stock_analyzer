@@ -16,7 +16,9 @@ After changing `pyproject.toml` dependencies, run `uv sync` again.
 
 ### Project plans
 
-- [Stack & tooling improvements](docs/stack-improvement-plan.md) — dependency hygiene, data sources, ML upgrades
+- [GitHub issues #1–#13](docs/issues/README.md) — stack tooling epic and child tasks (`needs-triage`)
+- [PRD: Stack & tooling improvements](docs/prd-stack-tooling-improvements.md) — problem statement, user stories, implementation & testing decisions
+- [Stack & tooling improvements](docs/stack-improvement-plan.md) — phased checklist (dependency hygiene, data sources, ML upgrades)
 - [Database cache](docs/database-cache-plan.md) — SQLite cache architecture and phase-2 scope
 
 ## Command Line Usage
