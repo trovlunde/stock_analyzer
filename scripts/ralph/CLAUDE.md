@@ -14,14 +14,17 @@ Work from the **repository root** (parent of `scripts/ralph/`). Ralph state file
 5. Implement that **single** user story
 6. Run quality checks (see below)
 7. Update `AGENTS.md` files if you discover reusable patterns (see below)
-8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-9. Update `scripts/ralph/prd.json` to set `passes: true` for the completed story
-10. Append your progress to `scripts/ralph/progress.txt`
+8. Update `scripts/ralph/prd.json` to set `passes: true` for the completed story
+9. Append your progress to `scripts/ralph/progress.txt`
+10. If checks pass, commit **implementation changes only** with message: `feat: [Story ID] - [Story Title]`
 
 ## Git Safety
 
 - **One commit per story** — do not batch unrelated changes
 - Do **not** run `git init`, change remotes, or `git push`
+- **Working Ralph files are gitignored** — never `git add` or commit `scripts/ralph/prd.json`, `scripts/ralph/progress.txt`, `scripts/ralph/.iteration-*.log`, or `screenshots/`
+- **Per-story commits:** product code only (`stock_analysis/`, `tests/`, `pyproject.toml`, `uv.lock`, `README.md`, `AGENTS.md` when you added durable patterns)
+- **Run complete:** commit one archive snapshot (see below) — not on every story
 - Only modify the `passes` field in `prd.json` — do not remove or rewrite other stories
 
 ## Quality Checks (stock-analysis)
@@ -95,7 +98,11 @@ If no browser tools are available, state that manual verification is required.
 
 After completing a user story, check if ALL stories have `passes: true`.
 
-If ALL stories are complete and passing, reply with:
+If ALL stories are complete and passing:
+
+1. Copy working `prd.json` and `progress.txt` to `scripts/ralph/archive/YYYY-MM-DD-<branch-suffix>/` if not already there (`ralph.sh` does this automatically when the next run uses a different `branchName`)
+2. Commit **once**: `chore: archive Ralph run for #N` — stage only the new `scripts/ralph/archive/...` folder (not working `prd.json` / `progress.txt`)
+3. Reply with:
 
 <promise>COMPLETE</promise>
 

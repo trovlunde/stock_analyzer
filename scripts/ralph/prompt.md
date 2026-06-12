@@ -13,9 +13,10 @@ Work from the **repository root** (parent of `scripts/ralph/`). Ralph state file
 5. Implement that **single** user story
 6. Run quality checks (see below)
 7. Update `AGENTS.md` files if you discover reusable patterns (see below)
-8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-9. Update `scripts/ralph/prd.json` to set `passes: true` for the completed story
-10. Append your progress to `scripts/ralph/progress.txt`
+8. Update `scripts/ralph/prd.json` to set `passes: true` for the completed story
+9. Append your progress to `scripts/ralph/progress.txt`
+10. If checks pass, commit **implementation changes only** — do not commit working `prd.json` or `progress.txt` (gitignored)
+11. When **all** stories pass: copy final state to `scripts/ralph/archive/YYYY-MM-DD-<branch-suffix>/` and commit that folder once (`chore: archive Ralph run for #N`)
 
 ## Quality Checks (stock-analysis)
 

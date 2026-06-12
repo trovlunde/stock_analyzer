@@ -9,7 +9,7 @@ Guidance for human developers and autonomous agents (Ralph, Cursor, Claude Code)
 | `stock_analysis/` | Main Python package |
 | `tests/` | pytest suite (`uv run pytest`) |
 | `docs/` | PRDs, improvement plans, ADRs |
-| `scripts/ralph/` | [Ralph](https://github.com/snarktank/ralph) autonomous loop (prd.json, progress.txt) |
+| `scripts/ralph/` | [Ralph](https://github.com/snarktank/ralph) loop — working `prd.json` / `progress.txt` are gitignored; completed runs snapshotted under `archive/` (committed) |
 | `tasks/` | Markdown PRDs before Ralph JSON conversion |
 
 ## Commands
@@ -59,7 +59,7 @@ chmod +x scripts/ralph/ralph.sh
 ./scripts/ralph/ralph.sh --tool claude 10   # always set max iterations
 ```
 
-Memory between iterations: git commits, `scripts/ralph/progress.txt`, `scripts/ralph/prd.json`.
+Memory between iterations: git commits (product code per story), local `scripts/ralph/progress.txt` and `scripts/ralph/prd.json` (gitignored). When a run finishes, one archive commit under `scripts/ralph/archive/`.
 
 Each story must fit one context window. Split large PRDs/issues before converting.
 
@@ -95,7 +95,10 @@ cat scripts/ralph/progress.txt
 git log --oneline -10
 uv run pytest
 
-# 5. After <promise>COMPLETE</promise> — push branch and open PR
+# 5. After <promise>COMPLETE</promise> — archive + push + PR
+#    (Ralph copies prd.json/progress.txt to scripts/ralph/archive/; commit that folder once)
+git add scripts/ralph/archive/YYYY-MM-DD-issue-N-short-name/
+git commit -m "chore: archive Ralph run for #2"
 git push -u origin HEAD
 gh pr create --title "fix: fundamental cache return contract (closes #2)" --body "$(cat <<'EOF'
 ## Summary
@@ -127,7 +130,7 @@ Only needed when Ralph stories touch `app.py` or rendered templates. Add `.mcp.j
 
 | JeredBlu guide | This repo |
 |----------------|-----------|
-| `plan.md` + embedded JSON | `scripts/ralph/prd.json` (snarktank format) |
-| `activity.md` | `scripts/ralph/progress.txt` |
+| `plan.md` + embedded JSON | `scripts/ralph/prd.json` local; snapshots in `archive/` |
+| `activity.md` | `scripts/ralph/progress.txt` local; snapshots in `archive/` |
 | `PROMPT.md` | `scripts/ralph/CLAUDE.md` |
 | Claude plugin `/ralph` | Not used — bash loop gives true fresh context per iteration |

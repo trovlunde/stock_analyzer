@@ -139,6 +139,9 @@ for i in $(seq 1 $MAX_ITERATIONS); do
     echo ""
     echo "Ralph completed all tasks!"
     echo "Completed at iteration $i of $MAX_ITERATIONS"
+    echo ""
+    echo "Next: ensure scripts/ralph/archive/ has this run's prd.json + progress.txt,"
+    echo "      then commit the archive folder once (working prd.json/progress.txt stay gitignored)."
     exit 0
   fi
 
