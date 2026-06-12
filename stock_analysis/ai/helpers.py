@@ -11,6 +11,7 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, Gradien
 from sklearn.neural_network import MLPClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from lightgbm import LGBMClassifier
 
 
 def get_ticker(ticker):
@@ -191,7 +192,8 @@ classifiers = {
     "Neural Net": MLPClassifier(alpha=1, max_iter=1000),
     "AdaBoost": AdaBoostClassifier(),
     "Naive Bayes": GaussianNB(),
-    "QDA": QuadraticDiscriminantAnalysis()
+    "QDA": QuadraticDiscriminantAnalysis(),
+    "LightGBM": LGBMClassifier(n_estimators=100, random_state=42, verbose=-1)
 }
 
 # Define feature sets at the top of the file

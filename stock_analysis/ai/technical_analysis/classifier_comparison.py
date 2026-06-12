@@ -32,6 +32,12 @@ def get_classifier_param_grid():
             'voting': ['soft'],
             # Testing different voting weights
             'weights': [[1, 1, 1], [2, 1, 1], [1, 2, 1], [1, 1, 2]]
+        },
+        "LightGBM": {
+            'n_estimators': [100, 200],
+            'max_depth': [4, 6, -1],
+            'learning_rate': [0.05, 0.1],
+            'num_leaves': [31, 63],
         }
     }
 
