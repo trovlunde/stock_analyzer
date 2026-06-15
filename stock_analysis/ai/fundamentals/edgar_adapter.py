@@ -1,6 +1,8 @@
 import edgar
 import pandas as pd
 
+from stock_analysis.storage import get_cache_store as _get_cache_store
+
 _CONCEPT_TO_YFINANCE: dict[str, str] = {
     "Revenue": "Total Revenue",
     "NetIncome": "Net Income",
@@ -49,7 +51,26 @@ def _raw_to_financials_df(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 class EdgarAdapter:
+    def __init__(self, cache_store=None):
+        self._cache_store = cache_store
+
+    def _store(self):
+        if self._cache_store is not None:
+            return self._cache_store
+        return _get_cache_store()
+
     def get_annual_financials(self, ticker: str) -> pd.DataFrame:
+        key = f"edgar:{ticker}:annual"
+        store = self._store()
+        cached = store.get(key)
+        if cached is not None:
+            return cached
+        df = self._fetch_annual(ticker)
+        if not df.empty:
+            store.put(key, df)
+        return df
+
+    def _fetch_annual(self, ticker: str) -> pd.DataFrame:
         try:
             company = edgar.Company(ticker)
             filings = company.get_filings(form="10-K")
@@ -64,6 +85,17 @@ class EdgarAdapter:
         return _raw_to_financials_df(stmt.to_dataframe())
 
     def get_quarterly_financials(self, ticker: str) -> pd.DataFrame:
+        key = f"edgar:{ticker}:quarterly"
+        store = self._store()
+        cached = store.get(key)
+        if cached is not None:
+            return cached
+        df = self._fetch_quarterly(ticker)
+        if not df.empty:
+            store.put(key, df)
+        return df
+
+    def _fetch_quarterly(self, ticker: str) -> pd.DataFrame:
         try:
             company = edgar.Company(ticker)
             filings = company.get_filings(form="10-Q")

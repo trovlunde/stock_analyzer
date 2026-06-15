@@ -3,6 +3,14 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from stock_analysis.ai.fundamentals import EdgarAdapter, FundamentalsProvider
+from stock_analysis.storage.cache_store import SqlCacheStore
+from stock_analysis.storage.schema import create_engine_for_url, init_db
+
+
+def _make_in_memory_store() -> SqlCacheStore:
+    engine = create_engine_for_url("sqlite://")
+    init_db(engine)
+    return SqlCacheStore(engine)
 
 
 def _make_stitched_df(periods: list[str]) -> pd.DataFrame:
@@ -47,6 +55,10 @@ def _mock_edgar(monkeypatch, form: str, stitched_df: pd.DataFrame) -> None:
 
     monkeypatch.setattr("edgar.Company", mock_company_cls)
     monkeypatch.setattr("edgar.MultiFinancials.extract", staticmethod(lambda f: mock_multi))
+    monkeypatch.setattr(
+        "stock_analysis.ai.fundamentals.edgar_adapter._get_cache_store",
+        _make_in_memory_store,
+    )
 
 
 class TestEdgarAdapter:
@@ -121,6 +133,10 @@ class TestEdgarAdapter:
         mock_company = MagicMock()
         mock_company.get_filings.return_value = mock_filings
         monkeypatch.setattr("edgar.Company", MagicMock(return_value=mock_company))
+        monkeypatch.setattr(
+            "stock_analysis.ai.fundamentals.edgar_adapter._get_cache_store",
+            _make_in_memory_store,
+        )
 
         adapter = EdgarAdapter()
         df = adapter.get_annual_financials("UNKNOWN")
@@ -132,6 +148,10 @@ class TestEdgarAdapter:
         monkeypatch.setattr(
             "edgar.Company",
             MagicMock(side_effect=_edgar.CompanyNotFoundError("UNKNOWN")),
+        )
+        monkeypatch.setattr(
+            "stock_analysis.ai.fundamentals.edgar_adapter._get_cache_store",
+            _make_in_memory_store,
         )
 
         adapter = EdgarAdapter()
