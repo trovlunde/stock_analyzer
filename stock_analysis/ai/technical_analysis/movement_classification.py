@@ -2339,6 +2339,7 @@ def evaluate_all_classifiers(
     y_holdout = holdout_data['Target'].map({'negative': 0, 'neutral': 1, 'positive': 2})
 
     scaler = StandardScaler()
+    scaler.set_output(transform="pandas")
     X_train_scaled = scaler.fit_transform(X_train)
     X_holdout_scaled = scaler.transform(X_holdout)
 
