@@ -1,12 +1,11 @@
-import yfinance as yf
 import pandas as pd
 from datetime import timedelta
 from sklearn.neighbors import KNeighborsClassifier
 
 from ..storage import get_cache_store
-from .fundamentals import CompositeProvider
+from ..market_data import MarketDataProvider, YFinanceProvider
 
-_composite_provider = CompositeProvider()
+_default_provider = YFinanceProvider()
 from sklearn.svm import SVC
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -18,7 +17,7 @@ from lightgbm import LGBMClassifier
 
 
 def get_ticker(ticker):
-    return yf.Ticker(ticker)
+    return _default_provider.get_raw_ticker(ticker)
 
 
 def _index_cache_key(ticker, period, start_date=None):
@@ -38,8 +37,9 @@ def _index_data_fresh(df):
         return False
 
 
-def get_index_data(ticker, period='10y', start_date=None):
+def get_index_data(ticker, period='10y', start_date=None, provider: MarketDataProvider | None = None):
     """Get index data with proper cache handling."""
+    _provider = provider if provider is not None else _default_provider
     store = get_cache_store()
     parsed_start = pd.Timestamp(start_date).date() if start_date is not None else None
     key = _index_cache_key(ticker, period, parsed_start)
@@ -59,22 +59,30 @@ def get_index_data(ticker, period='10y', start_date=None):
         if parsed_start is not None:
             print(f"Using start date: {parsed_start}")
             end_date = parsed_start
-            download_start = end_date - pd.DateOffset(years=lookback)
-            index_data = yf.download(ticker, start=download_start, end=end_date)
+            download_start = pd.Timestamp(end_date) - pd.DateOffset(years=lookback)
+            index_data = _provider.get_history(
+                ticker,
+                start=str(download_start.date()),
+                end=str(end_date),
+            )
         else:
             print(f"Attempting direct download with period={period}")
-            index_data = yf.download(ticker, period=period)
+            index_data = _provider.get_history(ticker, period=period)
 
             if index_data.empty:
                 print("Period download failed, trying with explicit dates")
                 end_date = pd.Timestamp.now()
                 download_start = end_date - pd.Timedelta(days=365 * lookback)
                 print(f"Downloading from {download_start} to {end_date}")
-                index_data = yf.download(ticker, start=download_start, end=end_date)
+                index_data = _provider.get_history(
+                    ticker,
+                    start=str(download_start.date()),
+                    end=str(end_date.date()),
+                )
 
             if index_data.empty:
                 print("Explicit dates failed, trying max period")
-                index_data = yf.download(ticker, period='max')
+                index_data = _provider.get_history(ticker, period='max')
 
         if index_data.empty:
             raise ValueError(f"No data retrieved for {ticker}")
@@ -88,7 +96,7 @@ def get_index_data(ticker, period='10y', start_date=None):
         print(f"Error retrieving {ticker} data: {e}")
         try:
             print("Attempting final fallback download")
-            return yf.download(ticker, period=period)
+            return _provider.get_history(ticker, period=period)
         except Exception as download_error:
             print(f"Error downloading {ticker} data: {download_error}")
             return None
@@ -112,20 +120,23 @@ def get_indexes_data(indexes, period='10y'):
     return data_list
 
 
-def get_ticker_data(ticker):
-    return get_ticker(ticker).history(period="20y")
+def get_ticker_data(ticker, provider: MarketDataProvider | None = None):
+    _provider = provider if provider is not None else _default_provider
+    return _provider.get_history(ticker, period="20y")
 
 
-def get_ticker_financials(ticker: str) -> pd.DataFrame:
-    return _composite_provider.get_annual_financials(ticker)
+def get_ticker_financials(ticker: str, provider: MarketDataProvider | None = None) -> pd.DataFrame:
+    _provider = provider if provider is not None else _default_provider
+    return _provider.get_financials(ticker)
 
 
 def get_ticker_quarterly_financials(ticker: str) -> pd.DataFrame:
-    return _composite_provider.get_quarterly_financials(ticker)
+    return _default_provider.get_quarterly_financials(ticker)
 
 
-def get_quarterly_balance_sheet(ticker: str) -> pd.DataFrame:
-    return yf.Ticker(ticker).quarterly_balance_sheet
+def get_quarterly_balance_sheet(ticker: str, provider=None) -> pd.DataFrame:
+    _provider = provider if provider is not None else _default_provider
+    return _provider.get_quarterly_balance_sheet(ticker)
 
 
 def get_significant_changes(data, filter_consecutive=False, filter_return=0.03):

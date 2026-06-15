@@ -28,3 +28,12 @@ class YFinanceProvider:
         if earnings is None:
             return pd.DataFrame()
         return earnings
+
+    def get_raw_ticker(self, ticker: str):
+        return yf.Ticker(ticker)
+
+    def get_quarterly_balance_sheet(self, ticker: str) -> pd.DataFrame:
+        return yf.Ticker(ticker).quarterly_balance_sheet
+
+    def get_quarterly_financials(self, ticker: str) -> pd.DataFrame:
+        return self._fundamentals.get_quarterly_financials(ticker)

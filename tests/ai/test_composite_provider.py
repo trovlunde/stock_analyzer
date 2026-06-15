@@ -72,17 +72,17 @@ def test_composite_provider_satisfies_protocol():
 
 
 def test_get_ticker_financials_uses_composite(monkeypatch):
-    """get_ticker_financials delegates to the module-level composite provider."""
+    """get_ticker_financials delegates to the module-level default provider."""
     import stock_analysis.ai.helpers as helpers_mod
 
     expected = _sample_df()
     mock_provider = MagicMock()
-    mock_provider.get_annual_financials.return_value = expected
-    monkeypatch.setattr(helpers_mod, "_composite_provider", mock_provider)
+    mock_provider.get_financials.return_value = expected
+    monkeypatch.setattr(helpers_mod, "_default_provider", mock_provider)
 
     from stock_analysis.ai.helpers import get_ticker_financials
     result = get_ticker_financials("AAPL")
-    mock_provider.get_annual_financials.assert_called_once_with("AAPL")
+    mock_provider.get_financials.assert_called_once_with("AAPL")
     pd.testing.assert_frame_equal(result, expected)
 
 
@@ -92,7 +92,7 @@ def test_get_ticker_quarterly_financials_uses_composite(monkeypatch):
     expected = _sample_df()
     mock_provider = MagicMock()
     mock_provider.get_quarterly_financials.return_value = expected
-    monkeypatch.setattr(helpers_mod, "_composite_provider", mock_provider)
+    monkeypatch.setattr(helpers_mod, "_default_provider", mock_provider)
 
     from stock_analysis.ai.helpers import get_ticker_quarterly_financials
     result = get_ticker_quarterly_financials("AAPL")
