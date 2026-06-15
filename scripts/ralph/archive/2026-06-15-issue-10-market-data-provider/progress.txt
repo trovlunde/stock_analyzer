@@ -1,0 +1,91 @@
+## Codebase Patterns
+- Use `uv run pytest` from repo root
+- FundamentalsProvider protocol at `stock_analysis/ai/fundamentals/provider.py` — follow same `@runtime_checkable` + Protocol pattern for new protocols
+- CompositeProvider (YFinance + EDGAR fallback) lives in `stock_analysis/ai/fundamentals/` — delegate to it for financials, don't duplicate
+- Test mocking: use `monkeypatch.setattr(yfinance, "Ticker", lambda sym: mock)` for yfinance isolation
+- Sentinel pattern for test helpers: use `_MISSING = object()` default args to distinguish None from "use default"
+- New subpackages need `__init__.py`; diagnostics pattern (`tests/diagnostics/`) has one, `tests/ai/` does not
+- MarketDataProvider module: `stock_analysis/market_data/` — protocol + YFinanceProvider live here
+- `helpers.py` module-level `_default_provider = YFinanceProvider()` — patch via `monkeypatch.setattr(helpers_mod, "_default_provider", mock)` in tests
+- `YFinanceProvider` has extra non-protocol methods: `get_raw_ticker`, `get_quarterly_balance_sheet`, `get_quarterly_financials`, `get_tickers_obj`
+- `get_raw_ticker(ticker)` → returns `yf.Ticker` object; use when caller needs raw ticker API (history with interval, dividends, info, etc.)
+- `get_tickers_obj(symbols)` → returns `yf.Tickers` batch object; used by fetch_stocks_data / fetch_stocks_data_alt
+- `StockValuation(ticker, provider=None)` in `valuation_methods.py` — provider replaces raw `yf.Ticker` arg; uses `get_raw_ticker` internally
+- `PaidMarketDataStub` in `market_data/paid_stub.py` — raises NotImplementedError for future FMP/Polygon/Stooq adapters; see `market_data/README.md`
+- Consumer modules (`stock_finder`, `sector_analysis`, `sp500_analysis`, `analyze_stock_data`, `linear_reg_sig_days`) use `_default_provider` pattern with optional `provider` kwarg
+
+## Current Status
+**Last Updated:** 2026-06-15
+**Tasks Completed:** 5
+**Current Task:** none — all complete
+
+---
+
+## 2026-06-15 - US-005
+- Added `PaidMarketDataStub` and `market_data/README.md` documenting paid-API extension point
+- Parity tests in `tests/market_data/test_market_data_provider.py` (OHLCV columns, financials orientation)
+- `tests/market_data/test_paid_stub.py` — stub raises + `get_sp500_data` delegation
+- `uv run pytest` → 158 passed
+- **Learnings:** `PaidMarketDataStub` is not `@runtime_checkable` protocol member — documents intent only
+
+---
+
+## 2026-06-15 - US-004
+- Migrated `stock_finder`, `sector_analysis`, `sp500_analysis`, `analyze_stock_data`, `linear_reg_sig_days` off direct yfinance
+- Added `YFinanceProvider.get_market_tickers_obj` and `get_market_stocks` for batch/market screening APIs
+- Added `get_sp500_data()` helper (fixes missing symbol used by `linear_reg_sig_days`)
+- New `tests/test_market_data_consumers.py` smoke tests with mocked provider
+- `uv run pytest` → 158 passed
+- **Learnings:** `analyze_stock_vs_sp500` needs ≥11 OHLCV rows after pct_change dropna for beta calc
+
+---
+
+## 2026-06-15 - US-003
+- Wired `fetch_stock_data.py` through `MarketDataProvider` — removed `import yfinance as yf`
+- `fetch_stock_data`, `fetch_stocks_data`, `fetch_stocks_data_alt` accept optional `provider` param; default to module-level `_default_provider = YFinanceProvider()`
+- `fetch_stock_data` uses `provider.get_raw_ticker(tickers)` — preserves retry/backoff logic unchanged
+- `fetch_stocks_data`/`fetch_stocks_data_alt` use new `provider.get_tickers_obj(symbols)` (added to YFinanceProvider, not in protocol)
+- Wired `ai/finviz_classifier/data_fetching.py` — removed `import yfinance as yf`
+- `fetch_ticker_history` and `fetch_stock_returns` accept optional `provider`; use `get_raw_ticker` to call `.history(interval='1d')`
+- Wired `ai/fundamental_analysis/valuation_methods.py` — removed `import yfinance as yf`
+- `StockValuation.__init__` signature changed from `Union[str, yf.Ticker]` to `(ticker: str, provider=None)` — uses `provider.get_raw_ticker(ticker)` internally
+- New tests: `tests/test_fetch_stock_data.py` (5 tests), `tests/ai/test_valuation_methods.py` (3 tests), added `test_fetch_ticker_history_provider_injection` to `tests/ai/test_data_fetching.py`
+- `uv run pytest` → 148 passed
+- **Learnings for future iterations:**
+  - `get_raw_ticker` covers all cases needing a raw `yf.Ticker` — `.history(interval=...)`, `.dividends`, `.info`, `.earnings_dates`
+  - `get_tickers_obj` needed for batch `yf.Tickers` pattern; add as non-protocol extra method on YFinanceProvider
+  - `StockValuation` mock: build a `_MockRawTicker` with `info`, `financials`, `balance_sheet`, `cashflow` DataFrames — constructor calls `_load_financial_data()` immediately
+  - `fetch_stocks_data_alt` has a pre-existing bug: empty stocks list causes `dropna(subset=...)` to fail; mock tickers must include `.info` with `marketCap` key to avoid this
+
+---
+
+## 2026-06-15 - US-002
+- Wired `ai/helpers.py` through `MarketDataProvider` — removed `import yfinance` from module
+- `get_index_data`, `get_ticker_data`, `get_ticker_financials`, `get_quarterly_balance_sheet` accept optional `provider: MarketDataProvider | None = None`
+- Module-level `_default_provider = YFinanceProvider()` replaces old `_composite_provider = CompositeProvider()`
+- `get_ticker` backward-compat shim: delegates to `_default_provider.get_raw_ticker(ticker)`
+- `YFinanceProvider` extended with: `get_raw_ticker`, `get_quarterly_balance_sheet`, `get_quarterly_financials`
+- Updated `tests/ai/test_composite_provider.py`: patching migrated from `_composite_provider` to `_default_provider`
+- New `tests/ai/test_helpers.py`: 6 tests — cache hit/miss, provider injection for `get_index_data`, `get_ticker_data`, `get_ticker_financials`
+- `uv run pytest` → 139 passed
+- **Learnings for future iterations:**
+  - `monkeypatch.setattr(helpers_mod, "_default_provider", mock)` is the injection pattern for helpers tests
+  - `yf.Ticker.history()` returns flat columns; `yf.download()` returned MultiIndex — `get_level_values(0)` is now a no-op but kept for safety
+  - `pd.Timestamp(date_obj) - pd.DateOffset(years=N)` for date arithmetic; `.date()` for string conversion
+
+---
+
+## 2026-06-15 - US-001
+- Implemented `stock_analysis/market_data/` package with `MarketDataProvider` protocol and `YFinanceProvider`
+- `MarketDataProvider` is `@runtime_checkable` Protocol with `get_history`, `get_financials`, `get_earnings`
+- `YFinanceProvider.get_financials` delegates to injected `CompositeProvider` (no duplication of #8 logic)
+- `YFinanceProvider.get_history` uses `yf.Ticker.history(period=...)` or `history(start=..., end=...)`
+- `YFinanceProvider.get_earnings` uses `yf.Ticker.earnings_dates`
+- Files created: `stock_analysis/market_data/__init__.py`, `protocol.py`, `yfinance_provider.py`
+- Tests: `tests/market_data/__init__.py`, `tests/market_data/test_market_data_provider.py` (6 tests, all pass)
+- `uv run pytest` → 133 passed
+- **Learnings for future iterations:**
+  - Use sentinel `_MISSING = object()` in test helpers when `None` is a valid argument value
+  - `yf.Ticker.earnings_dates` is the live earnings API used in `fetch_stock_data.py` — consistent choice
+  - `CompositeProvider` accepts `primary`/`fallback` kwargs — injectable for tests without monkeypatching yfinance
+---
