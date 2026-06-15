@@ -1,0 +1,80 @@
+{
+  "project": "stock-analysis",
+  "branchName": "ralph/issue-9-statsmodels-diagnostics",
+  "description": "Add statsmodels for time-series diagnostics — GitHub trovlunde/stock_analyzer#9",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/9",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add statsmodels dependency and diagnostics package skeleton",
+      "description": "As a maintainer, I want statsmodels installed via uv with a dedicated diagnostics package and documented use cases so researchers know when to opt in.",
+      "acceptanceCriteria": [
+        "`statsmodels` added via `uv add`; importable in CI without network",
+        "New `stock_analysis/diagnostics/` package exists with module docstring describing stationarity and regression use cases",
+        "README or AGENTS.md notes that diagnostics are opt-in — not used by daily job or Flask API",
+        "No new imports of diagnostics in `jobs/daily.py`, `app.py`, or paper-trading modules",
+        "uv run pytest passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#9"
+    },
+    {
+      "id": "US-002",
+      "title": "Stationarity diagnostics (ADF) for Series and feature frames",
+      "description": "As a researcher, I want ADF stationarity checks on feature columns before adding them to classifiers so I can spot non-stationary inputs early.",
+      "acceptanceCriteria": [
+        "`check_stationarity(series, *, alpha=0.05)` wraps `statsmodels.tsa.stattools.adfuller` and returns dict with statistic, p_value, is_stationary",
+        "`check_stationarity_frame(df, columns=None)` returns a DataFrame report for numeric feature columns",
+        "Handles short series gracefully (clear error or insufficient_data flag — no crash on empty input)",
+        "uv run pytest passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#9"
+    },
+    {
+      "id": "US-003",
+      "title": "Regression diagnostics helper for prepared feature frames",
+      "description": "As a researcher, I want OLS regression diagnostics on feature vs target columns so I can sanity-check linear relationships before training classifiers.",
+      "acceptanceCriteria": [
+        "`regression_diagnostics(X, y)` fits OLS via statsmodels on aligned numeric DataFrame/Series",
+        "Returns structured dict with r_squared, coefficients, durbin_watson, and condition_number (or equivalent summary fields)",
+        "Rejects or drops non-numeric columns with clear behaviour documented in docstring",
+        "uv run pytest passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#9"
+    },
+    {
+      "id": "US-004",
+      "title": "CLI diagnose subcommand on prepared classification data",
+      "description": "As a developer, I want a CLI entry point that runs stationarity and regression diagnostics on prepared movement-classifier features so I do not need ad-hoc notebooks.",
+      "acceptanceCriteria": [
+        "`stock-analysis-evaluate diagnose` subcommand (or equivalent script entry in pyproject.toml) accepts ticker/period args consistent with other evaluate commands",
+        "Command prints stationarity report for feature columns and regression diagnostics vs return/target column from `prepare_classification_data` output",
+        "Uses existing data-prep helpers; tests mock `get_index_data` — no live yfinance in pytest",
+        "uv run pytest passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#9"
+    },
+    {
+      "id": "US-005",
+      "title": "P2 pytest: synthetic stationarity and regression diagnostics",
+      "description": "As a maintainer, I want regression tests on synthetic series so ADF and OLS helpers behave predictably without network access.",
+      "acceptanceCriteria": [
+        "Test: white-noise series flagged stationary; random-walk series flagged non-stationary at alpha=0.05",
+        "Test: synthetic linear X→y yields R² near 1.0 and expected slope sign",
+        "Test: CLI diagnose smoke test with mocked index data returns exit code 0",
+        "No network access in CI",
+        "uv run pytest passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#9"
+    }
+  ]
+}
