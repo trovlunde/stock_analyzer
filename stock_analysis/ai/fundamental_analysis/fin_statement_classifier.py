@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from ..helpers import get_index_data, get_ticker
+from ..helpers import get_index_data, get_ticker, get_ticker_quarterly_financials, get_quarterly_balance_sheet
 import plotly.graph_objects as go
 from ...market_indices import MarketIndices
 import time
@@ -10,8 +10,8 @@ def prepare_classification_data(ticker):
     """Prepare data for three-class classification using financial statements."""
     # Get stock price history, quarterly financials, balance sheet and earnings history
     stock_prices = ticker.history(period="2y")
-    quarterly_fins = ticker.quarterly_financials
-    quarterly_balance = ticker.quarterly_balance_sheet
+    quarterly_fins = get_ticker_quarterly_financials(ticker.ticker)
+    quarterly_balance = get_quarterly_balance_sheet(ticker.ticker)
     earnings_history = ticker.get_earnings_history()
 
     print("\nDebug: Stock price range:",
