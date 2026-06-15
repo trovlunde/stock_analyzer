@@ -164,6 +164,38 @@ def cmd_train(args):
     )
 
 
+def cmd_diagnose(args):
+    """Print ADF stationarity and OLS regression diagnostics on prepared classification features."""
+    from stock_analysis.ai.helpers import get_features
+    from stock_analysis.diagnostics.stationarity import check_stationarity_frame
+    from stock_analysis.diagnostics.regression import regression_diagnostics
+
+    _, prepared = _prepare_data(
+        args.ticker, args.period, args.threshold, args.extra_features, enhanced=False
+    )
+
+    feature_cols = [c for c in get_features(args.extra_features) if c in prepared.columns]
+    X = prepared[feature_cols]
+    y = prepared["return"]
+
+    stat_report = check_stationarity_frame(X)
+    print("\n=== Stationarity Report (ADF) ===")
+    print(stat_report.to_string())
+
+    reg = regression_diagnostics(X, y)
+    print("\n=== Regression Diagnostics (OLS vs return) ===")
+    if reg["insufficient_data"]:
+        print("  insufficient_data: True")
+    else:
+        print(f"  r_squared:        {reg['r_squared']:.4f}")
+        print(f"  durbin_watson:    {reg['durbin_watson']:.4f}")
+        print(f"  condition_number: {reg['condition_number']:.4f}")
+        print(f"  n_obs:            {reg['n_obs']}")
+        print("  coefficients:")
+        for feat, coef in reg["coefficients"].items():
+            print(f"    {feat}: {coef:.6f}")
+
+
 def cmd_strategies(args):
     """Compare ensemble, RSI, and MA strategies on temporal test fold."""
     test_classifiers()
@@ -245,6 +277,16 @@ def build_parser():
     variants.add_argument("--period", default="20y")
     variants.add_argument("--holdout-months", type=int, default=12)
     variants.set_defaults(func=cmd_variants)
+
+    diagnose = sub.add_parser(
+        "diagnose",
+        help="ADF stationarity and OLS regression diagnostics on prepared classification features",
+    )
+    diagnose.add_argument("--ticker", default="^GSPC")
+    diagnose.add_argument("--period", default="20y")
+    diagnose.add_argument("--threshold", type=float, default=0.005)
+    diagnose.add_argument("--extra-features", action="store_true")
+    diagnose.set_defaults(func=cmd_diagnose)
 
     return parser
 
