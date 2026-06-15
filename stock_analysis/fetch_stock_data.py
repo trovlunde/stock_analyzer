@@ -1,12 +1,15 @@
-import yfinance as yf
 import pandas as pd
 from tqdm import tqdm
 import numpy as np
 from requests_ratelimiter import LimiterSession
 import time
 
+from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
 
-def fetch_stock_data(tickers, start_date=None, end_date=None, period="1mo", retry_count=3):
+_default_provider: MarketDataProvider = YFinanceProvider()
+
+
+def fetch_stock_data(tickers, start_date=None, end_date=None, period="1mo", retry_count=3, provider=None):
     """
     Fetch stock data and events from Yahoo Finance with retry logic
 
@@ -20,9 +23,10 @@ def fetch_stock_data(tickers, start_date=None, end_date=None, period="1mo", retr
     Returns:
         tuple: (DataFrame with stock data, DataFrame with events)
     """
+    _provider = provider or _default_provider
     for attempt in range(retry_count):
         try:
-            stock = yf.Ticker(tickers)
+            stock = _provider.get_raw_ticker(tickers)
 
             # Fetch price data with retry logic
             if start_date and end_date:
@@ -120,7 +124,7 @@ def fetch_stock_data(tickers, start_date=None, end_date=None, period="1mo", retr
     return None, None
 
 
-def fetch_stocks_data(tickers):
+def fetch_stocks_data(tickers, provider=None):
     """
     Fetch stock data for a list of tickers
 
@@ -129,11 +133,12 @@ def fetch_stocks_data(tickers):
     Returns:
         DataFrame: Stock data
     """
+    _provider = provider or _default_provider
     stocks = []
     print("Fetching stock data...")
 
     # Create Tickers object
-    tickers_obj = yf.Tickers(' '.join(tickers))
+    tickers_obj = _provider.get_tickers_obj(tickers)
 
     for symbol, ticker in tqdm(tickers_obj.tickers.items()):
         try:
@@ -164,7 +169,7 @@ def fetch_stocks_data(tickers):
     return pd.DataFrame(stocks).replace([np.inf, -np.inf], np.nan)
 
 
-def fetch_stocks_data_alt(tickers):
+def fetch_stocks_data_alt(tickers, provider=None):
     """
     Fetch and clean stock data for a list of tickers
 
@@ -173,11 +178,12 @@ def fetch_stocks_data_alt(tickers):
     Returns:
         DataFrame: Clean stock data with numeric values and no infinities
     """
+    _provider = provider or _default_provider
     stocks = []
     print("Fetching stock data...")
 
     # Create Tickers object
-    tickers_obj = yf.Tickers(' '.join(tickers))
+    tickers_obj = _provider.get_tickers_obj(tickers)
 
     # Define numeric fields and their valid ranges
     numeric_fields = {

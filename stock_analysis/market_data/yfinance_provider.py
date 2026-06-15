@@ -37,3 +37,6 @@ class YFinanceProvider:
 
     def get_quarterly_financials(self, ticker: str) -> pd.DataFrame:
         return self._fundamentals.get_quarterly_financials(ticker)
+
+    def get_tickers_obj(self, symbols: list):
+        return yf.Tickers(' '.join(symbols))
