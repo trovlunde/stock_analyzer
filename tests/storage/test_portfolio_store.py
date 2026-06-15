@@ -40,3 +40,32 @@ def test_create_portfolio_and_pending_order(store):
     assert updated.cash == 98_000
     assert len(updated.positions) == 1
     assert updated.positions[0].ticker == "AAPL"
+
+
+def test_get_equity_curve(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+
+    # dry-run — excluded
+    dry_id = store.start_run(state.id, dry_run=True)
+    store.finish_run(dry_id, "ok", {"session_date": "2024-06-01", "portfolio_value": 100_500.0})
+
+    # real run, earlier date
+    run_a = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_a, "ok", {"session_date": "2024-06-02", "portfolio_value": 100_800.0})
+
+    # real run, later date
+    run_b = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_b, "ok", {"session_date": "2024-06-03", "portfolio_value": 101_000.0})
+
+    # unfinished run — excluded (no finish_run call)
+    store.start_run(state.id, dry_run=False)
+
+    # finished run with missing summary fields — excluded
+    run_c = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_c, "ok", {"fills": 0})
+
+    curve = store.get_equity_curve(state.id)
+
+    assert len(curve) == 2
+    assert curve[0] == ("2024-06-02", 100_800.0)
+    assert curve[1] == ("2024-06-03", 101_000.0)
