@@ -1,7 +1,6 @@
 import warnings
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from ..helpers import get_sp500_data, get_significant_changes

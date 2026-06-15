@@ -125,6 +125,11 @@ def get_ticker_data(ticker, provider: MarketDataProvider | None = None):
     return _provider.get_history(ticker, period="20y")
 
 
+def get_sp500_data(provider: MarketDataProvider | None = None):
+    """S&P 500 OHLCV history (20y) for technical analysis scripts."""
+    return get_ticker_data("^GSPC", provider=provider)
+
+
 def get_ticker_financials(ticker: str, provider: MarketDataProvider | None = None) -> pd.DataFrame:
     _provider = provider if provider is not None else _default_provider
     return _provider.get_financials(ticker)

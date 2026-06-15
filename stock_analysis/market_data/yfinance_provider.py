@@ -40,3 +40,9 @@ class YFinanceProvider:
 
     def get_tickers_obj(self, symbols: list):
         return yf.Tickers(' '.join(symbols))
+
+    def get_market_tickers_obj(self, market: str):
+        return yf.Tickers(market=market)
+
+    def get_market_stocks(self, market: str):
+        return yf.tickers(market=market.upper())

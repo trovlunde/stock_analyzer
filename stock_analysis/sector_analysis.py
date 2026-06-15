@@ -1,4 +1,3 @@
-import yfinance as yf
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -9,9 +8,14 @@ from plottable import Table, ColDef, ColumnDefinition
 from matplotlib.cm import ScalarMappable  # Red-Yellow-Green colormap
 from matplotlib.colors import LinearSegmentedColormap
 
+from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
 
-def find_undervalued_sectors(marketTicker='^GSPC'):
-    stocks = yf.Tickers(market=marketTicker)
+_default_provider = YFinanceProvider()
+
+
+def find_undervalued_sectors(marketTicker='^GSPC', provider: MarketDataProvider | None = None):
+    _provider = provider if provider is not None else _default_provider
+    stocks = _provider.get_market_tickers_obj(marketTicker)
     info = stocks.info
     print(info)
 

@@ -1,15 +1,19 @@
 import warnings
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
+from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
 
-def sp500_analysis():
+_default_provider = YFinanceProvider()
+
+
+def sp500_analysis(provider: MarketDataProvider | None = None):
+    _provider = provider if provider is not None else _default_provider
     print("Fetching SP500 data...")
     try:
-        sp500 = yf.Ticker("^GSPC").history(period="20y")
+        sp500 = _provider.get_history("^GSPC", period="20y")
     except Exception as e:
         print(f"Error fetching SP500 data: {e}")
         return None
