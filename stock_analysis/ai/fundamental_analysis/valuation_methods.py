@@ -1,16 +1,15 @@
 import pandas as pd
 import numpy as np
-from typing import Dict, Optional, Union, List
-import yfinance as yf
+from typing import Dict, Optional, List
 
 
 class StockValuation:
     """A class containing various methods for stock valuation."""
 
-    def __init__(self, ticker: Union[str, yf.Ticker]):
-        """Initialize with either a ticker symbol or yfinance Ticker object."""
-        self.ticker = ticker if isinstance(
-            ticker, yf.Ticker) else yf.Ticker(ticker)
+    def __init__(self, ticker: str, provider=None):
+        """Initialize with ticker symbol and optional MarketDataProvider."""
+        from stock_analysis.market_data import YFinanceProvider
+        self.ticker = (provider or YFinanceProvider()).get_raw_ticker(ticker)
         self._load_financial_data()
 
     def _load_financial_data(self):

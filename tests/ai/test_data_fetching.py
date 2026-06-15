@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 import pytest
@@ -7,6 +7,7 @@ from stock_analysis.ai.finviz_classifier.data_fetching import (
     _cache_entry_usable,
     compute_returns_from_history,
     deserialize_daily_returns,
+    fetch_ticker_history,
     serialize_daily_returns,
 )
 
@@ -77,3 +78,34 @@ def test_cache_entry_usable_requires_daily_returns_json():
         }))
     assert _cache_entry_usable(
         row, pd.Timestamp('2025-01-15'), datetime(2025, 1, 20)) is True
+
+
+def test_fetch_ticker_history_provider_injection():
+    hist = _make_hist([
+        ('2025-01-15', 100, 110, 95, 105),
+        ('2025-01-16', 105, 112, 104, 108),
+    ])
+
+    class _MockTicker:
+        def __init__(self, df):
+            self._df = df
+            self.calls = []
+
+        def history(self, start=None, end=None, interval=None):
+            self.calls.append((start, end, interval))
+            return self._df
+
+    mock_ticker = _MockTicker(hist)
+
+    class _MockProvider:
+        def get_raw_ticker(self, ticker):
+            return mock_ticker
+
+    start = date(2025, 1, 15)
+    end = date(2025, 1, 16)
+    result = fetch_ticker_history('AAPL', start, end, provider=_MockProvider())
+
+    assert result is not None
+    assert set(['Open', 'High', 'Low', 'Close']).issubset(result.columns)
+    assert mock_ticker.calls[0][2] == '1d'
+    assert mock_ticker.calls[0][1] == end + timedelta(days=1)

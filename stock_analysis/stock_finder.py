@@ -1,12 +1,15 @@
-import yfinance as yf
 import pandas as pd
 from tqdm import tqdm
 import time
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
 
-def find_stocks_by_method(method='high_dividend', min_yield=0.03, min_market_cap=1e9, market='sp500', stockTickers=None):
+_default_provider = YFinanceProvider()
+
+
+def find_stocks_by_method(method='high_dividend', min_yield=0.03, min_market_cap=1e9, market='sp500', stockTickers=None, provider=None):
     """
     Find stocks based on specified method
 
@@ -39,7 +42,8 @@ def find_stocks_by_method(method='high_dividend', min_yield=0.03, min_market_cap
                             "META", "TSLA", "NVDA", "AMD", "INTC", "QCOM"]
 
     print(f"Fetching data for {len(stockTickers)} stocks...")
-    stocks = yf.Tickers(' '.join(stockTickers))
+    _provider = provider if provider is not None else _default_provider
+    stocks = _provider.get_tickers_obj(stockTickers)
     filtered_stocks = []
     errors = []
 
@@ -191,12 +195,13 @@ def find_high_dividend_stocks(min_yield=0.03, min_market_cap=1e9, stocks=[]):
     return filtered_stocks
 
 
-def find_growth_stocks(min_market_cap=1e9, marketTicker='^GSPC', growth_threshold=0.2):
+def find_growth_stocks(min_market_cap=1e9, marketTicker='^GSPC', growth_threshold=0.2, provider=None):
     """
     Find growth stocks based on revenue and earnings growth
     """
+    _provider = provider if provider is not None else _default_provider
     print(f"Fetching {marketTicker.upper()} stocks...")
-    stocks = yf.tickers(market=marketTicker.upper())
+    stocks = _provider.get_market_stocks(marketTicker)
     filtered_stocks = []
     errors = []
 
@@ -487,8 +492,9 @@ def display_undervalued_stocks(stocks):
     return df
 
 
-def find_undervalued_sectors(marketTicker='^GSPC'):
-    stocks = yf.Tickers(market=marketTicker)
+def find_undervalued_sectors(marketTicker='^GSPC', provider=None):
+    _provider = provider if provider is not None else _default_provider
+    stocks = _provider.get_market_tickers_obj(marketTicker)
     info = stocks.info
     print(info)
 

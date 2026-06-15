@@ -6,6 +6,8 @@ from pypfopt import EfficientFrontier
 from pypfopt import risk_models
 from pypfopt import expected_returns
 
+from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
+
 
 def analyze_stock_data(df):
     """
@@ -70,7 +72,12 @@ def analyze_stock_data(df):
     return results
 
 
-def analyze_stock_vs_sp500(stock_df, sp500_ticker='^GSPC', period=None):
+def analyze_stock_vs_sp500(
+    stock_df,
+    sp500_ticker='^GSPC',
+    period=None,
+    provider: MarketDataProvider | None = None,
+):
     """
     Compare stock performance against S&P 500 index
 
@@ -78,24 +85,24 @@ def analyze_stock_vs_sp500(stock_df, sp500_ticker='^GSPC', period=None):
         stock_df (pd.DataFrame): Stock price data
         sp500_ticker (str): S&P 500 ticker symbol (default: ^GSPC)
         period (str, optional): Period string if using period-based fetching (e.g., '1y', '6mo')
+        provider: Optional MarketDataProvider (default YFinanceProvider)
 
     Returns:
         dict: Comparison metrics including Beta, Alpha, relative performance
     """
-    import yfinance as yf
+    _provider = provider if provider is not None else YFinanceProvider()
 
     try:
-        # Get S&P 500 data for the same period
-        sp500 = yf.Ticker(sp500_ticker)
-
-        # Use period if provided, otherwise use date range
         if period:
-            sp500_df = sp500.history(period=period)
+            sp500_df = _provider.get_history(sp500_ticker, period=period)
         else:
-            # Add a small buffer to ensure we get all dates
             start_date = stock_df.index[0] - pd.Timedelta(days=5)
             end_date = stock_df.index[-1] + pd.Timedelta(days=1)
-            sp500_df = sp500.history(start=start_date, end=end_date)
+            sp500_df = _provider.get_history(
+                sp500_ticker,
+                start=str(start_date.date()),
+                end=str(end_date.date()),
+            )
 
         if sp500_df.empty:
             return None

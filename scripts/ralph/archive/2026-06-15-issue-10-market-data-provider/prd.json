@@ -1,0 +1,83 @@
+{
+  "project": "stock-analysis",
+  "branchName": "ralph/issue-10-market-data-provider",
+  "description": "Introduce MarketDataProvider protocol — GitHub trovlunde/stock_analyzer#10",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/10",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Define MarketDataProvider protocol and YFinanceProvider",
+      "description": "As a maintainer, I want a typed market-data protocol with a YFinance-backed default so new sources plug in without touching consumers.",
+      "acceptanceCriteria": [
+        "New market-data module defines `MarketDataProvider` protocol with `get_history`, `get_financials`, and `get_earnings` (pandas DataFrame returns)",
+        "`YFinanceProvider` implements the protocol using existing yfinance download/history/Ticker patterns",
+        "`get_financials` composes with existing `CompositeProvider` (YFinance + EDGAR fallback) — do not duplicate #8 logic",
+        "Protocol is `runtime_checkable`; unit tests use mocked yfinance — no network",
+        "uv run pytest passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#10"
+    },
+    {
+      "id": "US-002",
+      "title": "Wire ai/helpers.py through MarketDataProvider",
+      "description": "As a developer, I want index/ticker history and financial helpers to use an injectable provider so ML paths stop importing yfinance directly.",
+      "acceptanceCriteria": [
+        "`get_index_data`, `get_ticker_data`, and financial helper entry points accept optional `MarketDataProvider` (default `YFinanceProvider`)",
+        "Existing SQLite cache behaviour for index data preserved (same keys, TTL, validator)",
+        "`ai/helpers.py` has no direct `import yfinance`",
+        "Tests cover cache hit/miss and provider injection via mock",
+        "uv run pytest passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#10"
+    },
+    {
+      "id": "US-003",
+      "title": "Wire fetch_stock_data and finviz data fetching",
+      "description": "As a maintainer, I want batch OHLCV and finviz classifier data paths on the provider so fetch modules contain no HTTP imports.",
+      "acceptanceCriteria": [
+        "`fetch_stock_data.py` uses `MarketDataProvider` for history, dividends, and earnings events — no direct yfinance import",
+        "`ai/finviz_classifier/data_fetching.py` uses provider for ticker history/financials",
+        "`ai/fundamental_analysis/valuation_methods.py` accepts provider instead of raw `yf.Ticker`",
+        "Behaviour parity on fixture/mock data (OHLCV columns, events DataFrame shape)",
+        "uv run pytest passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#10"
+    },
+    {
+      "id": "US-004",
+      "title": "Migrate remaining yfinance consumer modules",
+      "description": "As a maintainer, I want stock_finder, sector_analysis, sp500_analysis, analyze_stock_data, and linear_reg_sig_days off direct yfinance.",
+      "acceptanceCriteria": [
+        "Listed modules import market data only via `MarketDataProvider` (injected or module-level default)",
+        "No `import yfinance` in those consumer modules",
+        "Public function signatures unchanged unless optional provider kwarg is additive",
+        "Smoke tests with mocked provider where practical",
+        "uv run pytest passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#10"
+    },
+    {
+      "id": "US-005",
+      "title": "Parity tests and paid-provider extension stub",
+      "description": "As a maintainer, I want regression tests and a documented stub so FMP/Polygon/Stooq have a clear future hook.",
+      "acceptanceCriteria": [
+        "Parity tests: mock yfinance fixtures produce same DataFrame index/columns as pre-refactor golden snapshots or inline assertions",
+        "Stub class or ABC (e.g. `PaidMarketDataStub`) raises `NotImplementedError` with message pointing to future paid adapters",
+        "Short docstring or package README section documents extension point and out-of-scope paid APIs",
+        "Full test suite passes with no network access",
+        "uv run pytest passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#10"
+    }
+  ]
+}

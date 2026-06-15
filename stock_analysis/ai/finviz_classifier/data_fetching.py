@@ -4,7 +4,10 @@ import time
 from datetime import date, datetime, timedelta
 
 import pandas as pd
-import yfinance as yf
+
+from stock_analysis.market_data import YFinanceProvider
+
+_default_provider = YFinanceProvider()
 
 
 def get_cache_path():
@@ -105,11 +108,11 @@ def _append_cache_hit(cached_entry, returns_data, detailed_returns_data):
     })
 
 
-def fetch_ticker_history(ticker, start_date, end_date):
+def fetch_ticker_history(ticker, start_date, end_date, provider=None):
     """Fetch OHLCV history for a ticker over a date range."""
+    _provider = provider or _default_provider
     try:
-        stock = yf.Ticker(ticker)
-        hist = stock.history(
+        hist = _provider.get_raw_ticker(ticker).history(
             start=start_date,
             end=end_date + timedelta(days=1),
             interval='1d',
@@ -229,7 +232,7 @@ def _normalize_returns_for_cache(standard_returns, detailed_returns, has_complet
     return standard_returns
 
 
-def fetch_stock_returns(df):
+def fetch_stock_returns(df, provider=None):
     """Fetch future returns for each stock signal, batched by ticker."""
     current_date = datetime.now()
     print("\nFetching stock returns...")
@@ -278,7 +281,7 @@ def fetch_stock_returns(df):
         print(f"\nFetching {ticker}: {len(signal_dates)} signal(s), "
               f"{start_date} to {end_date}", end='')
 
-        hist = fetch_ticker_history(ticker, start_date, end_date)
+        hist = fetch_ticker_history(ticker, start_date, end_date, provider=provider)
         if hist is None:
             continue
 
