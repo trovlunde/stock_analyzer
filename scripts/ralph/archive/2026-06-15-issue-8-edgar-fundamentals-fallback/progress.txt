@@ -1,0 +1,85 @@
+## Codebase Patterns
+- Use `uv run pytest` from repo root
+- Cache keys use namespaced format: `{namespace}:{ticker}:{kind}`
+- SqlCacheStore.get() returns None on miss; call .put() to store
+- yfinance `.financials` / `.quarterly_financials`: index=line items, columns=period timestamps
+- Monkeypatch `yfinance.Ticker` (the module attr) to block all network calls in tests
+- `stock_analysis/ai/` has no __init__.py — namespace package, relative imports work in Python 3.12+
+- edgartools `StitchedStatement.to_dataframe()` returns DataFrame with metadata cols (label/concept/standard_concept/preferred_sign) + date-string period cols; use `standard_concept` for concept mapping
+- Monkeypatch `edgar.Company` and `edgar.MultiFinancials.extract` to mock all SEC HTTP in tests
+- `EntityFilings.empty` is a property (len check); `EntityFilings.head(n)` returns first N filings
+- CompositeProvider (fundamentals/) wraps YFinanceAdapter + EdgarAdapter; fallback fires on empty DataFrame
+- Use `get_ticker_financials(str)`, `get_ticker_quarterly_financials(str)`, `get_quarterly_balance_sheet(str)` from helpers.py — do not call yfinance Ticker.financials directly
+
+## Current Status
+**Last Updated:** Mon, Jun 15, 2026 (US-005)
+**Tasks Completed:** 5
+**Current Task:** none — all complete
+
+Ready for PR — closes #8
+
+---
+
+## Mon, Jun 15, 2026 - US-001
+- Implemented FundamentalsProvider Protocol (runtime_checkable) and YFinanceAdapter
+- Files created: stock_analysis/ai/fundamentals/__init__.py, provider.py, yfinance_adapter.py
+- Test file: tests/ai/test_fundamentals_provider.py (4 tests: annual, quarterly, protocol isinstance, orientation)
+- `uv run pytest` → 62 passed
+- **Learnings for future iterations:**
+  - stock_analysis/ai/ is a namespace package (no __init__.py); new subpackages need their own __init__.py
+  - Monkeypatching `yfinance.Ticker` directly (not the adapter's local alias) correctly blocks network in all tests
+  - FundamentalsProvider uses @runtime_checkable Protocol — isinstance() checks work without ABC inheritance
+---
+
+## Mon, Jun 15, 2026 - US-002
+- Implemented EdgarAdapter using edgartools `edgar.Company` + `edgar.MultiFinancials`
+- Added `edgartools` via `uv add edgartools` (installs v5.36.0)
+- Files created: stock_analysis/ai/fundamentals/edgar_adapter.py
+- Files modified: stock_analysis/ai/fundamentals/__init__.py (export EdgarAdapter), pyproject.toml, uv.lock
+- Test file: tests/ai/test_edgar_adapter.py (8 tests: mapping, EBIT/EBITDA derivation, orientation, protocol, empty filings, CompanyNotFoundError)
+- `uv run pytest` → 70 passed
+- **Learnings for future iterations:**
+  - StitchedStatement.to_dataframe() returns flat DataFrame with metadata cols + date-string period cols (NOT a pivot)
+  - Use `standard_concept` column (not `label`) for reliable concept → yfinance label mapping
+  - EBIT/EBITDA not in EDGAR directly; derive: EBIT=OperatingIncomeLoss, EBITDA=EBIT+Depreciation
+  - edgartools `EntityFilings.empty` property; `.head(n)` to limit filings count
+  - Monkeypatch both `edgar.Company` and `edgar.MultiFinancials.extract` as staticmethod lambda
+- When adapters using `get_cache_store()` are tested, also monkeypatch module-level `_get_cache_store` to an in-memory SQLite factory to avoid production DB writes in CI
+---
+
+## Mon, Jun 15, 2026 - US-003
+- Added cache read/write to EdgarAdapter via SqlCacheStore (keys: `edgar:{ticker}:annual`, `edgar:{ticker}:quarterly`)
+- Files modified: stock_analysis/ai/fundamentals/edgar_adapter.py (cache injection + _fetch_* split), tests/ai/test_edgar_adapter.py (patch _get_cache_store in existing tests)
+- Files created: tests/ai/test_edgar_adapter_cache.py (7 tests: miss→fetch→put, hit→skip edgar, key format, empty not cached)
+- `uv run pytest` → 77 passed
+- **Learnings for future iterations:**
+  - Parquet round-trip changes column dtype from object to int64; use `check_dtype=False` in assert_frame_equal when comparing pre/post-cache DataFrames with mixed-origin data
+  - Inject cache_store via constructor (default None → lazy get_cache_store()) for clean test isolation; monkeypatch module-level import alias in existing tests
+  - Empty DataFrames must NOT be cached — callers rely on empty meaning "no data available", not "no cache entry"
+---
+
+## Mon, Jun 15, 2026 - US-004
+- Created CompositeProvider (YFinance primary, EDGAR fallback when primary returns empty DataFrame)
+- Updated get_ticker_financials() to delegate to CompositeProvider.get_annual_financials()
+- Added get_ticker_quarterly_financials() and get_quarterly_balance_sheet() helpers in helpers.py
+- Updated fin_statement_classifier.prepare_classification_data() to use helpers instead of ticker.quarterly_financials / ticker.quarterly_balance_sheet directly
+- Files created: stock_analysis/ai/fundamentals/composite_provider.py, tests/ai/test_composite_provider.py (8 tests)
+- Files modified: stock_analysis/ai/fundamentals/__init__.py, stock_analysis/ai/helpers.py, stock_analysis/ai/fundamental_analysis/fin_statement_classifier.py
+- `uv run pytest` → 85 passed
+- **Learnings for future iterations:**
+  - CompositeProvider default constructed at module level in helpers.py — safe because adapters make no network calls in __init__
+  - Monkeypatching helpers_mod._composite_provider replaces the module-level instance cleanly in tests
+  - fin_statement_classifier takes yf.Ticker object; use ticker.ticker to get symbol string for helpers
+  - get_quarterly_balance_sheet stays yfinance-only (protocol has no balance sheet); EDGAR covers income statement only
+---
+
+## Mon, Jun 15, 2026 - US-005
+- Added regression test: empty YFinance annual/quarterly → CompositeProvider returns non-empty EDGAR-backed DataFrame
+- Tests assert all required line items present (Total Revenue, Net Income, Gross Profit, Operating Income, Cost Of Revenue, Depreciation, EBIT, EBITDA)
+- Tests assert cache key written on miss, EDGAR not queried on subsequent call
+- Files created: tests/ai/test_fallback_regression.py (4 tests)
+- `uv run pytest` → 89 passed
+- **Learnings for future iterations:**
+  - Wire real YFinanceAdapter + real EdgarAdapter (with in-memory store) into CompositeProvider for end-to-end fallback tests; mock only network boundaries (yfinance.Ticker, edgar.Company)
+  - assert all REQUIRED_LINE_ITEMS in result.index gives clear failure messages per missing item
+---

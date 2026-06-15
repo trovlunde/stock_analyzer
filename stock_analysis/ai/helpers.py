@@ -4,6 +4,9 @@ from datetime import timedelta
 from sklearn.neighbors import KNeighborsClassifier
 
 from ..storage import get_cache_store
+from .fundamentals import CompositeProvider
+
+_composite_provider = CompositeProvider()
 from sklearn.svm import SVC
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -113,8 +116,16 @@ def get_ticker_data(ticker):
     return get_ticker(ticker).history(period="20y")
 
 
-def get_ticker_financials(ticker):
-    return get_ticker(ticker).financials
+def get_ticker_financials(ticker: str) -> pd.DataFrame:
+    return _composite_provider.get_annual_financials(ticker)
+
+
+def get_ticker_quarterly_financials(ticker: str) -> pd.DataFrame:
+    return _composite_provider.get_quarterly_financials(ticker)
+
+
+def get_quarterly_balance_sheet(ticker: str) -> pd.DataFrame:
+    return yf.Ticker(ticker).quarterly_balance_sheet
 
 
 def get_significant_changes(data, filter_consecutive=False, filter_return=0.03):
