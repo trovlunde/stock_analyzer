@@ -89,3 +89,25 @@ def test_get_earnings_returns_empty_on_none(monkeypatch):
 
     assert isinstance(result, pd.DataFrame)
     assert result.empty
+
+
+def test_get_history_parity_columns_match_fixture(monkeypatch):
+    """Parity: get_history returns standard OHLCV columns from mocked Ticker."""
+    mock = _mock_ticker()
+    monkeypatch.setattr(yfinance, "Ticker", lambda sym: mock)
+
+    result = YFinanceProvider().get_history("AAPL", period="1y")
+
+    assert list(result.columns) == ["Open", "High", "Low", "Close", "Volume"]
+    assert len(result) == 5
+
+
+def test_get_financials_parity_orientation(monkeypatch):
+    """Parity: financials index holds line items, columns hold periods."""
+    mock_composite = MagicMock()
+    mock_composite.get_annual_financials.return_value = _FINANCIALS
+
+    result = YFinanceProvider(fundamentals_provider=mock_composite).get_financials("AAPL")
+
+    assert result.index.tolist() == ["Total Revenue", "Net Income"]
+    assert "2024-12-31" in result.columns
