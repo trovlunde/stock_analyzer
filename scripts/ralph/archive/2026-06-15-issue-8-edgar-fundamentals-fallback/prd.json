@@ -1,0 +1,82 @@
+{
+  "project": "stock-analysis",
+  "branchName": "ralph/issue-8-edgar-fundamentals-fallback",
+  "description": "SEC EDGAR fundamentals fallback when Yahoo data is empty — GitHub trovlunde/stock_analyzer#8",
+  "githubIssue": "https://github.com/trovlunde/stock_analyzer/issues/8",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fundamentals provider protocol and YFinance adapter",
+      "description": "As a maintainer, I want a typed fundamentals provider with a YFinance-backed adapter so EDGAR fallback can plug in without scattering yfinance calls.",
+      "acceptanceCriteria": [
+        "New fundamentals provider module defines a protocol (or ABC) for annual and quarterly income-statement DataFrames",
+        "YFinance adapter delegates to existing yfinance Ticker `.financials` and `.quarterly_financials` behaviour",
+        "Provider returns pandas DataFrames in the same orientation callers expect (line items as index, periods as columns)",
+        "No network calls in unit tests — adapter tested with a mocked Ticker/fixture",
+        "uv run pytest passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#8"
+    },
+    {
+      "id": "US-002",
+      "title": "EDGAR fallback adapter via edgartools",
+      "description": "As a fundamental-analysis user, I want SEC EDGAR statements when Yahoo returns empty financials so valuation and fin-statement classifiers have data for more tickers.",
+      "acceptanceCriteria": [
+        "`edgartools` added via `uv add`; importable in CI without network",
+        "EDGAR adapter fetches authoritative statements and maps to minimum line items used downstream (e.g. Total Revenue, Net Income, EBITDA, EBIT, Gross Profit, Operating Income, Cost Of Revenue, Depreciation)",
+        "Adapter is only invoked when YFinance annual or quarterly financials are empty",
+        "EDGAR fetch path is mockable — no live SEC HTTP in pytest",
+        "uv run pytest passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#8"
+    },
+    {
+      "id": "US-003",
+      "title": "Cache EDGAR payloads in SqlCacheStore",
+      "description": "As a maintainer, I want EDGAR responses cached in the existing SQLite cache store with namespaced keys so repeat lookups avoid SEC rate limits.",
+      "acceptanceCriteria": [
+        "EDGAR adapter reads/writes via `get_cache_store()` using keys like `edgar:{ticker}:{statement_kind}`",
+        "Cache hit returns deserialized DataFrame without refetching",
+        "Cache miss fetches (or uses mock), then `put`s payload",
+        "Round-trip test uses in-memory SQLite fixture (pattern from existing cache store tests)",
+        "uv run pytest passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#8"
+    },
+    {
+      "id": "US-004",
+      "title": "Composite provider behind get_ticker_financials surface",
+      "description": "As a developer, I want YFinance-primary + EDGAR-fallback wired through existing helper entry points so valuation and classifier callers do not branch on provider details.",
+      "acceptanceCriteria": [
+        "Composite provider tries YFinance first; falls back to cached EDGAR only when annual or quarterly financials are empty",
+        "`get_ticker_financials(ticker)` uses the composite provider for annual statements",
+        "Helpers expose quarterly financials (and balance sheet if needed by fin-statement classifier) through the same provider surface — callers stop reaching directly into raw yfinance for statements",
+        "yfinance remains the primary price/history source — no paid market-data API introduced",
+        "uv run pytest passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#8"
+    },
+    {
+      "id": "US-005",
+      "title": "P2 pytest: empty Yahoo mock triggers EDGAR fallback",
+      "description": "As a maintainer, I want a regression test proving the fallback populates minimum statement fields when Yahoo mocks return empty DataFrames.",
+      "acceptanceCriteria": [
+        "Test: YFinance mock returns empty annual and quarterly financials → composite provider returns non-empty DataFrame with required line items from EDGAR mock",
+        "Test asserts cache key is written on miss and read on subsequent call",
+        "No network access in CI",
+        "uv run pytest passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "GitHub: trovlunde/stock_analyzer#8"
+    }
+  ]
+}
