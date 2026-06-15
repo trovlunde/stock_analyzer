@@ -27,6 +27,7 @@ uv run python -m stock_analysis.jobs.daily --dry-run
 - Temporal holdout for classifier evaluation (train past, test recent)
 - SQLite `CacheStore` with namespaced keys for cached fundamentals/market data
 - Paper trading: daily job, `SignalStrategy` registry — do not break `DecisionResult` / `FillResult` contracts
+- **Diagnostics are opt-in** — `stock_analysis/diagnostics/` (statsmodels-based stationarity/regression helpers) is never imported by `jobs/daily.py`, `app.py`, or paper-trading modules; researchers call it explicitly
 
 ## Ralph workflow
 

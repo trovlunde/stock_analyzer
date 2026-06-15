@@ -1,0 +1,70 @@
+## Current Status
+**Last Updated:** Mon, Jun 15, 2026
+**Tasks Completed:** 5
+**Current Task:** none — all complete
+
+---
+
+## Codebase Patterns
+- Use `uv run pytest` from repo root
+- Add deps with `uv add <package>`; pyproject.toml + uv.lock both update
+- `stock_analysis/diagnostics/` is opt-in — never import from daily.py, app.py, or trading modules
+- statsmodels is a top-level dependency (not optional group) so CI can import it without extra flags
+
+---
+
+## Mon Jun 15, 2026 - US-005
+- Created `tests/diagnostics/test_p2_synthetic.py` (6 tests)
+- Covers: white-noise stationary at alpha=0.05, random-walk non-stationary at alpha=0.05, R² near 1.0 for linear X→y, positive/negative slope sign, CLI diagnose smoke test asserting exit code 0
+- All mocked — no network access
+- `uv run pytest` — 127 passed
+- **Learnings for future iterations:**
+  - CLI smoke test pattern: call `main([...])` inside try/except SystemExit; `pytest.fail()` on non-zero exit
+  - P2 synthetic tests should use explicit `alpha=0.05` to document the contract precisely
+  - Stationarity tests need n≥200 for reliable ADF detection — n=300 is safe for both white-noise and random-walk
+- Ready for PR — closes #9
+---
+
+## Mon Jun 15, 2026 - US-004
+- Added `cmd_diagnose` to `stock_analysis/cli/evaluate_models.py`
+- Added `diagnose` subparser with `--ticker`, `--period`, `--threshold`, `--extra-features` consistent with other evaluate commands
+- Created `tests/diagnostics/test_cli_diagnose.py` (5 tests, all mock `get_index_data`)
+- `uv run pytest` — 121 passed
+- **Learnings for future iterations:**
+  - Mock target for CLI tests is `stock_analysis.cli.evaluate_models.get_index_data` (not the helper module directly)
+  - `_prepare_data(enhanced=False)` reuses existing helper; dropna already applied, `return` column available after
+  - `get_features(use_extra_features)` returns only the feature cols — filter with `if c in prepared.columns` to guard against missing cols
+  - FutureWarnings from `fillna(method=...)` in `prepare_classification_data.py` are pre-existing; not blocking
+---
+
+## Mon Jun 15, 2026 - US-003
+- Created `stock_analysis/diagnostics/regression.py` with `regression_diagnostics(X, y)`
+- Created `tests/diagnostics/test_regression.py` (15 tests)
+- `uv run pytest` — 116 passed
+- **Learnings for future iterations:**
+  - Use `sm.add_constant(X, has_constant="add")` to always include intercept even for single-column X
+  - `np.linalg.cond(X.values.astype(float))` for condition number — cast to float to avoid dtype issues
+  - `durbin_watson` imported from `statsmodels.stats.stattools`, not the OLS result directly
+  - For index alignment: intersect, dropna X, then dropna y on X's index, then realign X to y's index
+---
+
+## Mon Jun 15, 2026 - US-002
+- Created `stock_analysis/diagnostics/stationarity.py` with `check_stationarity` and `check_stationarity_frame`
+- Created `tests/diagnostics/__init__.py` and `tests/diagnostics/test_stationarity.py` (12 tests)
+- `uv run pytest` — 101 passed
+- **Learnings for future iterations:**
+  - ADF from statsmodels needs ≥5 obs — guard with `insufficient_data` flag, not exception
+  - DataFrame stores bools as `np.bool_`; use `==` not `is` for truthiness assertions in frame tests
+  - `check_stationarity_frame` uses `select_dtypes(include="number")` to skip non-numeric columns automatically
+---
+
+## Mon Jun 15, 2026 - US-001
+- Added statsmodels 0.14.6 (+ patsy) via `uv add statsmodels`
+- Created `stock_analysis/diagnostics/__init__.py` with module docstring describing stationarity and regression use cases
+- Added opt-in note to AGENTS.md Conventions section
+- No imports added to daily.py, app.py, or paper-trading modules
+- `uv run pytest` — 89 passed
+- **Learnings for future iterations:**
+  - statsmodels brings patsy as a transitive dep — both appear in uv.lock
+  - Diagnostics package lives at `stock_analysis/diagnostics/` — stationarity in `stationarity.py`, regression in `regression.py` (to be created in US-002/US-003)
+---

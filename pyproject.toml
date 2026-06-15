@@ -31,6 +31,7 @@ dependencies = [
     "lightgbm>=4.6.0",
     "empyrical-reloaded>=0.5.12",
     "edgartools>=5.36.0",
+    "statsmodels>=0.14.6",
 ]
 
 [dependency-groups]
