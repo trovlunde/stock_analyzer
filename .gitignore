@@ -13,6 +13,8 @@ __pycache__/
 *.pyzw
 
 *.csv
+*.whl
+*.parquet
 
 # Agent caches (sandbox / uv)
 .cache/
@@ -24,6 +26,6 @@ scripts/ralph/.last-branch
 scripts/ralph/.iteration-*.log
 screenshots/
 
-# Finviz scrape outputs (generated locally — run finviz_scrape.bat or finviz_recs/finviz_scrape.py)
+# Finviz scrape outputs (generated locally — run finviz_scrape.bat or scripts/finviz/finviz_scrape.py)
 finviz_recs/*.json
 finviz_recs/finviz_scrape.log

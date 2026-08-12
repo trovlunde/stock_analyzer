@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-uv run python finviz_recs\finviz_scrape.py
+uv run python scripts\finviz\finviz_scrape.py

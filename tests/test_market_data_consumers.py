@@ -9,10 +9,10 @@ matplotlib.use("Agg")
 import pandas as pd
 import pytest
 
-import stock_analysis.analyze_stock_data as analyze_mod
-import stock_analysis.sector_analysis as sector_mod
-import stock_analysis.sp500_analysis as sp500_mod
-import stock_analysis.stock_finder as finder_mod
+import stock_analysis.research.analyze_stock_data as analyze_mod
+import stock_analysis.research.sector_analysis as sector_mod
+import stock_analysis.research.sp500_analysis as sp500_mod
+import stock_analysis.research.stock_finder as finder_mod
 
 
 _DATES = pd.date_range("2024-01-01", periods=15, freq="B")

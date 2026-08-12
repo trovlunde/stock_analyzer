@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from stock_analysis.fetch_stock_data import fetch_stock_data
+from stock_analysis.market_data import YFinanceProvider
 from stock_analysis.storage import get_db_engine
 from stock_analysis.storage.portfolio_store import PortfolioStore
 from stock_analysis.trading.config import (
@@ -34,6 +34,20 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = "config/portfolio.yaml"
 DATA_PERIOD = "2y"
+_default_provider = YFinanceProvider()
+
+
+def _fetch_price_data(tickers: list[str]) -> dict[str, pd.DataFrame]:
+    data: dict[str, pd.DataFrame] = {}
+    for ticker in tickers:
+        df = _default_provider.get_history(ticker, period=DATA_PERIOD)
+        if df is None or df.empty:
+            logger.warning("No data for %s", ticker)
+            continue
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        data[ticker] = df
+    return data
 
 
 def _session_date(now: datetime | None = None) -> datetime.date:
@@ -42,19 +56,6 @@ def _session_date(now: datetime | None = None) -> datetime.date:
 
 def _latest_close(df: pd.DataFrame) -> float:
     return float(df.iloc[-1]["Close"])
-
-
-def _fetch_price_data(tickers: list[str]) -> dict[str, pd.DataFrame]:
-    data: dict[str, pd.DataFrame] = {}
-    for ticker in tickers:
-        df, _ = fetch_stock_data(ticker, period=DATA_PERIOD)
-        if df is None or df.empty:
-            logger.warning("No data for %s", ticker)
-            continue
-        if df.index.tz is not None:
-            df.index = df.index.tz_localize(None)
-        data[ticker] = df
-    return data
 
 
 def run_daily(config_path: str, dry_run: bool = False) -> int:
