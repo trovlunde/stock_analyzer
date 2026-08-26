@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from stock_analysis.trading_cost_analysis import MiniFutureAnalyzer
+from stock_analysis.research.trading_cost_analysis import MiniFutureAnalyzer
 
 
 @dataclass(frozen=True)

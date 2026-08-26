@@ -8,7 +8,10 @@ Guidance for human developers and autonomous agents (Ralph, Cursor, Claude Code)
 |------|---------|
 | `stock_analysis/` | Main Python package |
 | `tests/` | pytest suite (`uv run pytest`) |
-| `docs/` | PRDs, improvement plans, ADRs |
+| `stock_analysis/research/` | Interactive CLI and exploratory analysis |
+| `stock_analysis/web/` | Flask API and templates |
+| `docs/` | PRDs, improvement plans, ADRs ([architecture.md](docs/architecture.md)) |
+| `scripts/finviz/` | Finviz scrape script (outputs to `finviz_recs/`) |
 | `scripts/ralph/` | [Ralph](https://github.com/snarktank/ralph) loop — working `prd.json` / `progress.txt` are gitignored; completed runs snapshotted under `archive/` (committed) |
 | `tasks/` | Markdown PRDs before Ralph JSON conversion |
 
@@ -27,7 +30,7 @@ uv run python -m stock_analysis.jobs.daily --dry-run
 - Temporal holdout for classifier evaluation (train past, test recent)
 - SQLite `CacheStore` with namespaced keys for cached fundamentals/market data
 - Paper trading: daily job, `SignalStrategy` registry — do not break `DecisionResult` / `FillResult` contracts
-- **Diagnostics are opt-in** — `stock_analysis/diagnostics/` (statsmodels-based stationarity/regression helpers) is never imported by `jobs/daily.py`, `app.py`, or paper-trading modules; researchers call it explicitly
+- **Diagnostics are opt-in** — `stock_analysis/diagnostics/` (statsmodels-based stationarity/regression helpers) is never imported by `jobs/daily.py`, `web/app.py`, or paper-trading modules; researchers call it explicitly
 
 ## Ralph workflow
 

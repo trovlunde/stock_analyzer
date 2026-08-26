@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from ..helpers import get_index_data, get_ticker, get_ticker_quarterly_financials, get_quarterly_balance_sheet
 import plotly.graph_objects as go
-from ...market_indices import MarketIndices
+from stock_analysis.research.market_indices import MarketIndices
 import time
 
 

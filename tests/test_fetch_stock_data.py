@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
 
-import stock_analysis.fetch_stock_data as fsd_mod
-from stock_analysis.fetch_stock_data import fetch_stock_data
+import stock_analysis.research.fetch_stock_data as fsd_mod
+from stock_analysis.research.fetch_stock_data import fetch_stock_data
 
 
 def _make_hist():
@@ -85,14 +85,14 @@ def test_fetch_stock_data_returns_none_on_empty(monkeypatch):
 
 
 def test_fetch_stocks_data_provider_injection():
-    from stock_analysis.fetch_stock_data import fetch_stocks_data
+    from stock_analysis.research.fetch_stock_data import fetch_stocks_data
     mock = _MockProvider()
     result = fetch_stocks_data(['AAPL'], provider=mock)
     assert isinstance(result, pd.DataFrame)
 
 
 def test_fetch_stocks_data_alt_provider_injection():
-    from stock_analysis.fetch_stock_data import fetch_stocks_data_alt
+    from stock_analysis.research.fetch_stock_data import fetch_stocks_data_alt
     mock = _MockProvider()
     result = fetch_stocks_data_alt(['AAPL'], provider=mock)
     assert isinstance(result, pd.DataFrame)

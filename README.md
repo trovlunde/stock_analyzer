@@ -28,7 +28,7 @@ After changing `pyproject.toml` dependencies, run `uv sync` again.
 Run the interactive command-line interface:
 
 ```bash
-uv run python -m stock_analysis.main
+uv run python -m stock_analysis.research.main
 ```
 
 This will start an interactive menu where you can:
@@ -42,6 +42,8 @@ This will start an interactive menu where you can:
 Start the Flask web server:
 
 ```bash
+uv run python -m stock_analysis.web.app
+# or backward-compatible:
 uv run python app.py
 ```
 
@@ -67,7 +69,7 @@ uv run python -m stock_analysis.ai.fundamental_analysis.valuation_example
 **Run finviz classifier** (requires local scrape data under `finviz_recs/`, not committed to git):
 ```bash
 # From repo root — populates finviz_recs/*.json (Windows: finviz_scrape.bat)
-uv run python finviz_recs/finviz_scrape.py
+uv run python scripts/finviz/finviz_scrape.py
 
 uv run python -m stock_analysis.ai.finviz_classifier.finviz_classifier
 ```
@@ -216,7 +218,7 @@ The API is available at `http://localhost:5000`.
 source .venv/bin/activate
 ```
 
-After activation you can run `python -m stock_analysis.main` directly without the `uv run` prefix.
+After activation you can run `python -m stock_analysis.research.main` directly without the `uv run` prefix.
 
 ---
 

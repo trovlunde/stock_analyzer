@@ -15,8 +15,8 @@ import time
 
 from stock_analysis.ai.technical_analysis.ensemble_classifier import test_ensemble, EnsembleClassifier
 from ..helpers import get_index_data, get_ticker, RSI, get_features
-from ...market_indices import MarketIndices
-from ...portfolio_evaluating import analyze_trading_strategies
+from stock_analysis.research.market_indices import MarketIndices
+from stock_analysis.research.portfolio_evaluating import analyze_trading_strategies
 from ...ai.technical_analysis.prepare_classification_data import prepare_classification_data_cache, prepare_classification_data, prepare_classification_data_enhanced
 from ...ai.technical_analysis.classifier_comparison import compare_classifiers, plot_classifier_comparison, print_best_configs
 from sklearn.utils.class_weight import compute_class_weight
