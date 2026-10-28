@@ -89,8 +89,8 @@ Recon (June 2026): batch jobs are **network/I/O bound** (yfinance, rate limits),
 
 ### 3.3 API modernisation — [#13](https://github.com/trovlunde/stock_analyzer/issues/13)
 
-- [ ] ADR: Flask vs FastAPI (9 routes today; likely stay on Flask)
-- [ ] No migration unless API surface grows materially
+- [x] ADR: Flask vs FastAPI (10 routes today; staying on Flask) — see [adr-flask-vs-fastapi.md](./adr-flask-vs-fastapi.md)
+- [x] No migration unless API surface grows materially
 
 ### 3.4 Visualisation consolidation — [#12](https://github.com/trovlunde/stock_analyzer/issues/12)
 
@@ -119,4 +119,5 @@ Production paths (`jobs/daily`, `cli/`, `trading/`) already plotly-free of matpl
 ## Related docs
 
 - [database-cache-plan.md](./database-cache-plan.md) — SQLite cache architecture and phase-2 cache scope
+- [adr-flask-vs-fastapi.md](./adr-flask-vs-fastapi.md) — Flask vs FastAPI decision (#13)
 - [issues/README.md](./issues/README.md) — GitHub issue index

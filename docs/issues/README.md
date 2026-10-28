@@ -18,7 +18,7 @@ Tracker for [PRD: Stack & tooling improvements](../prd-stack-tooling-improvement
 | 10 | 3 | closed | [#10](https://github.com/trovlunde/stock_analyzer/issues/10) | Introduce MarketDataProvider protocol |
 | 11 | 3 | **open** | [#11](https://github.com/trovlunde/stock_analyzer/issues/11) | Spike Polars and DuckDB for batch analytics |
 | 12 | 3 | **open** | [#12](https://github.com/trovlunde/stock_analyzer/issues/12) | Consolidate visualization dependencies on Plotly |
-| 13 | 3 | **open** | [#13](https://github.com/trovlunde/stock_analyzer/issues/13) | Evaluate FastAPI migration for Flask API |
+| 13 | 3 | **open** (ADR done) | [#13](https://github.com/trovlunde/stock_analyzer/issues/13) | Evaluate FastAPI migration for Flask API |
 
 ### #12 sub-issues (viz consolidation)
 
@@ -31,6 +31,6 @@ Parent [#12](https://github.com/trovlunde/stock_analyzer/issues/12) coordinates;
 | 12c | [#26](https://github.com/trovlunde/stock_analyzer/issues/26) | Movement classifier diagnostic plots | Human / later |
 | 12d | [#27](https://github.com/trovlunde/stock_analyzer/issues/27) | sector_analysis + plottable (defer) | Human |
 
-**Remaining order:** #13 (ADR) → #24 → #25 → #11 (defer unless profiling needed) → close #1
+**Remaining order:** ~~#13 (ADR)~~ done, see [adr-flask-vs-fastapi.md](../adr-flask-vs-fastapi.md) → #24 → #25 → #11 (defer unless profiling needed) → close #1
 
 Labels: `needs-triage`, `ready-for-agent`, `ready-for-human`, `phase-1` / `phase-2` / `phase-3`
