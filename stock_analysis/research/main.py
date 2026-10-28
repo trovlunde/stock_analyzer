@@ -19,6 +19,7 @@ def get_tickers_from_finder():
     print("1. High Dividend Stocks")
     print("2. Undervalued Stocks")
     print("3. Growth Stocks")
+    print("4. QVM / Super Stocks")
 
     choice = input("> ")
 
@@ -27,7 +28,7 @@ def get_tickers_from_finder():
             input("\nEnter minimum dividend yield (e.g., 0.03 for 3%): ") or "0.03")
         min_market_cap = float(
             input("Enter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
-        market = input("Enter market (default: sp500): ") or "sp500"
+        market = input("Enter market (sp500, osebx, ...; default: sp500): ") or "sp500"
 
         stocks = find_stocks_by_method(
             'high_dividend', min_yield, min_market_cap, market)
@@ -41,7 +42,7 @@ def get_tickers_from_finder():
     elif choice == "2":
         min_market_cap = float(
             input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
-        market = input("Enter market (default: sp500): ") or "sp500"
+        market = input("Enter market (sp500, osebx, ...; default: sp500): ") or "sp500"
 
         stocks = find_stocks_by_method(
             'undervalued', min_yield=0.0, min_market_cap=min_market_cap, market=market)
@@ -55,11 +56,25 @@ def get_tickers_from_finder():
     elif choice == "3":
         min_market_cap = float(
             input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
-        market = input("Enter market (default: sp500): ") or "sp500"
+        market = input("Enter market (sp500, osebx, ...; default: sp500): ") or "sp500"
 
         stocks = find_stocks_by_method(
             'growth', min_yield=0.0, min_market_cap=min_market_cap, market=market)
         display_stocks(stocks, method='growth')
+
+        if stocks:
+            print("\nSelect tickers from the list above (comma-separated):")
+            selected = input("> ").upper()
+            return [ticker.strip() for ticker in selected.split(",")]
+
+    elif choice == "4":
+        min_market_cap = float(
+            input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
+        market = input("Enter market (sp500, osebx, ...; default: sp500): ") or "sp500"
+
+        stocks = find_stocks_by_method(
+            'qvm', min_yield=0.0, min_market_cap=min_market_cap, market=market)
+        display_stocks(stocks, method='qvm')
 
         if stocks:
             print("\nSelect tickers from the list above (comma-separated):")
@@ -276,6 +291,7 @@ def main():
             print("1. High Dividend Stocks")
             print("2. Undervalued Stocks")
             print("3. Growth Stocks")
+            print("4. QVM / Super Stocks")
             select_mode = input("> ")
 
             if select_mode == "1":
@@ -283,7 +299,7 @@ def main():
                     input("\nEnter minimum dividend yield (e.g., 0.03 for 3%): ") or "0.03")
                 min_market_cap = float(
                     input("Enter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
-                market = input("Enter market (default: sp500): ") or "sp500"
+                market = input("Enter market (sp500, osebx, ...; default: sp500): ") or "sp500"
 
                 tickers = find_stocks_by_method(
                     'high_dividend', min_yield, min_market_cap, market)
@@ -292,7 +308,7 @@ def main():
             elif select_mode == "2":
                 min_market_cap = float(
                     input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
-                market = input("Enter market (default: sp500): ") or "sp500"
+                market = input("Enter market (sp500, osebx, ...; default: sp500): ") or "sp500"
 
                 tickers = find_stocks_by_method(
                     'undervalued', min_yield=0.0, min_market_cap=min_market_cap, market=market)
@@ -301,11 +317,20 @@ def main():
             elif select_mode == "3":
                 min_market_cap = float(
                     input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
-                market = input("Enter market (default: sp500): ") or "sp500"
+                market = input("Enter market (sp500, osebx, ...; default: sp500): ") or "sp500"
 
                 tickers = find_stocks_by_method(
                     'growth', min_yield=0.0, min_market_cap=min_market_cap, market=market)
                 display_stocks(tickers, method='growth')
+
+            elif select_mode == "4":
+                min_market_cap = float(
+                    input("\nEnter minimum market cap in billions (e.g., 1 for $1B): ") or "1") * 1e9
+                market = input("Enter market (sp500, osebx, ...; default: sp500): ") or "sp500"
+
+                tickers = find_stocks_by_method(
+                    'qvm', min_yield=0.0, min_market_cap=min_market_cap, market=market)
+                display_stocks(tickers, method='qvm')
 
             else:
                 print("Invalid choice")

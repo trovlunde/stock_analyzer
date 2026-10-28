@@ -6,6 +6,8 @@ import seaborn as sns
 
 from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
 
+from stock_analysis.research.qvm import find_qvm_stocks
+
 _default_provider = YFinanceProvider()
 
 
@@ -14,7 +16,7 @@ def find_stocks_by_method(method='high_dividend', min_yield=0.03, min_market_cap
     Find stocks based on specified method
 
     Args:
-        method (str): Method to use ('high_dividend', 'undervalued', 'growth')
+        method (str): Method to use ('high_dividend', 'undervalued', 'growth', 'qvm')
         min_yield (float): Minimum dividend yield for dividend method
         min_market_cap (float): Minimum market cap in dollars
         market (str): Market index to search ('sp500', 'nasdaq100', 'dow30', etc.)
@@ -64,11 +66,18 @@ def find_stocks_by_method(method='high_dividend', min_yield=0.03, min_market_cap
         market_ticker_map = {
             'sp500': '^GSPC',
             'nasdaq100': '^NDX',
-            'dow30': '^DJI'
+            'dow30': '^DJI',
+            'osebx': 'OSEBX.OL',
+            'oslo': 'OSEBX.OL',
+            'oslo_bors': 'OSEBX.OL',
         }
         market_ticker = market_ticker_map.get(market.lower(), '^GSPC')
         filtered_stocks = find_growth_stocks(
             min_market_cap=min_market_cap, marketTicker=market_ticker, growth_threshold=0.2)
+
+    elif method == 'qvm':
+        filtered_stocks = find_qvm_stocks(
+            stocks, min_market_cap=min_market_cap, super_only=True)
 
     # Print summary
     print(f"\nFound {len(filtered_stocks)} matching stocks")
@@ -116,6 +125,15 @@ def display_stocks(stocks, method='high_dividend'):
                    'revenue_growth', 'peg_ratio', 'analyst_target_price']
         column_names = ['Ticker', 'Company', 'Sector', 'Price', 'Market Cap',
                         'Rev Growth', 'PEG', 'Target Price']
+
+    elif method == 'qvm':
+        for score_col in ('quality_score', 'value_score', 'momentum_score', 'qvm_score'):
+            df[score_col] = df[score_col].apply(
+                lambda x: f"{x:.1f}" if isinstance(x, (int, float)) else x)
+        columns = ['ticker', 'company_name', 'sector', 'price', 'market_cap',
+                   'quality_score', 'value_score', 'momentum_score', 'qvm_score']
+        column_names = ['Ticker', 'Company', 'Sector', 'Price', 'Market Cap',
+                        'Quality', 'Value', 'Momentum', 'QVM']
 
     # Reorder and rename columns
     df = df[columns]
