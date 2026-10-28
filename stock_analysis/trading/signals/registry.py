@@ -16,3 +16,7 @@ def get_signal_strategy(name: str) -> SignalStrategy:
 
 def register_signal_strategy(name: str, strategy: SignalStrategy) -> None:
     _STRATEGIES[name] = strategy
+
+
+def unregister_signal_strategy(name: str) -> None:
+    _STRATEGIES.pop(name, None)

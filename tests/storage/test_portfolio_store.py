@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import update
 
 from stock_analysis.storage.portfolio_store import PortfolioStore
-from stock_analysis.storage.schema import create_engine_for_url, init_db
+from stock_analysis.storage.schema import create_engine_for_url, init_db, paper_runs
 
 
 @pytest.fixture
@@ -69,3 +70,71 @@ def test_get_equity_curve(store):
     assert len(curve) == 2
     assert curve[0] == ("2024-06-02", 100_800.0)
     assert curve[1] == ("2024-06-03", 101_000.0)
+
+
+def test_kill_switch_round_trip(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+
+    tripped_at, reason = store.get_kill_switch_state(state.id)
+    assert tripped_at is None
+    assert reason is None
+
+    store.trip_kill_switch(state.id, "daily loss 10.0% >= limit 5.0%")
+    tripped_at, reason = store.get_kill_switch_state(state.id)
+    assert tripped_at is not None
+    assert reason == "daily loss 10.0% >= limit 5.0%"
+
+    store.clear_kill_switch(state.id)
+    tripped_at, reason = store.get_kill_switch_state(state.id)
+    assert tripped_at is None
+    assert reason is None
+
+
+def test_kill_switch_state_survives_fresh_connection(tmp_path):
+    db_path = tmp_path / "persist.db"
+    engine_a = create_engine_for_url(f"sqlite:///{db_path}")
+    init_db(engine_a)
+    store_a = PortfolioStore(engine_a)
+    state = store_a.get_or_create_portfolio("paper-us", 100_000)
+    store_a.trip_kill_switch(state.id, "max drawdown breached")
+
+    # Simulate a process restart — a brand new engine/connection against the same file.
+    engine_b = create_engine_for_url(f"sqlite:///{db_path}")
+    store_b = PortfolioStore(engine_b)
+    tripped_at, reason = store_b.get_kill_switch_state(state.id)
+
+    assert tripped_at is not None
+    assert reason == "max drawdown breached"
+
+
+def test_get_running_run_ids_and_abandon_run(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+
+    assert store.get_running_run_ids(state.id) == []
+
+    run_id = store.start_run(state.id, dry_run=False)
+    assert store.get_running_run_ids(state.id) == [run_id]
+
+    store.abandon_run(run_id, "crashed mid-flight")
+    assert store.get_running_run_ids(state.id) == []
+
+
+def test_get_running_run_ids_older_than_filters_recent_runs(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_id = store.start_run(state.id, dry_run=False)
+
+    # Default (no filter) sees it regardless of age.
+    assert store.get_running_run_ids(state.id) == [run_id]
+
+    # "older than 6 hours ago" must not match a run that just started.
+    six_hours_ago = datetime.now(timezone.utc) - timedelta(hours=6)
+    assert store.get_running_run_ids(state.id, older_than=six_hours_ago) == []
+
+    # Backdate it to simulate a genuinely stale/crashed run.
+    with store.engine.begin() as conn:
+        conn.execute(
+            update(paper_runs)
+            .where(paper_runs.c.id == run_id)
+            .values(started_at=datetime.now(timezone.utc) - timedelta(hours=7))
+        )
+    assert store.get_running_run_ids(state.id, older_than=six_hours_ago) == [run_id]

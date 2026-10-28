@@ -11,8 +11,12 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     create_engine,
+    event,
+    inspect,
+    text,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError
 
 metadata = MetaData()
 
@@ -33,6 +37,8 @@ paper_portfolios = Table(
     Column("cash", Float, nullable=False),
     Column("created_at", DateTime, nullable=False),
     Column("updated_at", DateTime, nullable=False),
+    Column("kill_switch_tripped_at", DateTime, nullable=True),
+    Column("kill_switch_reason", Text, nullable=True),
 )
 
 paper_positions = Table(
@@ -91,8 +97,49 @@ paper_signals = Table(
 
 
 def create_engine_for_url(database_url: str) -> Engine:
-    return create_engine(database_url, future=True)
+    engine = create_engine(database_url, future=True)
+    if database_url.startswith("sqlite:"):
+        @event.listens_for(engine, "connect")
+        def _set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.close()
+    return engine
+
+
+_NEW_COLUMNS = {
+    "paper_portfolios": [
+        ("kill_switch_tripped_at", "DATETIME"),
+        ("kill_switch_reason", "TEXT"),
+    ],
+}
+
+
+def run_light_migrations(engine: Engine) -> None:
+    """Add newly-introduced nullable columns to existing tables. SQLite supports
+    ADD COLUMN without a table rewrite — this is the project's standard no-Alembic
+    migration approach (see docs/database-cache-plan.md).
+
+    The existence check and the ALTER aren't atomic across processes — two containers
+    starting up against the same fresh-but-old DB file could both decide a column is
+    missing. Tolerate that race rather than crash: SQLite's error message for it is
+    stable ("duplicate column name"), so swallow only that one case."""
+    inspector = inspect(engine)
+    with engine.begin() as conn:
+        for table, columns in _NEW_COLUMNS.items():
+            if table not in inspector.get_table_names():
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table)}
+            for name, sqltype in columns:
+                if name not in existing:
+                    try:
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {sqltype}"))
+                    except OperationalError as exc:
+                        if "duplicate column name" not in str(exc).lower():
+                            raise
 
 
 def init_db(engine: Engine) -> None:
     metadata.create_all(engine)
+    run_light_migrations(engine)

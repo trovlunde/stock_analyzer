@@ -39,6 +39,8 @@ dev = ["pytest>=8.0"]
 
 [project.scripts]
 stock-analysis-daily = "stock_analysis.jobs.daily:main"
+stock-analysis-trader = "stock_analysis.jobs.scheduler:main"
+stock-analysis-risk = "stock_analysis.cli.risk:main"
 stock-analysis-evaluate = "stock_analysis.cli.evaluate_models:main"
 
 [tool.pytest.ini_options]

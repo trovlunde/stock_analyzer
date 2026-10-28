@@ -171,6 +171,73 @@ class PortfolioStore:
                 )
             )
 
+    def get_running_run_ids(
+        self, portfolio_id: int, older_than: datetime | None = None
+    ) -> list[int]:
+        """Run rows still marked "running" for this portfolio — a non-empty result
+        means a previous run died mid-flight rather than finishing cleanly.
+
+        `older_than` filters to runs started before that timestamp, so a run that is
+        merely still in progress (e.g. a slow overlapping deploy) isn't mistaken for
+        a crash — only pass it when checking for genuinely stale/orphaned runs."""
+        with self.engine.connect() as conn:
+            conditions = [
+                paper_runs.c.portfolio_id == portfolio_id,
+                paper_runs.c.status == "running",
+            ]
+            if older_than is not None:
+                conditions.append(paper_runs.c.started_at < older_than)
+            rows = conn.execute(select(paper_runs.c.id).where(*conditions)).all()
+            return [row[0] for row in rows]
+
+    def abandon_run(self, run_id: int, reason: str) -> None:
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(paper_runs)
+                .where(paper_runs.c.id == run_id)
+                .values(
+                    finished_at=_utcnow(),
+                    status="abandoned",
+                    summary_json=json.dumps({"reason": reason}),
+                )
+            )
+
+    def get_kill_switch_state(self, portfolio_id: int) -> tuple[datetime | None, str | None]:
+        with self.engine.connect() as conn:
+            row = conn.execute(
+                select(
+                    paper_portfolios.c.kill_switch_tripped_at,
+                    paper_portfolios.c.kill_switch_reason,
+                ).where(paper_portfolios.c.id == portfolio_id)
+            ).first()
+            if row is None:
+                return None, None
+            return row[0], row[1]
+
+    def trip_kill_switch(self, portfolio_id: int, reason: str) -> None:
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(paper_portfolios)
+                .where(paper_portfolios.c.id == portfolio_id)
+                .values(
+                    kill_switch_tripped_at=_utcnow(),
+                    kill_switch_reason=reason,
+                    updated_at=_utcnow(),
+                )
+            )
+
+    def clear_kill_switch(self, portfolio_id: int) -> None:
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(paper_portfolios)
+                .where(paper_portfolios.c.id == portfolio_id)
+                .values(
+                    kill_switch_tripped_at=None,
+                    kill_switch_reason=None,
+                    updated_at=_utcnow(),
+                )
+            )
+
     def record_signal(
         self,
         run_id: int,

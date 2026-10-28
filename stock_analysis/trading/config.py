@@ -4,6 +4,8 @@ from typing import Any
 
 import yaml
 
+from stock_analysis.trading.risk import RiskConfig
+
 
 @dataclass
 class PortfolioConfig:
@@ -33,6 +35,7 @@ class PortfolioSettings:
     defaults: dict[str, Any]
     positions: list[PositionEntry]
     schedule: dict[str, Any] = field(default_factory=dict)
+    risk: RiskConfig = field(default_factory=RiskConfig)
 
 
 def load_portfolio_config(path: str | Path) -> PortfolioSettings:
@@ -77,12 +80,27 @@ def load_portfolio_config(path: str | Path) -> PortfolioSettings:
             )
         )
 
+    risk_raw = raw.get("risk", {}) or {}
+    liquidate_on_trip = bool(risk_raw.get("liquidate_on_trip", False))
+    if liquidate_on_trip:
+        # The kill switch only halts new BUYs today — it never liquidates existing
+        # positions. Fail loudly rather than silently ignore the setting.
+        raise ValueError(
+            "risk.liquidate_on_trip is not yet implemented — leave it false or unset"
+        )
+    risk = RiskConfig(
+        max_daily_loss_pct=risk_raw.get("max_daily_loss_pct"),
+        max_drawdown_pct=risk_raw.get("max_drawdown_pct"),
+        liquidate_on_trip=liquidate_on_trip,
+    )
+
     return PortfolioSettings(
         portfolio=portfolio,
         costs=dict(raw.get("costs", {})),
         defaults=dict(raw.get("defaults", {})),
         positions=positions,
         schedule=dict(raw.get("schedule", {})),
+        risk=risk,
     )
 
 

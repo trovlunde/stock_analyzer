@@ -1,12 +1,14 @@
 import argparse
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
+from sqlalchemy.engine import Engine
 
-from stock_analysis.market_data import YFinanceProvider
+from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
+from stock_analysis.notifications import EmailNotifier, load_smtp_config_from_env
 from stock_analysis.storage import get_db_engine
 from stock_analysis.storage.portfolio_store import PortfolioStore
 from stock_analysis.trading.config import (
@@ -16,7 +18,7 @@ from stock_analysis.trading.config import (
     strategy_params_for_position,
 )
 from stock_analysis.trading.cost_models import build_cost_model
-from stock_analysis.trading.decision import decide, portfolio_value
+from stock_analysis.trading.decision import DecisionResult, decide, portfolio_value
 from stock_analysis.trading.market_calendar import (
     is_trading_day,
     next_trading_day_after,
@@ -24,6 +26,7 @@ from stock_analysis.trading.market_calendar import (
 from stock_analysis.trading.paper_broker import PaperBroker
 from stock_analysis.trading.portfolio_metrics import compute_portfolio_metrics
 from stock_analysis.trading.report import write_daily_report
+from stock_analysis.trading.risk import check_kill_switch
 from stock_analysis.trading.signals import get_signal_strategy
 
 logging.basicConfig(
@@ -34,13 +37,19 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = "config/portfolio.yaml"
 DATA_PERIOD = "2y"
+# A run still "running" after this long is treated as crashed, not just slow or
+# legitimately still in flight (e.g. an overlapping deploy) — this run takes seconds
+# to minutes normally, so hours of margin avoids false-positive trips.
+ORPHANED_RUN_STALE_AFTER = timedelta(hours=6)
 _default_provider = YFinanceProvider()
 
 
-def _fetch_price_data(tickers: list[str]) -> dict[str, pd.DataFrame]:
+def _fetch_price_data(
+    tickers: list[str], provider: MarketDataProvider
+) -> dict[str, pd.DataFrame]:
     data: dict[str, pd.DataFrame] = {}
     for ticker in tickers:
-        df = _default_provider.get_history(ticker, period=DATA_PERIOD)
+        df = provider.get_history(ticker, period=DATA_PERIOD)
         if df is None or df.empty:
             logger.warning("No data for %s", ticker)
             continue
@@ -58,7 +67,15 @@ def _latest_close(df: pd.DataFrame) -> float:
     return float(df.iloc[-1]["Close"])
 
 
-def run_daily(config_path: str, dry_run: bool = False) -> int:
+def run_daily(
+    config_path: str,
+    dry_run: bool = False,
+    *,
+    provider: MarketDataProvider | None = None,
+    engine: Engine | None = None,
+    notifier: EmailNotifier | None = None,
+) -> int:
+    provider = provider or _default_provider
     settings = load_portfolio_config(config_path)
     portfolio_cfg = settings.portfolio
 
@@ -83,8 +100,9 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
         logger.info("Wrote report %s", report_path)
         return 0
 
-    engine = get_db_engine()
+    engine = engine or get_db_engine()
     store = PortfolioStore(engine)
+    unclean_shutdown_reason: str | None = None
     if dry_run:
         state = store.get_portfolio_by_name(portfolio_cfg.name)
         if state is None:
@@ -101,6 +119,15 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
         state = store.get_or_create_portfolio(
             portfolio_cfg.name, portfolio_cfg.initial_cash
         )
+        orphaned_run_ids = store.get_running_run_ids(
+            state.id, older_than=datetime.now(timezone.utc) - ORPHANED_RUN_STALE_AFTER
+        )
+        if orphaned_run_ids:
+            unclean_shutdown_reason = (
+                f"unclean shutdown detected — run(s) {orphaned_run_ids} never finished"
+            )
+            for orphaned_id in orphaned_run_ids:
+                store.abandon_run(orphaned_id, "orphaned by process restart")
         run_id = store.start_run(state.id, dry_run=False)
 
     cost_model = build_cost_model(settings.costs)
@@ -108,7 +135,7 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
 
     enabled_positions = [p for p in settings.positions if p.enabled]
     tickers = [p.ticker for p in enabled_positions]
-    price_data = _fetch_price_data(tickers)
+    price_data = _fetch_price_data(tickers, provider)
 
     fills = broker.fill_pending_orders(
         state, price_data, session_date=today, dry_run=dry_run
@@ -121,8 +148,54 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
     }
     next_fill_day = next_trading_day_after(today)
 
+    # Read-only — reflected in both dry-run previews and real runs, so `--dry-run`
+    # accurately shows a BUY being blocked if the switch is already tripped.
+    tripped_at, tripped_reason = store.get_kill_switch_state(state.id)
+    kill_switch_active = tripped_at is not None
+    if kill_switch_active:
+        logger.warning(
+            "Kill switch already tripped (%s) — blocking new BUY orders this run",
+            tripped_reason,
+        )
+
+    # Evaluating and persisting a *new* trip requires a real session/equity history
+    # and must never happen as a side effect of a dry-run preview.
+    equity_curve_history: list[tuple[str, float]] = []
+    if not dry_run:
+        equity_curve_history = store.get_equity_curve(state.id)
+        if not kill_switch_active:
+            session_start_value = (
+                equity_curve_history[-1][1] if equity_curve_history else portfolio_cfg.initial_cash
+            )
+            value_before_decisions = portfolio_value(state, prices)
+
+            if unclean_shutdown_reason is not None:
+                store.trip_kill_switch(state.id, unclean_shutdown_reason)
+                kill_switch_active = True
+                logger.error("Kill switch tripped: %s", unclean_shutdown_reason)
+                if notifier is not None:
+                    notifier.send_error_alert(
+                        "Kill switch tripped: unclean shutdown", unclean_shutdown_reason
+                    )
+            else:
+                kill_switch_result = check_kill_switch(
+                    config=settings.risk,
+                    session_start_value=session_start_value,
+                    current_value=value_before_decisions,
+                    equity_curve=equity_curve_history,
+                )
+                if kill_switch_result.tripped:
+                    store.trip_kill_switch(state.id, kill_switch_result.reason)
+                    kill_switch_active = True
+                    logger.error("Kill switch tripped: %s", kill_switch_result.reason)
+                    if notifier is not None:
+                        notifier.send_error_alert(
+                            "Kill switch tripped", kill_switch_result.reason
+                        )
+
     decisions: list[tuple[str, object]] = []
     queued = 0
+    failed_tickers: list[str] = []
 
     for position_entry in enabled_positions:
         ticker = position_entry.ticker
@@ -131,56 +204,77 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
             logger.warning("Skipping %s — no price data", ticker)
             continue
 
-        strategy_name = strategy_name_for_position(settings, position_entry)
-        params = strategy_params_for_position(settings, position_entry)
-        strategy = get_signal_strategy(strategy_name)
-        signal = strategy.evaluate(df, params)
+        try:
+            strategy_name = strategy_name_for_position(settings, position_entry)
+            params = strategy_params_for_position(settings, position_entry)
+            strategy = get_signal_strategy(strategy_name)
+            signal = strategy.evaluate(df, params)
 
-        if not dry_run:
-            store.record_signal(
-                run_id, ticker, signal.action, signal.reason, signal.metadata
-            )
-
-        current_price = prices[ticker]
-        decision = decide(
-            ticker=ticker,
-            signal=signal,
-            state=state,
-            config=portfolio_cfg,
-            current_price=current_price,
-            prices=prices,
-            stop_loss_pct=stop_loss_for_position(settings, position_entry),
-        )
-        decisions.append((ticker, decision))
-
-        if decision.intent and next_fill_day is not None:
-            order_id = broker.queue_order(
-                state, run_id, decision.intent, fill_date=next_fill_day, dry_run=dry_run
-            )
-            if order_id is not None:
-                queued += 1
-                logger.info(
-                    "Queued %s %s %.0f shares for %s — %s",
-                    decision.intent.side,
-                    ticker,
-                    decision.intent.shares,
-                    next_fill_day,
-                    decision.intent.reason,
+            if not dry_run:
+                store.record_signal(
+                    run_id, ticker, signal.action, signal.reason, signal.metadata
                 )
-            elif dry_run and decision.intent:
-                logger.info(
-                    "[dry-run] Would queue %s %s %.0f shares for %s",
-                    decision.intent.side,
-                    ticker,
-                    decision.intent.shares,
-                    next_fill_day,
+
+            current_price = prices[ticker]
+            decision = decide(
+                ticker=ticker,
+                signal=signal,
+                state=state,
+                config=portfolio_cfg,
+                current_price=current_price,
+                prices=prices,
+                stop_loss_pct=stop_loss_for_position(settings, position_entry),
+            )
+            if kill_switch_active and decision.intent is not None and decision.intent.side == "BUY":
+                decision = DecisionResult(
+                    signal=decision.signal,
+                    intent=None,
+                    skipped_reason="kill switch tripped — new BUY orders blocked",
                 )
+            decisions.append((ticker, decision))
+
+            if decision.intent and next_fill_day is not None:
+                order_id = broker.queue_order(
+                    state, run_id, decision.intent, fill_date=next_fill_day, dry_run=dry_run
+                )
+                if order_id is not None:
+                    queued += 1
+                    logger.info(
+                        "Queued %s %s %.0f shares for %s — %s",
+                        decision.intent.side,
+                        ticker,
+                        decision.intent.shares,
+                        next_fill_day,
+                        decision.intent.reason,
+                    )
+                elif dry_run and decision.intent:
+                    logger.info(
+                        "[dry-run] Would queue %s %s %.0f shares for %s",
+                        decision.intent.side,
+                        ticker,
+                        decision.intent.shares,
+                        next_fill_day,
+                    )
+        except Exception:
+            logger.exception("Skipping %s — signal/decision/order error", ticker)
+            failed_tickers.append(ticker)
+            continue
+
+    if failed_tickers and len(failed_tickers) == len(enabled_positions):
+        logger.error("Every ticker failed this run: %s", failed_tickers)
+        if notifier is not None:
+            notifier.send_error_alert(
+                "Daily job: all tickers failed",
+                f"Every configured ticker raised an error this run: {failed_tickers}",
+            )
 
     total_value = portfolio_value(state, prices)
     summary = {
         "session_date": today.isoformat(),
         "fills": len(fills),
         "queued_orders": queued,
+        "failed_tickers": failed_tickers,
+        "kill_switch_active": kill_switch_active,
         "cash": state.cash,
         "portfolio_value": total_value,
         "dry_run": dry_run,
@@ -190,12 +284,11 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
 
     portfolio_metrics = None
     if not dry_run:
-        equity_curve = store.get_equity_curve(state.id)
         today_str = today.isoformat()
-        if not equity_curve or equity_curve[-1][0] != today_str:
-            equity_curve.append((today_str, total_value))
-        if len(equity_curve) >= 2:
-            values = pd.Series([v for _, v in equity_curve], dtype=float)
+        if not equity_curve_history or equity_curve_history[-1][0] != today_str:
+            equity_curve_history.append((today_str, total_value))
+        if len(equity_curve_history) >= 2:
+            values = pd.Series([v for _, v in equity_curve_history], dtype=float)
             returns = values.pct_change().dropna()
             portfolio_metrics = compute_portfolio_metrics(returns)
 
@@ -219,6 +312,10 @@ def run_daily(config_path: str, dry_run: bool = False) -> int:
         queued,
     )
     logger.info("Report: %s", report_path)
+
+    if not dry_run and notifier is not None:
+        notifier.send_daily_summary(report_path, summary)
+
     return 0
 
 
@@ -235,10 +332,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Compute signals and log decisions without changing state",
     )
     args = parser.parse_args(argv)
+    notifier = EmailNotifier(load_smtp_config_from_env())
     try:
-        return run_daily(args.config, dry_run=args.dry_run)
-    except Exception:
+        return run_daily(args.config, dry_run=args.dry_run, notifier=notifier)
+    except Exception as exc:
         logger.exception("Daily job failed")
+        notifier.send_error_alert("Daily job failed", exc)
         return 1
 
 
