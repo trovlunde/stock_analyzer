@@ -38,6 +38,18 @@ class PendingOrder:
 
 
 @dataclass
+class BrokerOrder:
+    id: int
+    ticker: str
+    side: str
+    shares: float
+    signal_reason: str | None
+    client_order_id: str | None
+    broker_order_id: str | None
+    status: str
+
+
+@dataclass
 class PortfolioState:
     id: int
     name: str
@@ -309,19 +321,130 @@ class PortfolioStore:
         fill_price: float,
         commission: float,
         slippage: float,
+        broker_status: str | None = None,
+    ) -> None:
+        values = dict(
+            status="FILLED",
+            fill_price=fill_price,
+            commission=commission,
+            slippage=slippage,
+            filled_at=_utcnow(),
+        )
+        if broker_status is not None:
+            values["broker_status"] = broker_status
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(paper_orders).where(paper_orders.c.id == order_id).values(**values)
+            )
+
+    def cancel_pending_order(self, order_id: int) -> bool:
+        """Cancel an order if it's still unfilled. Returns False if it doesn't exist or
+        has already moved past a cancelable state (e.g. already filled)."""
+        with self.engine.begin() as conn:
+            result = conn.execute(
+                update(paper_orders)
+                .where(
+                    paper_orders.c.id == order_id,
+                    paper_orders.c.status.in_(["PENDING", "SUBMITTING", "SUBMITTED"]),
+                )
+                .values(status="CANCELED", broker_status="canceled")
+            )
+            return result.rowcount > 0
+
+    def create_broker_order(
+        self,
+        portfolio_id: int,
+        run_id: int,
+        ticker: str,
+        side: str,
+        shares: float,
+        signal_reason: str,
+        client_order_id: str,
+    ) -> int:
+        """Persist the idempotency key *before* calling the broker, so a crash between
+        this write and the broker confirming the order can be detected on retry via
+        get_order_by_client_id() instead of blindly resubmitting."""
+        with self.engine.begin() as conn:
+            result = conn.execute(
+                insert(paper_orders).values(
+                    portfolio_id=portfolio_id,
+                    run_id=run_id,
+                    ticker=ticker,
+                    side=side,
+                    shares=shares,
+                    status="SUBMITTING",
+                    signal_reason=signal_reason,
+                    client_order_id=client_order_id,
+                    created_at=_utcnow(),
+                )
+            )
+            return result.inserted_primary_key[0]
+
+    def mark_order_submitted(
+        self, order_id: int, broker_order_id: str, broker_status: str
     ) -> None:
         with self.engine.begin() as conn:
             conn.execute(
                 update(paper_orders)
                 .where(paper_orders.c.id == order_id)
                 .values(
-                    status="FILLED",
-                    fill_price=fill_price,
-                    commission=commission,
-                    slippage=slippage,
-                    filled_at=_utcnow(),
+                    status="SUBMITTED",
+                    broker_order_id=broker_order_id,
+                    broker_status=broker_status,
                 )
             )
+
+    def update_broker_order_status(
+        self, order_id: int, status: str, broker_status: str
+    ) -> None:
+        """For terminal non-fill outcomes (rejected/canceled by the broker)."""
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(paper_orders)
+                .where(paper_orders.c.id == order_id)
+                .values(status=status, broker_status=broker_status)
+            )
+
+    def get_order_by_client_id(self, client_order_id: str) -> BrokerOrder | None:
+        with self.engine.connect() as conn:
+            row = conn.execute(
+                select(paper_orders).where(paper_orders.c.client_order_id == client_order_id)
+            ).mappings().first()
+            if row is None:
+                return None
+            return BrokerOrder(
+                id=row["id"],
+                ticker=row["ticker"],
+                side=row["side"],
+                shares=row["shares"],
+                signal_reason=row["signal_reason"],
+                client_order_id=row["client_order_id"],
+                broker_order_id=row["broker_order_id"],
+                status=row["status"],
+            )
+
+    def get_open_broker_orders(self, portfolio_id: int) -> list[BrokerOrder]:
+        """Orders submitted to a real broker that haven't reached a terminal state yet."""
+        with self.engine.connect() as conn:
+            rows = conn.execute(
+                select(paper_orders).where(
+                    paper_orders.c.portfolio_id == portfolio_id,
+                    paper_orders.c.status.in_(["SUBMITTING", "SUBMITTED"]),
+                )
+            ).mappings().all()
+            return [
+                BrokerOrder(
+                    id=row["id"],
+                    ticker=row["ticker"],
+                    side=row["side"],
+                    shares=row["shares"],
+                    signal_reason=row["signal_reason"],
+                    client_order_id=row["client_order_id"],
+                    broker_order_id=row["broker_order_id"],
+                    status=row["status"],
+                )
+                for row in rows
+            ]
 
     def get_equity_curve(self, portfolio_id: int) -> list[tuple[str, float]]:
         """Return (session_date, portfolio_value) pairs ordered by date from completed non-dry-run runs."""

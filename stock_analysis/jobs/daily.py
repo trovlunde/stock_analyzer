@@ -10,20 +10,21 @@ from sqlalchemy.engine import Engine
 from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
 from stock_analysis.notifications import EmailNotifier, load_smtp_config_from_env
 from stock_analysis.storage import get_db_engine
-from stock_analysis.storage.portfolio_store import PortfolioStore
+from stock_analysis.storage.portfolio_store import PortfolioState, PortfolioStore
 from stock_analysis.trading.config import (
     load_portfolio_config,
     stop_loss_for_position,
     strategy_names_for_position,
     strategy_params_for_position,
 )
+from stock_analysis.trading.broker import Broker
+from stock_analysis.trading.broker_config import load_broker_from_env
 from stock_analysis.trading.cost_models import build_cost_model
 from stock_analysis.trading.decision import DecisionResult, decide, portfolio_value
 from stock_analysis.trading.market_calendar import (
     is_trading_day,
     next_trading_day_after,
 )
-from stock_analysis.trading.paper_broker import PaperBroker
 from stock_analysis.trading.portfolio_metrics import compute_portfolio_metrics
 from stock_analysis.trading.report import write_daily_report
 from stock_analysis.trading.risk import check_kill_switch
@@ -68,6 +69,43 @@ def _latest_close(df: pd.DataFrame) -> float:
     return float(df.iloc[-1]["Close"])
 
 
+RECONCILIATION_CASH_TOLERANCE = 1.0  # USD — avoid alerting on float/rounding noise
+
+
+def _check_broker_reconciliation(
+    broker: Broker, state: PortfolioState, notifier: EmailNotifier | None
+) -> None:
+    """Non-blocking sanity check: once a real broker is in the loop, it's the source
+    of truth and the local SQLite ledger can drift (manual trades via the broker's own
+    UI, corporate actions, a bug in fill handling). Log and alert on divergence rather
+    than silently trusting local state — but never fail the run over this check."""
+    try:
+        snapshot = broker.get_account_snapshot(state)
+    except Exception:
+        logger.exception("Failed to fetch broker account snapshot for reconciliation check")
+        return
+
+    if snapshot.source == "local":
+        return  # PaperBroker — local state IS the source of truth, nothing to compare
+
+    mismatches: list[str] = []
+    cash_diff = abs(snapshot.cash - state.cash)
+    if cash_diff > RECONCILIATION_CASH_TOLERANCE:
+        mismatches.append(
+            f"cash: broker=${snapshot.cash:,.2f} local=${state.cash:,.2f} (diff ${cash_diff:,.2f})"
+        )
+
+    local_positions = {p.ticker: p.shares for p in state.positions}
+    if local_positions != snapshot.positions:
+        mismatches.append(f"positions: broker={snapshot.positions} local={local_positions}")
+
+    if mismatches:
+        message = "; ".join(mismatches)
+        logger.warning("Broker/local state mismatch: %s", message)
+        if notifier is not None:
+            notifier.send_error_alert("Broker/local state mismatch", message)
+
+
 def run_daily(
     config_path: str,
     dry_run: bool = False,
@@ -75,6 +113,7 @@ def run_daily(
     provider: MarketDataProvider | None = None,
     engine: Engine | None = None,
     notifier: EmailNotifier | None = None,
+    broker: Broker | None = None,
 ) -> int:
     provider = provider or _default_provider
     settings = load_portfolio_config(config_path)
@@ -107,8 +146,6 @@ def run_daily(
     if dry_run:
         state = store.get_portfolio_by_name(portfolio_cfg.name)
         if state is None:
-            from stock_analysis.storage.portfolio_store import PortfolioState
-
             state = PortfolioState(
                 id=0,
                 name=portfolio_cfg.name,
@@ -132,17 +169,20 @@ def run_daily(
         run_id = store.start_run(state.id, dry_run=False)
 
     cost_model = build_cost_model(settings.costs)
-    broker = PaperBroker(store, cost_model)
+    broker = broker or load_broker_from_env(store, cost_model)
 
     enabled_positions = [p for p in settings.positions if p.enabled]
     tickers = [p.ticker for p in enabled_positions]
     price_data = _fetch_price_data(tickers, provider)
 
-    fills = broker.fill_pending_orders(
+    fills = broker.sync_fills(
         state, price_data, session_date=today, dry_run=dry_run
     )
     if fills:
         logger.info("Filled %d pending order(s)", len(fills))
+
+    if not dry_run:
+        _check_broker_reconciliation(broker, state, notifier)
 
     prices = {
         ticker: _latest_close(df) for ticker, df in price_data.items()
@@ -260,8 +300,8 @@ def run_daily(
             decisions.append((ticker, decision))
 
             if decision.intent and next_fill_day is not None:
-                order_id = broker.queue_order(
-                    state, run_id, decision.intent, fill_date=next_fill_day, dry_run=dry_run
+                order_id = broker.submit_order(
+                    state, run_id, decision.intent, dry_run=dry_run, fill_date=next_fill_day
                 )
                 if order_id is not None:
                     queued += 1

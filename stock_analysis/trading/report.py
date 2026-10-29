@@ -2,7 +2,7 @@ from datetime import date
 from pathlib import Path
 
 from stock_analysis.trading.decision import DecisionResult
-from stock_analysis.trading.paper_broker import FillResult
+from stock_analysis.trading.fills import FillResult
 
 
 def write_daily_report(

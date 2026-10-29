@@ -6,8 +6,9 @@ import pytest
 from sqlalchemy import select, update
 
 from stock_analysis.jobs import daily
-from stock_analysis.storage.portfolio_store import PortfolioStore
+from stock_analysis.storage.portfolio_store import PortfolioState, PortfolioStore, Position
 from stock_analysis.storage.schema import create_engine_for_url, init_db, paper_runs, paper_signals
+from stock_analysis.trading.broker import AccountSnapshot
 from stock_analysis.trading.paper_broker import PaperBroker
 from stock_analysis.trading.signals import (
     SignalResult,
@@ -246,7 +247,7 @@ def test_run_daily_strategy_error_skips_only_that_ticker(
 def test_run_daily_broker_error_after_decision_skips_only_that_ticker(
     write_config, engine, tmp_path, monkeypatch
 ):
-    """A failure after decide() (e.g. in broker.queue_order) must not abort other tickers
+    """A failure after decide() (e.g. in broker.submit_order) must not abort other tickers
     or leave the run half-finished — the try/except around the per-ticker body must cover
     order submission too, not just signal evaluation."""
     monkeypatch.chdir(tmp_path)
@@ -260,16 +261,16 @@ def test_run_daily_broker_error_after_decision_skips_only_that_ticker(
     )
     provider = _FakeProvider({"AAPL": _ohlcv(), "MSFT": _ohlcv()})
 
-    original_queue_order = PaperBroker.queue_order
+    original_submit_order = PaperBroker.submit_order
 
-    def flaky_queue_order(self, state, run_id, intent, fill_date, dry_run):
+    def flaky_submit_order(self, state, run_id, intent, *, dry_run, fill_date=None):
         if intent.ticker == "MSFT":
             raise RuntimeError("broker boom")
-        return original_queue_order(
-            self, state, run_id, intent, fill_date=fill_date, dry_run=dry_run
+        return original_submit_order(
+            self, state, run_id, intent, dry_run=dry_run, fill_date=fill_date
         )
 
-    monkeypatch.setattr(PaperBroker, "queue_order", flaky_queue_order)
+    monkeypatch.setattr(PaperBroker, "submit_order", flaky_submit_order)
 
     result = daily.run_daily(str(config_path), provider=provider, engine=engine)
 
@@ -503,3 +504,84 @@ def test_run_daily_multi_strategy_kill_switch_still_blocks_combined_buy(
 
     assert result == 0
     assert store.get_pending_orders(state.id) == []
+
+
+def _fake_state():
+    return PortfolioState(
+        id=1,
+        name="test-portfolio",
+        cash=10_000.0,
+        positions=[Position(ticker="AAPL", shares=5, avg_cost=100.0, opened_at=datetime.now(timezone.utc))],
+    )
+
+
+def test_check_broker_reconciliation_skips_local_source():
+    broker = MagicMock()
+    broker.get_account_snapshot.return_value = AccountSnapshot(
+        cash=999.0, positions={}, source="local"
+    )
+    notifier = MagicMock()
+
+    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+
+    notifier.send_error_alert.assert_not_called()
+
+
+def test_check_broker_reconciliation_alerts_on_cash_mismatch():
+    broker = MagicMock()
+    broker.get_account_snapshot.return_value = AccountSnapshot(
+        cash=9_000.0, positions={"AAPL": 5}, source="alpaca"
+    )
+    notifier = MagicMock()
+
+    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+
+    notifier.send_error_alert.assert_called_once()
+    assert "cash" in notifier.send_error_alert.call_args[0][1]
+
+
+def test_check_broker_reconciliation_alerts_on_position_mismatch():
+    broker = MagicMock()
+    broker.get_account_snapshot.return_value = AccountSnapshot(
+        cash=10_000.0, positions={"AAPL": 999}, source="alpaca"
+    )
+    notifier = MagicMock()
+
+    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+
+    notifier.send_error_alert.assert_called_once()
+    assert "positions" in notifier.send_error_alert.call_args[0][1]
+
+
+def test_check_broker_reconciliation_silent_when_in_sync():
+    broker = MagicMock()
+    broker.get_account_snapshot.return_value = AccountSnapshot(
+        cash=10_000.0, positions={"AAPL": 5}, source="alpaca"
+    )
+    notifier = MagicMock()
+
+    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+
+    notifier.send_error_alert.assert_not_called()
+
+
+def test_check_broker_reconciliation_tolerates_tiny_cash_rounding():
+    broker = MagicMock()
+    broker.get_account_snapshot.return_value = AccountSnapshot(
+        cash=10_000.0001, positions={"AAPL": 5}, source="alpaca"
+    )
+    notifier = MagicMock()
+
+    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+
+    notifier.send_error_alert.assert_not_called()
+
+
+def test_check_broker_reconciliation_never_raises_on_snapshot_failure():
+    broker = MagicMock()
+    broker.get_account_snapshot.side_effect = RuntimeError("network error")
+    notifier = MagicMock()
+
+    daily._check_broker_reconciliation(broker, _fake_state(), notifier)  # must not raise
+
+    notifier.send_error_alert.assert_not_called()

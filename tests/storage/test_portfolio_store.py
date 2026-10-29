@@ -138,3 +138,92 @@ def test_get_running_run_ids_older_than_filters_recent_runs(store):
             .values(started_at=datetime.now(timezone.utc) - timedelta(hours=7))
         )
     assert store.get_running_run_ids(state.id, older_than=six_hours_ago) == [run_id]
+
+
+def test_create_broker_order_starts_in_submitting_state(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_id = store.start_run(state.id, dry_run=False)
+
+    order_id = store.create_broker_order(
+        state.id, run_id, "AAPL", "BUY", 5, "test signal", client_order_id="cid-1"
+    )
+
+    order = store.get_order_by_client_id("cid-1")
+    assert order.id == order_id
+    assert order.status == "SUBMITTING"
+    assert order.broker_order_id is None
+
+
+def test_get_order_by_client_id_returns_none_when_missing(store):
+    assert store.get_order_by_client_id("does-not-exist") is None
+
+
+def test_mark_order_submitted_updates_status_and_broker_id(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_id = store.start_run(state.id, dry_run=False)
+    order_id = store.create_broker_order(
+        state.id, run_id, "AAPL", "BUY", 5, "test", client_order_id="cid-2"
+    )
+
+    store.mark_order_submitted(order_id, broker_order_id="alpaca-123", broker_status="new")
+
+    order = store.get_order_by_client_id("cid-2")
+    assert order.status == "SUBMITTED"
+    assert order.broker_order_id == "alpaca-123"
+
+
+def test_get_open_broker_orders_excludes_terminal_states(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_id = store.start_run(state.id, dry_run=False)
+
+    submitting_id = store.create_broker_order(
+        state.id, run_id, "AAPL", "BUY", 5, "t", client_order_id="cid-a"
+    )
+    submitted_id = store.create_broker_order(
+        state.id, run_id, "MSFT", "BUY", 3, "t", client_order_id="cid-b"
+    )
+    store.mark_order_submitted(submitted_id, broker_order_id="alpaca-b", broker_status="new")
+
+    filled_id = store.create_broker_order(
+        state.id, run_id, "GOOGL", "BUY", 1, "t", client_order_id="cid-c"
+    )
+    store.mark_order_submitted(filled_id, broker_order_id="alpaca-c", broker_status="new")
+    store.fill_order(filled_id, 100.0, 0.0, 0.0, broker_status="filled")
+
+    open_orders = {o.id for o in store.get_open_broker_orders(state.id)}
+    assert open_orders == {submitting_id, submitted_id}
+
+
+def test_update_broker_order_status_marks_rejected(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_id = store.start_run(state.id, dry_run=False)
+    order_id = store.create_broker_order(
+        state.id, run_id, "AAPL", "BUY", 5, "t", client_order_id="cid-d"
+    )
+    store.mark_order_submitted(order_id, broker_order_id="alpaca-d", broker_status="new")
+
+    store.update_broker_order_status(order_id, "REJECTED", "rejected")
+
+    assert store.get_open_broker_orders(state.id) == []
+
+
+def test_cancel_pending_order_cancels_submitted_order(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_id = store.start_run(state.id, dry_run=False)
+    order_id = store.create_broker_order(
+        state.id, run_id, "AAPL", "BUY", 5, "t", client_order_id="cid-e"
+    )
+
+    assert store.cancel_pending_order(order_id) is True
+    assert store.get_open_broker_orders(state.id) == []
+
+
+def test_cancel_pending_order_returns_false_for_already_filled_order(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_id = store.start_run(state.id, dry_run=False)
+    order_id = store.create_pending_order(
+        state.id, run_id, "AAPL", "BUY", 5, "t", fill_date=date(2024, 6, 3)
+    )
+    store.fill_order(order_id, 100.0, 1.0, 0.0)
+
+    assert store.cancel_pending_order(order_id) is False

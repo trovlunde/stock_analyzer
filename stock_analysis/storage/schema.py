@@ -4,6 +4,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Float,
+    Index,
     Integer,
     LargeBinary,
     MetaData,
@@ -70,6 +71,19 @@ paper_orders = Table(
     Column("created_at", DateTime, nullable=False),
     Column("filled_at", DateTime, nullable=True),
     Column("fill_date", Date, nullable=True),
+    Column("client_order_id", Text, nullable=True),
+    Column("broker_order_id", Text, nullable=True),
+    Column("broker_status", Text, nullable=True),
+)
+
+# Partial unique index — NULLs (orders with no client_order_id, e.g. legacy PaperBroker
+# rows) are unaffected; only guards against two rows sharing the same idempotency key,
+# which would otherwise mean a race let two processes both decide to submit it.
+Index(
+    "uq_paper_orders_client_order_id",
+    paper_orders.c.client_order_id,
+    unique=True,
+    sqlite_where=paper_orders.c.client_order_id.isnot(None),
 )
 
 paper_runs = Table(
@@ -113,6 +127,11 @@ _NEW_COLUMNS = {
         ("kill_switch_tripped_at", "DATETIME"),
         ("kill_switch_reason", "TEXT"),
     ],
+    "paper_orders": [
+        ("client_order_id", "TEXT"),
+        ("broker_order_id", "TEXT"),
+        ("broker_status", "TEXT"),
+    ],
 }
 
 
@@ -138,6 +157,14 @@ def run_light_migrations(engine: Engine) -> None:
                     except OperationalError as exc:
                         if "duplicate column name" not in str(exc).lower():
                             raise
+
+        if "paper_orders" in inspector.get_table_names():
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_paper_orders_client_order_id "
+                    "ON paper_orders(client_order_id) WHERE client_order_id IS NOT NULL"
+                )
+            )
 
 
 def init_db(engine: Engine) -> None:
