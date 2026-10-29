@@ -21,6 +21,10 @@ from stock_analysis.trading.broker import Broker
 from stock_analysis.trading.broker_config import load_broker_from_env
 from stock_analysis.trading.cost_models import build_cost_model
 from stock_analysis.trading.decision import DecisionResult, decide, portfolio_value
+from stock_analysis.trading.live_gate import (
+    live_notional_ceiling_violation,
+    live_portfolio_ceiling_violation,
+)
 from stock_analysis.trading.market_calendar import (
     is_trading_day,
     next_trading_day_after,
@@ -73,20 +77,28 @@ RECONCILIATION_CASH_TOLERANCE = 1.0  # USD — avoid alerting on float/rounding 
 
 
 def _check_broker_reconciliation(
-    broker: Broker, state: PortfolioState, notifier: EmailNotifier | None
-) -> None:
-    """Non-blocking sanity check: once a real broker is in the loop, it's the source
-    of truth and the local SQLite ledger can drift (manual trades via the broker's own
-    UI, corporate actions, a bug in fill handling). Log and alert on divergence rather
-    than silently trusting local state — but never fail the run over this check."""
+    broker: Broker,
+    state: PortfolioState,
+    store: PortfolioStore,
+    notifier: EmailNotifier | None,
+) -> bool:
+    """Once a real broker is in the loop, it's the source of truth and the local
+    SQLite ledger can drift (manual trades via the broker's own UI, corporate
+    actions, a bug in fill handling). A divergence trips the kill switch — exactly
+    the scenario `stock-analysis-risk reconcile --accept-broker-truth` exists to
+    fix — rather than silently trusting local state for position-sizing math.
+
+    Returns True if the broker is PaperBroker (nothing to compare) or the
+    comparison found no mismatch; False otherwise. Never raises — a failure to
+    even fetch the snapshot is logged and treated as "not clean" (fail safe)."""
     try:
         snapshot = broker.get_account_snapshot(state)
     except Exception:
         logger.exception("Failed to fetch broker account snapshot for reconciliation check")
-        return
+        return False
 
     if snapshot.source == "local":
-        return  # PaperBroker — local state IS the source of truth, nothing to compare
+        return True  # PaperBroker — local state IS the source of truth, nothing to compare
 
     mismatches: list[str] = []
     cash_diff = abs(snapshot.cash - state.cash)
@@ -99,11 +111,17 @@ def _check_broker_reconciliation(
     if local_positions != snapshot.positions:
         mismatches.append(f"positions: broker={snapshot.positions} local={local_positions}")
 
-    if mismatches:
-        message = "; ".join(mismatches)
-        logger.warning("Broker/local state mismatch: %s", message)
+    if not mismatches:
+        return True
+
+    message = "; ".join(mismatches)
+    logger.warning("Broker/local state mismatch: %s", message)
+    tripped_at, _reason = store.get_kill_switch_state(state.id)
+    if tripped_at is None:
+        store.trip_kill_switch(state.id, f"broker/local state mismatch: {message}")
         if notifier is not None:
-            notifier.send_error_alert("Broker/local state mismatch", message)
+            notifier.send_error_alert("Broker/local state mismatch — kill switch tripped", message)
+    return False
 
 
 def run_daily(
@@ -169,7 +187,9 @@ def run_daily(
         run_id = store.start_run(state.id, dry_run=False)
 
     cost_model = build_cost_model(settings.costs)
-    broker = broker or load_broker_from_env(store, cost_model)
+    broker = broker or load_broker_from_env(
+        store, cost_model, settings=settings, portfolio_id=state.id
+    )
 
     enabled_positions = [p for p in settings.positions if p.enabled]
     tickers = [p.ticker for p in enabled_positions]
@@ -182,7 +202,13 @@ def run_daily(
         logger.info("Filled %d pending order(s)", len(fills))
 
     if not dry_run:
-        _check_broker_reconciliation(broker, state, notifier)
+        reconciliation_clean = _check_broker_reconciliation(broker, state, store, notifier)
+        if reconciliation_clean and getattr(broker, "read_only", False):
+            store.mark_live_confirmed(state.id)
+            logger.warning(
+                "First live run reconciled cleanly — live trading is now fully "
+                "enabled for this portfolio from the next run onward"
+            )
 
     prices = {
         ticker: _latest_close(df) for ticker, df in price_data.items()
@@ -297,6 +323,27 @@ def run_daily(
                     intent=None,
                     skipped_reason="kill switch tripped — new BUY orders blocked",
                 )
+            elif (
+                decision.intent is not None
+                and decision.intent.side == "BUY"
+                and getattr(broker, "live", False)
+                and not getattr(broker, "read_only", False)
+            ):
+                # Defense in depth, independent of decide()'s position sizing — the
+                # only place in the orchestration that has both a price and the
+                # live/read-only state needed to apply these.
+                violation = live_notional_ceiling_violation(
+                    ticker, decision.intent.shares, current_price
+                ) or live_portfolio_ceiling_violation(
+                    portfolio_value(state, prices) + decision.intent.shares * current_price
+                )
+                if violation is not None:
+                    logger.error("Live order blocked: %s", violation)
+                    if notifier is not None:
+                        notifier.send_error_alert("Live order blocked by notional ceiling", violation)
+                    decision = DecisionResult(
+                        signal=decision.signal, intent=None, skipped_reason=violation
+                    )
             decisions.append((ticker, decision))
 
             if decision.intent and next_fill_day is not None:

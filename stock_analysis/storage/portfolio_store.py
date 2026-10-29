@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, desc, insert, select, update
 from sqlalchemy.engine import Engine
 
 from .schema import (
@@ -249,6 +249,57 @@ class PortfolioStore:
                     updated_at=_utcnow(),
                 )
             )
+
+    def get_live_confirmed_at(self, portfolio_id: int) -> datetime | None:
+        with self.engine.connect() as conn:
+            row = conn.execute(
+                select(paper_portfolios.c.live_confirmed_at).where(
+                    paper_portfolios.c.id == portfolio_id
+                )
+            ).first()
+            return row[0] if row is not None else None
+
+    def mark_live_confirmed(self, portfolio_id: int) -> None:
+        with self.engine.begin() as conn:
+            conn.execute(
+                update(paper_portfolios)
+                .where(paper_portfolios.c.id == portfolio_id)
+                .values(live_confirmed_at=_utcnow(), updated_at=_utcnow())
+            )
+
+    def count_consecutive_completed_runs(self, portfolio_id: int) -> int:
+        """How many of the most recent non-dry-run runs, newest first, are
+        consecutively "clean" before hitting one that isn't. A run only counts as
+        clean if its status is "completed" AND its own summary didn't record the
+        kill switch having tripped during that run — run_daily() always finishes
+        with status="completed" even when a daily-loss/drawdown breach or a
+        broker/local reconciliation mismatch tripped the switch mid-run, so status
+        alone isn't enough to prove the run was actually clean. Used as the
+        DB-backed "N consecutive clean runs" check before live trading is allowed —
+        a single non-clean run anywhere in the recent history resets this to 0
+        starting from that point forward."""
+        with self.engine.connect() as conn:
+            rows = conn.execute(
+                select(paper_runs.c.status, paper_runs.c.summary_json)
+                .where(
+                    paper_runs.c.portfolio_id == portfolio_id,
+                    paper_runs.c.dry_run == False,  # noqa: E712
+                )
+                .order_by(desc(paper_runs.c.started_at))
+            ).all()
+
+        count = 0
+        for status, summary_json in rows:
+            if status != "completed":
+                break
+            if summary_json:
+                try:
+                    if json.loads(summary_json).get("kill_switch_active"):
+                        break
+                except json.JSONDecodeError:
+                    pass
+            count += 1
+        return count
 
     def record_signal(
         self,

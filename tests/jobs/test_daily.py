@@ -84,6 +84,33 @@ class _SellStrategy:
         return SignalResult(action="SELL", reason="test sell", metadata={})
 
 
+class _FakeLiveBroker:
+    """A minimal Broker stand-in for exercising daily.py's live-mode orchestration
+    (notional ceilings, read-only first-run, reconciliation-driven confirmation)
+    without going anywhere near the real AlpacaBroker/alpaca-py SDK."""
+
+    def __init__(self, *, live=True, read_only=False, snapshot=None):
+        self.live = live
+        self.read_only = read_only
+        self.snapshot = snapshot or AccountSnapshot(cash=10_000.0, positions={}, source="alpaca")
+        self.submitted_orders: list = []
+
+    def submit_order(self, state, run_id, intent, *, dry_run, fill_date=None):
+        if dry_run or self.read_only:
+            return None
+        self.submitted_orders.append(intent)
+        return f"order-{len(self.submitted_orders)}"
+
+    def sync_fills(self, state, price_data, session_date, *, dry_run):
+        return []
+
+    def get_account_snapshot(self, state):
+        return self.snapshot
+
+    def cancel_order(self, order_id):
+        return True
+
+
 def _ohlcv(n=5, price=100.0):
     index = pd.date_range("2024-01-01", periods=n, freq="B")
     return pd.DataFrame(
@@ -515,73 +542,219 @@ def _fake_state():
     )
 
 
-def test_check_broker_reconciliation_skips_local_source():
+@pytest.fixture
+def reconciliation_store(engine):
+    store = PortfolioStore(engine)
+    store.get_or_create_portfolio("test-portfolio", 10_000.0)
+    return store
+
+
+def test_check_broker_reconciliation_skips_local_source(reconciliation_store):
     broker = MagicMock()
     broker.get_account_snapshot.return_value = AccountSnapshot(
         cash=999.0, positions={}, source="local"
     )
     notifier = MagicMock()
 
-    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+    clean = daily._check_broker_reconciliation(broker, _fake_state(), reconciliation_store, notifier)
 
+    assert clean is True
     notifier.send_error_alert.assert_not_called()
 
 
-def test_check_broker_reconciliation_alerts_on_cash_mismatch():
+def test_check_broker_reconciliation_alerts_and_trips_on_cash_mismatch(reconciliation_store):
     broker = MagicMock()
     broker.get_account_snapshot.return_value = AccountSnapshot(
         cash=9_000.0, positions={"AAPL": 5}, source="alpaca"
     )
     notifier = MagicMock()
 
-    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+    clean = daily._check_broker_reconciliation(broker, _fake_state(), reconciliation_store, notifier)
 
+    assert clean is False
     notifier.send_error_alert.assert_called_once()
     assert "cash" in notifier.send_error_alert.call_args[0][1]
+    tripped_at, reason = reconciliation_store.get_kill_switch_state(1)
+    assert tripped_at is not None
+    assert "mismatch" in reason
 
 
-def test_check_broker_reconciliation_alerts_on_position_mismatch():
+def test_check_broker_reconciliation_alerts_on_position_mismatch(reconciliation_store):
     broker = MagicMock()
     broker.get_account_snapshot.return_value = AccountSnapshot(
         cash=10_000.0, positions={"AAPL": 999}, source="alpaca"
     )
     notifier = MagicMock()
 
-    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+    clean = daily._check_broker_reconciliation(broker, _fake_state(), reconciliation_store, notifier)
 
+    assert clean is False
     notifier.send_error_alert.assert_called_once()
     assert "positions" in notifier.send_error_alert.call_args[0][1]
 
 
-def test_check_broker_reconciliation_silent_when_in_sync():
+def test_check_broker_reconciliation_does_not_realert_once_already_tripped(reconciliation_store):
+    broker = MagicMock()
+    broker.get_account_snapshot.return_value = AccountSnapshot(
+        cash=9_000.0, positions={"AAPL": 5}, source="alpaca"
+    )
+    notifier = MagicMock()
+
+    daily._check_broker_reconciliation(broker, _fake_state(), reconciliation_store, notifier)
+    notifier.reset_mock()
+    clean = daily._check_broker_reconciliation(broker, _fake_state(), reconciliation_store, notifier)
+
+    assert clean is False
+    notifier.send_error_alert.assert_not_called()
+
+
+def test_check_broker_reconciliation_silent_when_in_sync(reconciliation_store):
     broker = MagicMock()
     broker.get_account_snapshot.return_value = AccountSnapshot(
         cash=10_000.0, positions={"AAPL": 5}, source="alpaca"
     )
     notifier = MagicMock()
 
-    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+    clean = daily._check_broker_reconciliation(broker, _fake_state(), reconciliation_store, notifier)
 
+    assert clean is True
     notifier.send_error_alert.assert_not_called()
 
 
-def test_check_broker_reconciliation_tolerates_tiny_cash_rounding():
+def test_check_broker_reconciliation_tolerates_tiny_cash_rounding(reconciliation_store):
     broker = MagicMock()
     broker.get_account_snapshot.return_value = AccountSnapshot(
         cash=10_000.0001, positions={"AAPL": 5}, source="alpaca"
     )
     notifier = MagicMock()
 
-    daily._check_broker_reconciliation(broker, _fake_state(), notifier)
+    clean = daily._check_broker_reconciliation(broker, _fake_state(), reconciliation_store, notifier)
 
+    assert clean is True
     notifier.send_error_alert.assert_not_called()
 
 
-def test_check_broker_reconciliation_never_raises_on_snapshot_failure():
+def test_check_broker_reconciliation_never_raises_on_snapshot_failure(reconciliation_store):
     broker = MagicMock()
     broker.get_account_snapshot.side_effect = RuntimeError("network error")
     notifier = MagicMock()
 
-    daily._check_broker_reconciliation(broker, _fake_state(), notifier)  # must not raise
+    clean = daily._check_broker_reconciliation(broker, _fake_state(), reconciliation_store, notifier)
 
+    assert clean is False
     notifier.send_error_alert.assert_not_called()
+
+
+def test_run_daily_read_only_live_broker_never_submits_and_marks_confirmed_when_clean(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = write_config(strategy="buy_test")
+    store = PortfolioStore(engine)
+    provider = _FakeProvider({"AAPL": _ohlcv()})
+    # A fresh portfolio (cash=10_000, no positions) matches the broker's default
+    # snapshot exactly -> a clean reconciliation.
+    broker = _FakeLiveBroker(live=True, read_only=True)
+
+    result = daily.run_daily(config_path, provider=provider, engine=engine, broker=broker)
+
+    assert result == 0
+    assert broker.submitted_orders == []
+    state = store.get_portfolio_by_name("test-portfolio")
+    assert store.get_live_confirmed_at(state.id) is not None
+
+
+def test_run_daily_read_only_live_broker_does_not_mark_confirmed_when_dirty(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = write_config(strategy="buy_test")
+    store = PortfolioStore(engine)
+    provider = _FakeProvider({"AAPL": _ohlcv()})
+    broker = _FakeLiveBroker(
+        live=True, read_only=True,
+        snapshot=AccountSnapshot(cash=5.0, positions={}, source="alpaca"),
+    )
+
+    result = daily.run_daily(config_path, provider=provider, engine=engine, broker=broker)
+
+    assert result == 0
+    state = store.get_portfolio_by_name("test-portfolio")
+    assert store.get_live_confirmed_at(state.id) is None
+    tripped_at, _reason = store.get_kill_switch_state(state.id)
+    assert tripped_at is not None
+
+
+def test_run_daily_live_broker_blocks_order_exceeding_per_order_notional_ceiling(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LIVE_MAX_NOTIONAL_PER_ORDER", "1")  # any real order exceeds $1
+    config_path = write_config(strategy="buy_test")
+    provider = _FakeProvider({"AAPL": _ohlcv()})
+    broker = _FakeLiveBroker(
+        live=True, read_only=False,
+        snapshot=AccountSnapshot(cash=10_000.0, positions={}, source="alpaca"),
+    )
+
+    result = daily.run_daily(config_path, provider=provider, engine=engine, broker=broker)
+
+    assert result == 0
+    assert broker.submitted_orders == []
+
+
+def test_run_daily_live_broker_blocks_order_exceeding_portfolio_notional_ceiling(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("LIVE_MAX_NOTIONAL_PER_ORDER", raising=False)
+    monkeypatch.setenv("LIVE_MAX_PORTFOLIO_NOTIONAL", "1")  # any real portfolio exceeds $1
+    config_path = write_config(strategy="buy_test")
+    provider = _FakeProvider({"AAPL": _ohlcv()})
+    broker = _FakeLiveBroker(
+        live=True, read_only=False,
+        snapshot=AccountSnapshot(cash=10_000.0, positions={}, source="alpaca"),
+    )
+
+    result = daily.run_daily(config_path, provider=provider, engine=engine, broker=broker)
+
+    assert result == 0
+    assert broker.submitted_orders == []
+
+
+def test_run_daily_live_broker_submits_when_within_ceilings(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LIVE_MAX_NOTIONAL_PER_ORDER", "1000000")
+    monkeypatch.setenv("LIVE_MAX_PORTFOLIO_NOTIONAL", "1000000")
+    config_path = write_config(strategy="buy_test")
+    provider = _FakeProvider({"AAPL": _ohlcv()})
+    broker = _FakeLiveBroker(
+        live=True, read_only=False,
+        snapshot=AccountSnapshot(cash=10_000.0, positions={}, source="alpaca"),
+    )
+
+    result = daily.run_daily(config_path, provider=provider, engine=engine, broker=broker)
+
+    assert result == 0
+    assert len(broker.submitted_orders) == 1
+
+
+def test_run_daily_paper_broker_unaffected_by_live_notional_env_vars(
+    write_config, engine, tmp_path, monkeypatch
+):
+    """A plain PaperBroker (no `.live` attribute) must never be gated by live-mode
+    notional ceilings — those only apply when a broker explicitly opts in via
+    `.live = True`."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LIVE_MAX_NOTIONAL_PER_ORDER", "1")
+    config_path = write_config(strategy="buy_test")
+    provider = _FakeProvider({"AAPL": _ohlcv()})
+
+    result = daily.run_daily(config_path, provider=provider, engine=engine)
+
+    assert result == 0
+    store = PortfolioStore(engine)
+    state = store.get_portfolio_by_name("test-portfolio")
+    assert len(store.get_pending_orders(state.id)) == 1

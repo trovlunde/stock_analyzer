@@ -129,6 +129,7 @@ class PaperBroker:
         return AccountSnapshot(
             cash=state.cash,
             positions={p.ticker: p.shares for p in state.positions},
+            avg_costs={p.ticker: p.avg_cost for p in state.positions},
             source="local",
         )
 

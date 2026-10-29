@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Protocol, runtime_checkable
 
@@ -14,6 +14,7 @@ class AccountSnapshot:
     cash: float
     positions: dict[str, float]  # ticker -> shares, the broker's view of truth
     source: str  # "local" | "alpaca"
+    avg_costs: dict[str, float] = field(default_factory=dict)  # ticker -> avg cost, best-effort
 
 
 @runtime_checkable

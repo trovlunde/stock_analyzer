@@ -42,6 +42,25 @@ def test_alpaca_broker_satisfies_broker_protocol(store):
     assert isinstance(broker, Broker)
 
 
+def test_read_only_broker_never_calls_client_on_submit(store, state):
+    client = MagicMock()
+    broker = AlpacaBroker(client, store, live=True, read_only=True)
+    intent = OrderIntent(ticker="AAPL", side="BUY", shares=5, reason="test")
+
+    result = broker.submit_order(state, run_id=1, intent=intent, dry_run=False)
+
+    assert result is None
+    client.get_account.assert_not_called()
+    client.submit_order.assert_not_called()
+    assert store.get_open_broker_orders(state.id) == []
+
+
+def test_default_broker_is_not_live_and_not_read_only(store):
+    broker = AlpacaBroker(MagicMock(), store)
+    assert broker.live is False
+    assert broker.read_only is False
+
+
 def test_submit_order_passes_client_order_id(store, state):
     client = MagicMock()
     client.get_account.return_value = _account()

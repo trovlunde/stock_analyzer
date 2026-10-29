@@ -40,6 +40,7 @@ paper_portfolios = Table(
     Column("updated_at", DateTime, nullable=False),
     Column("kill_switch_tripped_at", DateTime, nullable=True),
     Column("kill_switch_reason", Text, nullable=True),
+    Column("live_confirmed_at", DateTime, nullable=True),
 )
 
 paper_positions = Table(
@@ -126,6 +127,7 @@ _NEW_COLUMNS = {
     "paper_portfolios": [
         ("kill_switch_tripped_at", "DATETIME"),
         ("kill_switch_reason", "TEXT"),
+        ("live_confirmed_at", "DATETIME"),
     ],
     "paper_orders": [
         ("client_order_id", "TEXT"),

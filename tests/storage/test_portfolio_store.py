@@ -227,3 +227,82 @@ def test_cancel_pending_order_returns_false_for_already_filled_order(store):
     store.fill_order(order_id, 100.0, 1.0, 0.0)
 
     assert store.cancel_pending_order(order_id) is False
+
+
+def test_live_confirmed_round_trip(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+
+    assert store.get_live_confirmed_at(state.id) is None
+
+    store.mark_live_confirmed(state.id)
+
+    assert store.get_live_confirmed_at(state.id) is not None
+
+
+def test_count_consecutive_completed_runs_empty_history(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    assert store.count_consecutive_completed_runs(state.id) == 0
+
+
+def test_count_consecutive_completed_runs_counts_newest_first(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    for _ in range(3):
+        run_id = store.start_run(state.id, dry_run=False)
+        store.finish_run(run_id, "completed", {"session_date": "x", "portfolio_value": 1})
+
+    assert store.count_consecutive_completed_runs(state.id) == 3
+
+
+def test_count_consecutive_completed_runs_stops_at_first_non_completed(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_a = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_a, "completed", {"session_date": "a", "portfolio_value": 1})
+
+    run_b = store.start_run(state.id, dry_run=False)
+    store.abandon_run(run_b, "crashed")
+
+    run_c = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_c, "completed", {"session_date": "c", "portfolio_value": 1})
+    run_d = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_d, "completed", {"session_date": "d", "portfolio_value": 1})
+
+    # Newest-first: d, c (completed, completed) then b (abandoned) stops the count —
+    # a (completed) is behind the gap and must not be counted.
+    assert store.count_consecutive_completed_runs(state.id) == 2
+
+
+def test_count_consecutive_completed_runs_a_kill_switch_trip_breaks_the_streak(store):
+    """A run can finish status="completed" even though the kill switch tripped
+    during it (daily-loss/drawdown breach, reconciliation mismatch) — that must
+    still break the clean-run streak, not count toward it."""
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_a = store.start_run(state.id, dry_run=False)
+    store.finish_run(
+        run_a,
+        "completed",
+        {"session_date": "a", "portfolio_value": 1, "kill_switch_active": True},
+    )
+    run_b = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_b, "completed", {"session_date": "b", "portfolio_value": 1})
+    run_c = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_c, "completed", {"session_date": "c", "portfolio_value": 1})
+
+    # Newest-first: c, b are clean; a tripped the switch -> stops the streak at 2.
+    assert store.count_consecutive_completed_runs(state.id) == 2
+
+
+def test_count_consecutive_completed_runs_excludes_dry_runs(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    dry_run_id = store.start_run(state.id, dry_run=True)
+    store.finish_run(dry_run_id, "completed", {"session_date": "x", "portfolio_value": 1})
+
+    assert store.count_consecutive_completed_runs(state.id) == 0
+
+
+def test_count_consecutive_completed_runs_an_in_progress_run_breaks_the_streak(store):
+    state = store.get_or_create_portfolio("paper-us", 100_000)
+    run_a = store.start_run(state.id, dry_run=False)
+    store.finish_run(run_a, "completed", {"session_date": "a", "portfolio_value": 1})
+    store.start_run(state.id, dry_run=False)  # never finished — still "running"
+
+    assert store.count_consecutive_completed_runs(state.id) == 0

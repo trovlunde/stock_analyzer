@@ -36,11 +36,22 @@ def _client_order_id(portfolio_name: str, run_id: int, ticker: str, side: str) -
 class AlpacaBroker:
     """Real order execution via Alpaca. Works against the paper endpoint or live
     depending on how `client` was constructed (see trading/broker_config.py) —
-    this class has no live/paper branch of its own, by design."""
+    this class has no paper/live branch of its own for *which* Alpaca endpoint to
+    hit, by design.
 
-    def __init__(self, client: TradingClient, store: PortfolioStore):
+    `live` is purely informational for callers (e.g. jobs/daily.py's live-mode
+    notional-ceiling checks) — it does not change this class's own behavior.
+    `read_only`, by contrast, does: while True, submit_order() never calls Alpaca
+    at all (set for a portfolio's first live run, per the live-trading gate, until
+    a clean reconciliation is observed)."""
+
+    def __init__(
+        self, client: TradingClient, store: PortfolioStore, *, live: bool = False, read_only: bool = False
+    ):
         self.client = client
         self.store = store
+        self.live = live
+        self.read_only = read_only
 
     def submit_order(
         self,
@@ -52,6 +63,14 @@ class AlpacaBroker:
         fill_date: date | None = None,
     ) -> str | None:
         if dry_run:
+            return None
+
+        if self.read_only:
+            logger.info(
+                "Read-only live mode — not submitting %s %s %s (first live run, "
+                "awaiting a clean reconciliation)",
+                intent.side, intent.shares, intent.ticker,
+            )
             return None
 
         client_order_id = _client_order_id(state.name, run_id, intent.ticker, intent.side)
@@ -185,6 +204,7 @@ class AlpacaBroker:
         return AccountSnapshot(
             cash=float(account.cash),
             positions={p.symbol: float(p.qty) for p in positions},
+            avg_costs={p.symbol: float(p.avg_entry_price) for p in positions},
             source="alpaca",
         )
 
@@ -207,9 +227,3 @@ class AlpacaBroker:
         except Exception:
             return None
         return str(order.id), str(order.status.value)
-
-    # Live-mode notional ceilings (LIVE_MAX_NOTIONAL_PER_ORDER / _PORTFOLIO) are a
-    # live_gate.py / Phase 5 concern: the Broker protocol's submit_order() doesn't
-    # carry a price, so a per-order ceiling can't be enforced correctly at this
-    # layer without an extra quote lookup. Enforce it at the gate that already
-    # requires a human to deliberately flip LIVE_TRADING_ENABLED, not here.
