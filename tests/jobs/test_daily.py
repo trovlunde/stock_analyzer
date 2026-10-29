@@ -3,11 +3,11 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from stock_analysis.jobs import daily
 from stock_analysis.storage.portfolio_store import PortfolioStore
-from stock_analysis.storage.schema import create_engine_for_url, init_db, paper_runs
+from stock_analysis.storage.schema import create_engine_for_url, init_db, paper_runs, paper_signals
 from stock_analysis.trading.paper_broker import PaperBroker
 from stock_analysis.trading.signals import (
     SignalResult,
@@ -64,18 +64,23 @@ class _FakeProvider:
 
 
 class _HoldStrategy:
-    def evaluate(self, df, params):
+    def evaluate(self, df, ticker, params):
         return SignalResult(action="HOLD", reason="test hold", metadata={})
 
 
 class _BuyStrategy:
-    def evaluate(self, df, params):
+    def evaluate(self, df, ticker, params):
         return SignalResult(action="BUY", reason="test buy", metadata={})
 
 
 class _RaisingStrategy:
-    def evaluate(self, df, params):
+    def evaluate(self, df, ticker, params):
         raise RuntimeError("boom")
+
+
+class _SellStrategy:
+    def evaluate(self, df, ticker, params):
+        return SignalResult(action="SELL", reason="test sell", metadata={})
 
 
 def _ohlcv(n=5, price=100.0):
@@ -407,3 +412,94 @@ def test_run_daily_does_not_flag_a_recently_started_run_as_orphaned(
     tripped_at, _reason = store.get_kill_switch_state(state.id)
     assert tripped_at is None
     notifier.send_error_alert.assert_not_called()
+
+
+def _signals_for_run(engine, run_id: int) -> list[tuple[str, str]]:
+    with engine.connect() as conn:
+        rows = conn.execute(
+            select(paper_signals.c.reason).where(paper_signals.c.run_id == run_id)
+        ).all()
+    return [row[0] for row in rows]
+
+
+def test_run_daily_multi_strategy_records_each_signal_and_the_combined_result(
+    tmp_path, engine, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = tmp_path / "portfolio.yaml"
+    config_path.write_text(
+        CONFIG_TEMPLATE.format(
+            strategy="buy_test",  # unused — position below overrides with `strategies`
+            positions="  - ticker: AAPL\n    strategies: [buy_test, hold_test]\n",
+        ),
+        encoding="utf-8",
+    )
+    provider = _FakeProvider({"AAPL": _ohlcv()})
+
+    result = daily.run_daily(str(config_path), provider=provider, engine=engine)
+
+    assert result == 0
+    store = PortfolioStore(engine)
+    state = store.get_portfolio_by_name("test-portfolio")
+
+    reasons = _signals_for_run(engine, run_id=1)
+    assert any(r.startswith("[buy_test]") for r in reasons)
+    assert any(r.startswith("[hold_test]") for r in reasons)
+    assert any(r.startswith("[combined:consensus]") for r in reasons)
+    assert len(reasons) == 3
+
+    # buy_test is the only actionable signal (hold_test abstains) -> consensus
+    # passes it through, so the order still gets queued.
+    pending = store.get_pending_orders(state.id)
+    assert [o.ticker for o in pending] == ["AAPL"]
+
+
+def test_run_daily_multi_strategy_conflict_blocks_the_order(tmp_path, engine, monkeypatch):
+    register_signal_strategy("sell_test", _SellStrategy())
+    try:
+        monkeypatch.chdir(tmp_path)
+        config_path = tmp_path / "portfolio.yaml"
+        config_path.write_text(
+            CONFIG_TEMPLATE.format(
+                strategy="buy_test",
+                positions="  - ticker: AAPL\n    strategies: [buy_test, sell_test]\n",
+            ),
+            encoding="utf-8",
+        )
+        provider = _FakeProvider({"AAPL": _ohlcv()})
+
+        result = daily.run_daily(str(config_path), provider=provider, engine=engine)
+
+        assert result == 0
+        store = PortfolioStore(engine)
+        state = store.get_portfolio_by_name("test-portfolio")
+        assert store.get_pending_orders(state.id) == []
+
+        reasons = _signals_for_run(engine, run_id=1)
+        assert any("conflict" in r for r in reasons if r.startswith("[combined:"))
+    finally:
+        unregister_signal_strategy("sell_test")
+
+
+def test_run_daily_multi_strategy_kill_switch_still_blocks_combined_buy(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = tmp_path / "portfolio.yaml"
+    config_path.write_text(
+        CONFIG_TEMPLATE.format(
+            strategy="buy_test",
+            positions="  - ticker: AAPL\n    strategies: [buy_test, hold_test]\n",
+        ),
+        encoding="utf-8",
+    )
+    store = PortfolioStore(engine)
+    state = store.get_or_create_portfolio("test-portfolio", 10_000)
+    store.trip_kill_switch(state.id, "manually tripped for test")
+
+    provider = _FakeProvider({"AAPL": _ohlcv()})
+
+    result = daily.run_daily(str(config_path), provider=provider, engine=engine)
+
+    assert result == 0
+    assert store.get_pending_orders(state.id) == []

@@ -6,7 +6,7 @@ from .base import SignalResult
 
 
 class MaCrossoverStrategy:
-    def evaluate(self, df: pd.DataFrame, params: dict) -> SignalResult:
+    def evaluate(self, df: pd.DataFrame, ticker: str, params: dict) -> SignalResult:
         short_period = int(params.get("ma_short", 20))
         long_period = int(params.get("ma_long", 50))
         ma_type = params.get("ma_type", "sma")

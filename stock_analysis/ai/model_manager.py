@@ -21,7 +21,6 @@ class ModelManager:
         self.models_dir = models_dir
         self.cache_timeout_minutes = cache_timeout_minutes
         self.model_cache: Dict[str, CachedModel] = {}
-        os.makedirs(models_dir, exist_ok=True)
 
     def _get_model_path(self, model_name, model_type):
         """Generate a path for the model file"""
@@ -46,6 +45,7 @@ class ModelManager:
     def save_model(self, model, model_name, model_type, metadata: Optional[Dict[str, Any]] = None):
         """Save a model and its metadata to disk"""
         try:
+            os.makedirs(self.models_dir, exist_ok=True)
             model_path = self._get_model_path(model_name, model_type)
             metadata_path = self._get_model_metadata_path(
                 model_name, model_type)
@@ -127,6 +127,8 @@ class ModelManager:
 
     def list_models(self):
         """List all available models"""
+        if not os.path.isdir(self.models_dir):
+            return []
         try:
             models = []
             for filename in os.listdir(self.models_dir):

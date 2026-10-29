@@ -14,7 +14,7 @@ from stock_analysis.storage.portfolio_store import PortfolioStore
 from stock_analysis.trading.config import (
     load_portfolio_config,
     stop_loss_for_position,
-    strategy_name_for_position,
+    strategy_names_for_position,
     strategy_params_for_position,
 )
 from stock_analysis.trading.cost_models import build_cost_model
@@ -27,7 +27,8 @@ from stock_analysis.trading.paper_broker import PaperBroker
 from stock_analysis.trading.portfolio_metrics import compute_portfolio_metrics
 from stock_analysis.trading.report import write_daily_report
 from stock_analysis.trading.risk import check_kill_switch
-from stock_analysis.trading.signals import get_signal_strategy
+from stock_analysis.trading.signals import combine_signals, get_signal_strategy
+from stock_analysis.trading.signals.base import SignalResult
 
 logging.basicConfig(
     level=logging.INFO,
@@ -205,15 +206,40 @@ def run_daily(
             continue
 
         try:
-            strategy_name = strategy_name_for_position(settings, position_entry)
+            strategy_names = strategy_names_for_position(settings, position_entry)
             params = strategy_params_for_position(settings, position_entry)
-            strategy = get_signal_strategy(strategy_name)
-            signal = strategy.evaluate(df, params)
 
-            if not dry_run:
-                store.record_signal(
-                    run_id, ticker, signal.action, signal.reason, signal.metadata
-                )
+            signal_results: dict[str, SignalResult] = {}
+            for strategy_name in strategy_names:
+                strategy = get_signal_strategy(strategy_name)
+                signal_results[strategy_name] = strategy.evaluate(df, ticker, params)
+
+            if len(signal_results) == 1:
+                signal = next(iter(signal_results.values()))
+                if not dry_run:
+                    store.record_signal(
+                        run_id, ticker, signal.action, signal.reason, signal.metadata
+                    )
+            else:
+                if not dry_run:
+                    for strategy_name, result in signal_results.items():
+                        store.record_signal(
+                            run_id,
+                            ticker,
+                            result.action,
+                            f"[{strategy_name}] {result.reason}",
+                            result.metadata,
+                        )
+                signal_mode = settings.defaults.get("signal_mode", "consensus")
+                signal = combine_signals(signal_results, mode=signal_mode)
+                if not dry_run:
+                    store.record_signal(
+                        run_id,
+                        ticker,
+                        signal.action,
+                        f"[combined:{signal_mode}] {signal.reason}",
+                        signal.metadata,
+                    )
 
             current_price = prices[ticker]
             decision = decide(

@@ -23,6 +23,7 @@ class PositionEntry:
     ticker: str
     enabled: bool = True
     strategy: str | None = None
+    strategies: list[str] | None = None
     ma_short: int | None = None
     ma_long: int | None = None
     stop_loss_pct: float | None = None
@@ -36,6 +37,19 @@ class PortfolioSettings:
     positions: list[PositionEntry]
     schedule: dict[str, Any] = field(default_factory=dict)
     risk: RiskConfig = field(default_factory=RiskConfig)
+
+
+def _coerce_strategy_list(raw: Any, where: str) -> list[str] | None:
+    """Reject the common YAML typo `strategies: ml_movement` (a bare string) instead
+    of silently exploding into per-character strategy names via list("ml_movement")."""
+    if raw is None:
+        return None
+    if isinstance(raw, str) or not isinstance(raw, list):
+        raise ValueError(
+            f"{where} must be a list of strategy names, e.g. [ma_crossover, ml_movement] "
+            f"(got {raw!r})"
+        )
+    return list(raw)
 
 
 def load_portfolio_config(path: str | Path) -> PortfolioSettings:
@@ -69,11 +83,15 @@ def load_portfolio_config(path: str | Path) -> PortfolioSettings:
             continue
         if not isinstance(entry, dict) or "ticker" not in entry:
             raise ValueError(f"Invalid position entry: {entry}")
+        ticker = str(entry["ticker"]).upper()
         positions.append(
             PositionEntry(
-                ticker=str(entry["ticker"]).upper(),
+                ticker=ticker,
                 enabled=bool(entry.get("enabled", True)),
                 strategy=entry.get("strategy"),
+                strategies=_coerce_strategy_list(
+                    entry.get("strategies"), f"positions[{ticker}].strategies"
+                ),
                 ma_short=entry.get("ma_short"),
                 ma_long=entry.get("ma_long"),
                 stop_loss_pct=entry.get("stop_loss_pct"),
@@ -94,10 +112,16 @@ def load_portfolio_config(path: str | Path) -> PortfolioSettings:
         liquidate_on_trip=liquidate_on_trip,
     )
 
+    defaults = dict(raw.get("defaults", {}))
+    if "strategies" in defaults:
+        defaults["strategies"] = _coerce_strategy_list(
+            defaults["strategies"], "defaults.strategies"
+        )
+
     return PortfolioSettings(
         portfolio=portfolio,
         costs=dict(raw.get("costs", {})),
-        defaults=dict(raw.get("defaults", {})),
+        defaults=defaults,
         positions=positions,
         schedule=dict(raw.get("schedule", {})),
         risk=risk,
@@ -117,10 +141,17 @@ def strategy_params_for_position(
     return params
 
 
-def strategy_name_for_position(
+def strategy_names_for_position(
     settings: PortfolioSettings, position: PositionEntry
-) -> str:
-    return position.strategy or settings.defaults.get("strategy", "ma_crossover")
+) -> list[str]:
+    if position.strategies:
+        return list(position.strategies)
+    if position.strategy:
+        return [position.strategy]
+    default_strategies = settings.defaults.get("strategies")
+    if default_strategies:
+        return list(default_strategies)
+    return [settings.defaults.get("strategy", "ma_crossover")]
 
 
 def stop_loss_for_position(

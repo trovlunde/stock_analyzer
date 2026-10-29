@@ -12,7 +12,7 @@ def _price_series(values: list[float]) -> pd.DataFrame:
 def test_insufficient_data_returns_hold():
     strategy = MaCrossoverStrategy()
     df = _price_series([100.0] * 10)
-    result = strategy.evaluate(df, {"ma_short": 20, "ma_long": 50})
+    result = strategy.evaluate(df, "AAPL", {"ma_short": 20, "ma_long": 50})
     assert result.action == "HOLD"
     assert "insufficient data" in result.reason
 
@@ -22,6 +22,6 @@ def test_evaluate_returns_valid_action():
     prices = 100 + np.cumsum(rng.normal(0, 1, 120))
     strategy = MaCrossoverStrategy()
     result = strategy.evaluate(
-        _price_series(prices.tolist()), {"ma_short": 5, "ma_long": 20}
+        _price_series(prices.tolist()), "AAPL", {"ma_short": 5, "ma_long": 20}
     )
     assert result.action in {"BUY", "SELL", "HOLD"}
