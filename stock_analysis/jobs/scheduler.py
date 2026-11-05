@@ -23,6 +23,10 @@ DEFAULT_CONFIG = "config/portfolio.yaml"
 DEFAULT_POLL_SECONDS = 60
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 20.0
 HEARTBEAT_PATH = Path("data/heartbeat")
+# Beyond this, a missed slot (host asleep, container down) is skipped rather than
+# run late — 16:05 ET + 2h still falls on the same UTC date run_daily uses as the
+# session date, and well before the next session's open.
+MAX_RUN_LATENESS = timedelta(hours=2)
 
 
 def next_run_at(now: datetime, run_after_close: bool) -> datetime:
@@ -91,6 +95,16 @@ def run_forever(
 
         if stop_event.is_set():
             break
+
+        lateness = datetime.now(tz) - target
+        if lateness > MAX_RUN_LATENESS:
+            message = (
+                f"Woke {lateness} after the {target.isoformat()} slot "
+                f"(limit {MAX_RUN_LATENESS}) — skipping it rather than trading late"
+            )
+            logger.error(message)
+            notifier.send_error_alert("Scheduled trading run skipped", message)
+            continue
 
         _write_heartbeat(heartbeat_path)
         try:

@@ -1,5 +1,5 @@
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
 
@@ -137,6 +137,36 @@ def test_run_forever_swallows_run_daily_exception(monkeypatch, tmp_path):
         str(config_path), heartbeat_path=tmp_path / "heartbeat", stop_event=stop_event
     )
 
+    mock_notifier_instance.send_error_alert.assert_called_once()
+
+
+def test_run_forever_skips_and_alerts_on_a_slot_missed_by_too_much(monkeypatch, tmp_path):
+    """E.g. the host slept through 16:05 and woke the next morning — running then
+    would trade on a stale session (and a session date already rolled over in UTC)."""
+    monkeypatch.setattr(
+        scheduler, "load_portfolio_config", lambda path: MagicMock(schedule={})
+    )
+    stop_event = threading.Event()
+    targets = iter(["missed", "future"])
+
+    def _next_run_at(now, run_after_close):
+        if next(targets) == "missed":
+            return now - scheduler.MAX_RUN_LATENESS - timedelta(minutes=1)
+        stop_event.set()
+        return now + timedelta(days=1)
+
+    monkeypatch.setattr(scheduler, "next_run_at", _next_run_at)
+    mock_run_daily = MagicMock()
+    mock_notifier_instance = MagicMock()
+    monkeypatch.setattr(scheduler, "run_daily", mock_run_daily)
+    monkeypatch.setattr(scheduler, "EmailNotifier", lambda config: mock_notifier_instance)
+    monkeypatch.setattr(scheduler, "load_smtp_config_from_env", lambda: None)
+
+    scheduler.run_forever(
+        "unused.yaml", heartbeat_path=tmp_path / "heartbeat", stop_event=stop_event
+    )
+
+    mock_run_daily.assert_not_called()
     mock_notifier_instance.send_error_alert.assert_called_once()
 
 

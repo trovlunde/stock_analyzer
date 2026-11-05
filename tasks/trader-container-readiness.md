@@ -45,8 +45,10 @@ The Dockerfile's `HEALTHCHECK` curls :5000; only overridden for `trader` in comp
 
 - [x] Removed the Dockerfile `HEALTHCHECK`; both services already define theirs in compose
 
-## 6. Late-wake cut-off in scheduler (nice to have)
+## 6. Late-wake cut-off in scheduler — done
 
 If the host sleeps past 16:05 ET, `run_forever` fires as soon as it wakes, at any hour.
 
-- [ ] Skip (and alert) a missed slot if waking after the next session's open
+- [x] Skip (and alert) a slot missed by more than `MAX_RUN_LATENESS` (2h). Tighter than
+  "before next open" because `run_daily` derives the session date from UTC, which rolls
+  over at 19:00/20:00 ET
