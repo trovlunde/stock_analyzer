@@ -35,9 +35,9 @@ MSFT/GOOGL have none.
 - [x] Per-ticker "no usable model" reason already lands in recorded signals and the daily report — no separate alert added
 - Manual: retrain AAPL/MSFT/GOOGL via `POST /api/train/<ticker>` (existing AAPL models now HOLD)
 
-## 4. Pin uv image in Dockerfile
+## 4. Pin uv image in Dockerfile — done
 
-- [ ] Replace `ghcr.io/astral-sh/uv:latest` with a pinned version
+- [x] Replace `ghcr.io/astral-sh/uv:latest` with `0.11.13` (matches local dev uv)
 
 ## 5. Trader-appropriate healthcheck
 
