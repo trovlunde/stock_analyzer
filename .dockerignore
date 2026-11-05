@@ -1,0 +1,31 @@
+# Secrets — supplied at runtime via compose env_file, never baked into a layer
+.env
+.env.*
+
+# Host virtualenvs/caches (a Windows .venv would clobber the image's /app/.venv)
+.venv/
+venv/
+.cache/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+
+# Runtime state — mounted as volumes by docker-compose.yml
+data/
+models/
+finviz_recs/
+screenshots/
+*.csv
+*.parquet
+
+# VCS, CI and agent tooling
+.git/
+.github/
+.claude/
+.agents/
+scripts/ralph/
+
+# Not needed at runtime
+tests/
+docs/
+tasks/
