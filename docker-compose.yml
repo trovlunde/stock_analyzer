@@ -6,7 +6,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      # Loopback only — the API has no auth, and Docker's port publishing bypasses
+      # host firewalls like ufw. Reach it via Tailscale or `ssh -L 5000:localhost:5000`.
+      - "127.0.0.1:5000:5000"
     volumes:
       - ./models:/app/models
       - ./data:/app/data
