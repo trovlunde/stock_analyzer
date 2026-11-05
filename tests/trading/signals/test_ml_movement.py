@@ -3,7 +3,17 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 
+from stock_analysis.ai.helpers import get_features
 from stock_analysis.trading.signals.ml_movement import MlMovementStrategy
+
+
+def _model_manager_with_models(metadata=None) -> MagicMock:
+    model_manager = MagicMock()
+    model_manager.load_model.side_effect = [MagicMock(), MagicMock()]
+    model_manager.get_model_metadata.return_value = (
+        {"feature_columns": list(get_features(False))} if metadata is None else metadata
+    )
+    return model_manager
 
 
 def _synthetic_ohlcv(n: int = 120) -> pd.DataFrame:
@@ -47,10 +57,35 @@ def test_hold_when_model_missing_but_scaler_present():
     assert "model missing" in result.reason
 
 
+def test_hold_when_model_predates_feature_tracking():
+    """Legacy models saved without feature_columns can't be proven to match today's
+    feature pipeline — a scaler fitted on a bare array with the same column count
+    would otherwise mis-predict silently."""
+    strategy = MlMovementStrategy(model_manager=_model_manager_with_models(metadata={}))
+
+    with patch("stock_analysis.trading.signals.ml_movement.predict_latest") as predict:
+        result = strategy.evaluate(_synthetic_ohlcv(), "AAPL", {})
+
+    assert result.action == "HOLD"
+    assert "retrain" in result.reason
+    predict.assert_not_called()
+
+
+def test_hold_when_model_trained_on_different_features():
+    strategy = MlMovementStrategy(
+        model_manager=_model_manager_with_models(metadata={"feature_columns": ["old_feature"]})
+    )
+
+    with patch("stock_analysis.trading.signals.ml_movement.predict_latest") as predict:
+        result = strategy.evaluate(_synthetic_ohlcv(), "AAPL", {})
+
+    assert result.action == "HOLD"
+    assert "different feature set" in result.reason
+    predict.assert_not_called()
+
+
 def _strategy_with_prediction(label: str, confidence: float) -> MlMovementStrategy:
-    model_manager = MagicMock()
-    model_manager.load_model.side_effect = [MagicMock(), MagicMock()]
-    strategy = MlMovementStrategy(model_manager=model_manager)
+    strategy = MlMovementStrategy(model_manager=_model_manager_with_models())
     patcher = patch(
         "stock_analysis.trading.signals.ml_movement.predict_latest",
         return_value=(label, confidence),
@@ -101,9 +136,7 @@ def test_hold_when_confidence_below_threshold():
 
 
 def test_hold_when_prediction_raises_value_error():
-    model_manager = MagicMock()
-    model_manager.load_model.side_effect = [MagicMock(), MagicMock()]
-    strategy = MlMovementStrategy(model_manager=model_manager)
+    strategy = MlMovementStrategy(model_manager=_model_manager_with_models())
 
     with patch(
         "stock_analysis.trading.signals.ml_movement.predict_latest",

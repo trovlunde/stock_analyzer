@@ -16,7 +16,7 @@ from stock_analysis.ai.technical_analysis.movement_classification import (
 from stock_analysis.ai.technical_analysis.prepare_classification_data import prepare_classification_data
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
-from stock_analysis.ai.helpers import get_index_data
+from stock_analysis.ai.helpers import get_features, get_index_data
 
 # Configure logging to output to console
 logging.basicConfig(
@@ -284,6 +284,8 @@ def train_movement_classifier(ticker):
             'ticker': ticker,
             'threshold': threshold,
             'use_extra_features': use_extra_features,
+            # MlMovementStrategy refuses models whose features don't match its own
+            'feature_columns': list(get_features(use_extra_features)),
             'period': period,
             'training_date': pd.Timestamp.now().isoformat()
         }

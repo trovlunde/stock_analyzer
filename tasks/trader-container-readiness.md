@@ -25,13 +25,15 @@ manual clear and resets the 20-clean-run live-gate streak.
 - [x] Real crashes (process killed mid-run) still trip the switch via orphan detection
 - [x] Tests in `tests/jobs/test_daily.py`
 
-## 3. Handle stale / missing ML models
+## 3. Handle stale / missing ML models — done
 
 Only AAPL models exist (Feb 2025), predating the `pandas-ta` feature migration.
 MSFT/GOOGL have none.
 
-- [ ] Detect feature-set mismatch between a saved model and current `predict_latest` features → HOLD with a clear reason (not silent mis-prediction)
-- [ ] Log/alert once per run which configured tickers have no usable model
+- [x] `/api/train` records `feature_columns` in model metadata
+- [x] `MlMovementStrategy` HOLDs with a "retrain it" reason when metadata lacks `feature_columns` (legacy models) or it differs from current features
+- [x] Per-ticker "no usable model" reason already lands in recorded signals and the daily report — no separate alert added
+- Manual: retrain AAPL/MSFT/GOOGL via `POST /api/train/<ticker>` (existing AAPL models now HOLD)
 
 ## 4. Pin uv image in Dockerfile
 

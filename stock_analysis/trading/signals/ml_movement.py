@@ -1,5 +1,6 @@
 import pandas as pd
 
+from stock_analysis.ai.helpers import get_features
 from stock_analysis.ai.model_manager import ModelManager
 from stock_analysis.ai.technical_analysis.movement_inference import predict_latest
 
@@ -30,6 +31,24 @@ class MlMovementStrategy:
             return SignalResult(
                 action="HOLD",
                 reason=f"ML {missing} missing for {ticker} (partially-saved model?)",
+                metadata={},
+            )
+
+        # A scaler fitted on a bare array with the same column count would accept
+        # today's features and mis-predict silently, so require the training-time
+        # feature list to match exactly.
+        model_metadata = self.model_manager.get_model_metadata(model_name, "daily") or {}
+        trained_features = model_metadata.get("feature_columns")
+        if trained_features is None:
+            return SignalResult(
+                action="HOLD",
+                reason=f"ML model for {ticker} predates feature tracking — retrain it",
+                metadata={},
+            )
+        if list(trained_features) != list(get_features(use_extra_features)):
+            return SignalResult(
+                action="HOLD",
+                reason=f"ML model for {ticker} was trained on a different feature set — retrain it",
                 metadata={},
             )
 
