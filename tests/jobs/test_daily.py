@@ -442,6 +442,77 @@ def test_run_daily_does_not_flag_a_recently_started_run_as_orphaned(
     notifier.send_error_alert.assert_not_called()
 
 
+class _RaisingProvider(_FakeProvider):
+    def get_history(self, ticker, period="1y", start=None, end=None):
+        raise ConnectionError("yahoo down")
+
+
+def _run_statuses(engine) -> list[str]:
+    with engine.connect() as conn:
+        return [row[0] for row in conn.execute(select(paper_runs.c.status).order_by(paper_runs.c.id))]
+
+
+def test_run_daily_marks_run_failed_on_exception_and_reraises(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = write_config(strategy="buy_test")
+
+    with pytest.raises(ConnectionError):
+        daily.run_daily(
+            str(config_path), provider=_RaisingProvider({}), engine=engine, notifier=MagicMock()
+        )
+
+    assert _run_statuses(engine) == ["failed"]
+
+
+def test_run_daily_failed_run_does_not_trip_kill_switch_on_next_run(
+    write_config, engine, tmp_path, monkeypatch
+):
+    """A handled failure (e.g. a data-provider outage) is not a crash — the next run
+    must not treat it as an unclean shutdown."""
+    monkeypatch.chdir(tmp_path)
+    config_path = write_config(strategy="buy_test")
+    with pytest.raises(ConnectionError):
+        daily.run_daily(
+            str(config_path), provider=_RaisingProvider({}), engine=engine, notifier=MagicMock()
+        )
+    store = PortfolioStore(engine)
+    state = store.get_portfolio_by_name("test-portfolio")
+    with engine.connect() as conn:
+        failed_run_id = conn.execute(select(paper_runs.c.id)).scalar_one()
+    _backdate_run_started_at(engine, failed_run_id, hours_ago=7)
+
+    notifier = MagicMock()
+    result = daily.run_daily(
+        str(config_path), provider=_FakeProvider({"AAPL": _ohlcv()}), engine=engine, notifier=notifier
+    )
+
+    assert result == 0
+    tripped_at, _reason = store.get_kill_switch_state(state.id)
+    assert tripped_at is None
+    notifier.send_error_alert.assert_not_called()
+    assert _run_statuses(engine) == ["failed", "completed"]
+
+
+def test_run_daily_failed_run_breaks_clean_run_streak(write_config, engine, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    config_path = write_config(strategy="hold_test")
+    daily.run_daily(
+        str(config_path), provider=_FakeProvider({"AAPL": _ohlcv()}), engine=engine, notifier=MagicMock()
+    )
+    store = PortfolioStore(engine)
+    state = store.get_portfolio_by_name("test-portfolio")
+    assert store.count_consecutive_completed_runs(state.id) == 1
+
+    with pytest.raises(ConnectionError):
+        daily.run_daily(
+            str(config_path), provider=_RaisingProvider({}), engine=engine, notifier=MagicMock()
+        )
+
+    assert store.count_consecutive_completed_runs(state.id) == 0
+
+
 def _signals_for_run(engine, run_id: int) -> list[tuple[str, str]]:
     with engine.connect() as conn:
         rows = conn.execute(

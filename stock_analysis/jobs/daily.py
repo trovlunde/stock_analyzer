@@ -1,7 +1,7 @@
 import argparse
 import logging
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -12,6 +12,7 @@ from stock_analysis.notifications import EmailNotifier, load_smtp_config_from_en
 from stock_analysis.storage import get_db_engine
 from stock_analysis.storage.portfolio_store import PortfolioState, PortfolioStore
 from stock_analysis.trading.config import (
+    PortfolioSettings,
     load_portfolio_config,
     stop_loss_for_position,
     strategy_names_for_position,
@@ -186,6 +187,43 @@ def run_daily(
                 store.abandon_run(orphaned_id, "orphaned by process restart")
         run_id = store.start_run(state.id, dry_run=False)
 
+    try:
+        return _run_session(
+            settings,
+            store,
+            state,
+            run_id,
+            today,
+            dry_run,
+            unclean_shutdown_reason,
+            provider=provider,
+            notifier=notifier,
+            broker=broker,
+        )
+    except Exception as exc:
+        # A handled failure (data outage, broker API error, LiveTradingBlocked) isn't
+        # a crash — finish the row as "failed" so the next run's orphan detection
+        # doesn't mistake it for an unclean shutdown and trip the kill switch.
+        # "failed" still breaks the live gate's consecutive-clean-run streak.
+        if not dry_run and run_id in store.get_running_run_ids(state.id):
+            store.finish_run(run_id, "failed", {"error": repr(exc)})
+        raise
+
+
+def _run_session(
+    settings: PortfolioSettings,
+    store: PortfolioStore,
+    state: PortfolioState,
+    run_id: int,
+    today: date,
+    dry_run: bool,
+    unclean_shutdown_reason: str | None,
+    *,
+    provider: MarketDataProvider,
+    notifier: EmailNotifier | None,
+    broker: Broker | None,
+) -> int:
+    portfolio_cfg = settings.portfolio
     cost_model = build_cost_model(settings.costs)
     broker = broker or load_broker_from_env(
         store, cost_model, settings=settings, portfolio_id=state.id
