@@ -39,11 +39,11 @@ MSFT/GOOGL have none.
 
 - [x] Replace `ghcr.io/astral-sh/uv:latest` with `0.11.13` (matches local dev uv)
 
-## 5. Trader-appropriate healthcheck
+## 5. Trader-appropriate healthcheck — done
 
 The Dockerfile's `HEALTHCHECK` curls :5000; only overridden for `trader` in compose.
 
-- [ ] Move the web healthcheck to compose (or make it service-agnostic) so `trader` run outside compose isn't marked unhealthy
+- [x] Removed the Dockerfile `HEALTHCHECK`; both services already define theirs in compose
 
 ## 6. Late-wake cut-off in scheduler (nice to have)
 

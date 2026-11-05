@@ -29,7 +29,7 @@ EXPOSE 5000
 
 VOLUME ["/app/models"]
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+# Healthchecks live per service in docker-compose.yml — the image runs both the
+# web app and the trader, so a baked-in HTTP check would fail for the trader.
 
 CMD ["uv", "run", "gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120", "stock_analysis.web.app:app"]
