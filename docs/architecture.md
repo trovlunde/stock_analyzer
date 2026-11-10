@@ -12,6 +12,7 @@ Single-repo modular monolith: one Python package (`stock_analysis/`) with severa
 | Trader scheduler | `stock-analysis-trader` (`jobs.scheduler`) | Long-running; triggers the daily job once per NYSE trading day (the `trader` compose service) |
 | Risk CLI | `stock-analysis-risk` (`cli.risk`) | Inspect/clear the kill switch, reconcile local state against the broker |
 | ML evaluation | `stock-analysis-evaluate` CLI | Temporal holdout classifier comparison |
+| Strategy backtest | `stock-analysis-evaluate backtest` (`cli.backtest`) | Replays a portfolio config over history with the daily job's rules; report against buy-and-hold |
 | Research scripts | `stock_analysis.ai.*` modules | Notebooks-style ML and valuation experiments |
 
 ## Layer diagram
@@ -57,6 +58,7 @@ flowchart TB
 - **`cli/risk.py`** — operator CLI. Uses `storage` and `trading` only.
 - **`web/app.py`** — serves ML endpoints. Imports `ai/` only; no diagnostics by default.
 - **`diagnostics/`** — opt-in statsmodels helpers. Never imported by `jobs/daily`, `web/app`, or paper-trading modules. Researchers and `cli/evaluate_models` may call it explicitly.
+- **`backtest/`** — historical replay of the trading path. Calls the same `trading/` functions as the daily job (`get_signal_strategy`, `combine_signals`, `decide`, cost models, `check_kill_switch`) with in-memory state; no database, no broker. Uses `ai/` for walk-forward model training. Never imported by `jobs/` or `trading/`.
 - **`research/`** — interactive CLI and exploratory scripts (sector analysis, stock finder, portfolio plots). May import `market_data` and `storage`; not used by the daily job.
 
 ## Package layout
@@ -68,7 +70,8 @@ flowchart TB
 | `stock_analysis/trading/` | Signals, `Broker` abstraction (paper simulator, Alpaca), kill switch, live-trading gate, daily report |
 | `stock_analysis/jobs/` | Daily job (`daily.py`) and its scheduler (`scheduler.py`) |
 | `stock_analysis/notifications/` | Email alerts (daily summary, failures, kill-switch trips) |
-| `stock_analysis/cli/` | Non-interactive CLIs (`evaluate_models`, `risk`) |
+| `stock_analysis/backtest/` | Backtest engine, performance metrics, buy-and-hold benchmarks, walk-forward ML strategy, run log |
+| `stock_analysis/cli/` | Non-interactive CLIs (`evaluate_models`, `backtest`, `risk`) |
 | `stock_analysis/web/` | Flask app and templates |
 | `stock_analysis/research/` | Interactive CLI and exploratory analysis modules |
 | `stock_analysis/ai/` | ML models, classifiers, valuation |

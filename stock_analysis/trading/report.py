@@ -17,6 +17,7 @@ def write_daily_report(
     dry_run: bool,
     skipped: str | None = None,
     portfolio_metrics: dict | None = None,
+    benchmark_comparison: dict | None = None,
 ) -> Path:
     report_dir.mkdir(parents=True, exist_ok=True)
     path = report_dir / f"{session_date.isoformat()}.md"
@@ -77,6 +78,21 @@ def write_daily_report(
             else:
                 lines.append("- Rolling Sharpe (latest): N/A")
         lines.append("")
+
+    if benchmark_comparison is not None:
+        benchmark = benchmark_comparison["benchmark"]
+        lines.extend(
+            [
+                "",
+                f"## Against buy & hold ({benchmark})",
+                "",
+                f"- Since: {benchmark_comparison['since']}",
+                f"- Portfolio: {benchmark_comparison['portfolio_return']:+.2%}",
+                f"- {benchmark}: {benchmark_comparison['benchmark_return']:+.2%}",
+                f"- Difference: {benchmark_comparison['excess_return'] * 100:+.2f} percentage points",
+                "",
+            ]
+        )
 
     path.write_text("\n".join(lines), encoding="utf-8")
     return path

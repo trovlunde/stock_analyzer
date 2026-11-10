@@ -392,8 +392,15 @@ def run_movement_backtests(
     eval_weekly,
     eval_stock,
     backtest_label,
+    leveraged_simulation=False,
 ):
-    """Run trading backtests only on out-of-sample evaluation data."""
+    """Build the models' out-of-sample signals on the evaluation data.
+
+    The 10x mini-future profit simulation is opt-in (``leveraged_simulation=True``):
+    it enters at the signal day's close and uses its own cost logic, so its numbers
+    are not comparable with paper trading. ``stock-analysis-evaluate backtest`` is
+    the default way to judge a strategy.
+    """
     print(f"\n{'='*60}")
     print(f"Out-of-sample trading backtest: {backtest_label}")
     print(
@@ -435,27 +442,25 @@ def run_movement_backtests(
         plot=False,
     )
 
-    analyze_trading_strategies(
-        eval_stock,
-        daily_simulation,
-        initial_investment=10000,
-        leverage=10,
-        signal_type="Daily Model (OOS)",
-    )
-    analyze_trading_strategies(
-        eval_stock,
-        weekly_simulation,
-        initial_investment=10000,
-        leverage=10,
-        signal_type="Weekly Model (OOS)",
-    )
-    analyze_trading_strategies(
-        eval_stock,
-        combined_signals,
-        initial_investment=10000,
-        leverage=10,
-        signal_type="Combined Model (OOS)",
-    )
+    if leveraged_simulation:
+        for signals, signal_type in [
+            (daily_simulation, "Daily Model (OOS)"),
+            (weekly_simulation, "Weekly Model (OOS)"),
+            (combined_signals, "Combined Model (OOS)"),
+        ]:
+            analyze_trading_strategies(
+                eval_stock,
+                signals,
+                initial_investment=10000,
+                leverage=10,
+                signal_type=signal_type,
+            )
+    else:
+        print(
+            "\nLeveraged mini-future simulation skipped (opt-in). For returns net of "
+            "costs against buy-and-hold, run: stock-analysis-evaluate backtest "
+            "--strategies ml_walk_forward"
+        )
 
     return {
         'daily_simulation': daily_simulation,
@@ -2130,6 +2135,14 @@ def _prediction_accuracy(predictions, actuals):
     return sum(pred == actual for pred, actual in pairs) / len(pairs)
 
 
+def _majority_class_accuracy(actuals):
+    """Accuracy of always predicting the most common class — the bar a model must clear."""
+    known = [actual for actual in actuals if actual is not None]
+    if not known:
+        return None
+    return max(known.count(label) for label in set(known)) / len(known)
+
+
 def compute_holdout_metrics(
     daily_holdout,
     daily_model,
@@ -2192,7 +2205,9 @@ def compute_holdout_metrics(
     return {
         'holdout_samples': holdout_samples,
         'daily_accuracy': _prediction_accuracy(daily_preds, actual_daily),
+        'daily_majority_baseline': _majority_class_accuracy(actual_daily),
         'weekly_accuracy': _prediction_accuracy(weekly_preds, actual_weekly),
+        'weekly_majority_baseline': _majority_class_accuracy(actual_weekly),
         'combined_accuracy': _prediction_accuracy(combined_preds, actual_combined),
         'combined_signal_rate': (
             combined_signal_count / len(combined_preds) if combined_preds else None
@@ -2356,13 +2371,15 @@ def compare_variants(
 
         display_cols = [
             'variant', 'threshold', 'extra_features', 'n_estimators', 'max_depth',
-            'daily_accuracy', 'weekly_accuracy', 'combined_accuracy',
+            'daily_accuracy', 'daily_majority_baseline',
+            'weekly_accuracy', 'weekly_majority_baseline', 'combined_accuracy',
             'combined_signal_rate', 'combined_positive_avg_return',
             'combined_negative_avg_return', 'holdout_samples',
         ]
         printable = results[display_cols].copy()
         for col in [
-            'daily_accuracy', 'weekly_accuracy', 'combined_accuracy',
+            'daily_accuracy', 'daily_majority_baseline',
+            'weekly_accuracy', 'weekly_majority_baseline', 'combined_accuracy',
             'combined_signal_rate', 'combined_positive_avg_return',
             'combined_negative_avg_return',
         ]:
@@ -2383,7 +2400,9 @@ def compare_variants(
             f"{test_metrics['holdout_samples']} days, not used for selection):"
         )
         for key in [
-            'daily_accuracy', 'weekly_accuracy', 'combined_accuracy',
+            'daily_accuracy', 'daily_majority_baseline',
+            'weekly_accuracy', 'weekly_majority_baseline',
+            'combined_accuracy',
             'combined_signal_rate', 'combined_positive_avg_return',
             'combined_negative_avg_return',
         ]:

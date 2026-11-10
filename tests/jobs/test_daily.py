@@ -829,3 +829,56 @@ def test_run_daily_paper_broker_unaffected_by_live_notional_env_vars(
     store = PortfolioStore(engine)
     state = store.get_portfolio_by_name("test-portfolio")
     assert len(store.get_pending_orders(state.id)) == 1
+
+
+def _seed_completed_run(store, state, session_date, value):
+    run_id = store.start_run(state.id, dry_run=False)
+    store.finish_run(
+        run_id, "completed", {"session_date": session_date, "portfolio_value": value}
+    )
+
+
+def test_run_daily_report_compares_portfolio_with_benchmark(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = write_config(strategy="hold_test")
+    store = PortfolioStore(engine)
+    state = store.get_or_create_portfolio("test-portfolio", 10_000)
+    _seed_completed_run(store, state, "2024-01-01", 8_000)
+    spy = _ohlcv()
+    spy["Close"] = [100.0, 101.0, 102.0, 103.0, 110.0]
+    provider = _FakeProvider({"AAPL": _ohlcv(), "SPY": spy})
+
+    assert daily.run_daily(config_path, provider=provider, engine=engine) == 0
+
+    report = next((tmp_path / "data" / "reports").glob("*.md")).read_text(encoding="utf-8")
+    assert "## Against buy & hold (SPY)" in report
+    assert "- Since: 2024-01-01" in report
+    assert "- Portfolio: +25.00%" in report  # 8,000 -> 10,000 cash
+    assert "- SPY: +10.00%" in report
+    assert "- Difference: +15.00 percentage points" in report
+
+
+def test_run_daily_benchmark_failure_does_not_fail_the_run(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = write_config(strategy="hold_test")
+    store = PortfolioStore(engine)
+    state = store.get_or_create_portfolio("test-portfolio", 10_000)
+    _seed_completed_run(store, state, "2024-01-01", 8_000)
+
+    class _BenchmarkOutage(_FakeProvider):
+        def get_history(self, ticker, period="1y", start=None, end=None):
+            if ticker == "SPY":
+                raise RuntimeError("benchmark feed down")
+            return super().get_history(ticker, period, start, end)
+
+    provider = _BenchmarkOutage({"AAPL": _ohlcv()})
+
+    assert daily.run_daily(config_path, provider=provider, engine=engine) == 0
+
+    report = next((tmp_path / "data" / "reports").glob("*.md")).read_text(encoding="utf-8")
+    assert "Against buy & hold" not in report
+    assert _run_statuses(engine) == ["completed", "completed"]

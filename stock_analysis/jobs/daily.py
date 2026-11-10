@@ -30,7 +30,10 @@ from stock_analysis.trading.market_calendar import (
     is_trading_day,
     next_trading_day_after,
 )
-from stock_analysis.trading.portfolio_metrics import compute_portfolio_metrics
+from stock_analysis.trading.portfolio_metrics import (
+    benchmark_relative_return,
+    compute_portfolio_metrics,
+)
 from stock_analysis.trading.report import write_daily_report
 from stock_analysis.trading.risk import check_kill_switch
 from stock_analysis.trading.signals import combine_signals, get_signal_strategy
@@ -44,6 +47,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = "config/portfolio.yaml"
 DATA_PERIOD = "2y"
+# Buy-and-hold yardstick in the daily report; override with `defaults.benchmark`
+# in the portfolio config (empty disables it).
+DEFAULT_BENCHMARK = "SPY"
 # A run still "running" after this long is treated as crashed, not just slow or
 # legitimately still in flight (e.g. an overlapping deploy) — this run takes seconds
 # to minutes normally, so hours of margin avoids false-positive trips.
@@ -64,6 +70,29 @@ def _fetch_price_data(
             df.index = df.index.tz_localize(None)
         data[ticker] = df
     return data
+
+
+def _benchmark_comparison(
+    equity_curve: list[tuple[str, float]],
+    benchmark: str | None,
+    provider: MarketDataProvider,
+) -> dict | None:
+    """Portfolio return against buy-and-hold of `benchmark` since the first recorded
+    session. Reporting only — any failure is logged and the run carries on."""
+    if not benchmark or len(equity_curve) < 2:
+        return None
+    try:
+        history = provider.get_history(benchmark, start=equity_curve[0][0])
+        if history is None or history.empty:
+            logger.warning("No benchmark data for %s", benchmark)
+            return None
+        close = history["Close"]
+        if close.index.tz is not None:
+            close = close.tz_localize(None)
+        return benchmark_relative_return(equity_curve, close, benchmark)
+    except Exception:
+        logger.exception("Benchmark comparison against %s failed", benchmark)
+        return None
 
 
 def _session_date(now: datetime | None = None) -> datetime.date:
@@ -434,6 +463,7 @@ def _run_session(
         store.finish_run(run_id, "completed", summary)
 
     portfolio_metrics = None
+    benchmark_comparison = None
     if not dry_run:
         today_str = today.isoformat()
         if not equity_curve_history or equity_curve_history[-1][0] != today_str:
@@ -442,6 +472,11 @@ def _run_session(
             values = pd.Series([v for _, v in equity_curve_history], dtype=float)
             returns = values.pct_change().dropna()
             portfolio_metrics = compute_portfolio_metrics(returns)
+        benchmark_comparison = _benchmark_comparison(
+            equity_curve_history,
+            settings.defaults.get("benchmark", DEFAULT_BENCHMARK),
+            provider,
+        )
 
     report_path = write_daily_report(
         Path("data/reports"),
@@ -453,6 +488,7 @@ def _run_session(
         decisions=decisions,
         dry_run=dry_run,
         portfolio_metrics=portfolio_metrics,
+        benchmark_comparison=benchmark_comparison,
     )
 
     logger.info(

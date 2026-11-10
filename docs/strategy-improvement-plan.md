@@ -87,12 +87,25 @@ Reading the numbers: weekly accuracy fell by about eight points once the label s
 
 The paper-trading loop already has the right shape (decide at close → fill at next open → costs). Reuse it instead of maintaining a second simulator.
 
-- [ ] `stock_analysis/backtest/` engine that replays history day by day through the existing `SignalStrategy.evaluate` → `combine_signals` → `decide` → `EquityCostModel` path with an in-memory portfolio state. Do not change the `DecisionResult` / `FillResult` contracts.
-- [ ] Standard report for every strategy: CAGR, volatility, Sharpe, Sortino, max drawdown, turnover, cost drag, exposure, hit rate — always next to buy-and-hold of the same universe and SPY.
-- [ ] Walk-forward mode for ML strategies (retrain every N months on an expanding or rolling window, predict only the following block).
-- [ ] Guard against over-fitting to the backtest: log every configuration tried; report deflated Sharpe ratio / probability of backtest overfitting when comparing many variants; block-bootstrap confidence intervals on Sharpe.
-- [ ] `stock-analysis-evaluate backtest --strategy … --universe …` CLI; retire the leveraged mini-future simulation as the default evaluation (keep it as an opt-in cost model).
-- [ ] Add benchmark-relative return to the daily paper report.
+- [x] `stock_analysis/backtest/` engine that replays history day by day through the existing `SignalStrategy.evaluate` → `combine_signals` → `decide` → `EquityCostModel` path with an in-memory portfolio state. Do not change the `DecisionResult` / `FillResult` contracts.
+- [x] Standard report for every strategy: CAGR, volatility, Sharpe, Sortino, max drawdown, turnover, cost drag, exposure, hit rate — always next to buy-and-hold of the same universe and SPY.
+- [x] Walk-forward mode for ML strategies (`ml_walk_forward`: retrain every N sessions on an expanding window, predict only the sessions that follow).
+- [x] Guard against over-fitting to the backtest: every configuration is logged to `data/backtests/runs.jsonl`; deflated Sharpe ratio once two or more configurations exist for the same universe and period; block-bootstrap interval on Sharpe and on the comparison with buy-and-hold. Probability of backtest overfitting is not implemented.
+- [x] `stock-analysis-evaluate backtest --strategies … --tickers …` CLI; the leveraged mini-future simulation is opt-in (`train --leveraged-sim`).
+- [x] Benchmark-relative return in the daily paper report (`defaults.benchmark`, SPY by default).
+- [x] Majority-class baseline next to classifier accuracy in `variants` output and in `compute_holdout_metrics`.
+
+**Phase 1 results — first baseline (2026-11-10).** AAPL, MSFT, GOOGL from `config/portfolio.yaml`, 2016-11-10 to 2026-11-09 (2512 sessions), $100,000, fills at next Open, costs from the config.
+
+| | MA crossover 20/50 | ML walk-forward (retrain every 63 sessions) | Buy & hold (universe) | Buy & hold (SPY) |
+|---|---:|---:|---:|---:|
+| CAGR | 4.00 % | 4.95 % | 26.84 % | 15.11 % |
+| Sharpe | 0.77 | 0.88 | 1.08 | 0.87 |
+| Max drawdown | −12.00 % | −9.55 % | −34.33 % | −33.72 % |
+| Cost drag (share of initial cash, whole period) | 1.12 % | 4.31 % | — | — |
+| Resamples where Sharpe beats universe buy & hold | 5 % | 8 % | — | — |
+
+Reading the numbers: neither strategy beats holding its own universe on risk-adjusted return, so by the success criterion in section 4 neither would be promoted today. Both are invested only about 20 % of the time on average (the ML run: 19.73 %), which explains the low return and the shallow drawdowns more than any timing skill does: position sizing is 10 % per ticker over three tickers, so most cash sits idle. That makes sizing and universe width (Phase 2) the first thing to fix before judging the signals themselves. The universe is three stocks picked with hindsight, so the buy-and-hold column is flattered; SPY is the fairer yardstick, and against it the strategies have a similar Sharpe at a third of the return. These two runs were made with `--no-log` and are not counted as trials.
 
 ### Phase 2 — Improve what we have
 

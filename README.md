@@ -97,9 +97,10 @@ uv run stock-analysis-evaluate compare --ticker ^GSPC --holdout-months 12 --clas
 # Run only sklearn ensembles (Random Forest, Voting Classifier, etc.)
 uv run stock-analysis-evaluate compare --ticker ^GSPC --holdout-months 12 --classifier "Random Forest" "Voting Classifier"
 
-# Train daily+weekly RandomForest with out-of-sample PnL backtest
+# Train daily+weekly RandomForest and score them on the holdout
 uv run stock-analysis-evaluate train --ticker ^GSPC --holdout-months 6 --extra-features
-# Without --holdout-months, backtests use the internal chronological 20% test split only
+# Without --holdout-months, evaluation uses the internal chronological 20% test split only
+# Add --leveraged-sim for the legacy 10x mini-future profit simulation (off by default)
 
 # Compare ensemble vs RSI vs MA strategies on temporal test fold
 uv run stock-analysis-evaluate strategies
@@ -136,6 +137,30 @@ curl -X POST http://localhost:5000/api/v1/train/%5EGSPC \
   -H "Content-Type: application/json" \
   -d '{"period": "10y", "holdout_months": 12, "use_extra_features": true}'
 ```
+
+### Strategy Backtest
+
+Replays a portfolio config over history with the same rules as the daily job: signals on each session's close, orders filled at the next session's Open, costs and sizing from the config. The report puts the strategy next to buy-and-hold of the same tickers and of SPY.
+
+```bash
+# Moving-average crossover on the config's watchlist, last 10 years
+uv run stock-analysis-evaluate backtest --strategies ma_crossover
+
+# ML model retrained every 63 sessions on past data only (slow: minutes per ticker-decade)
+uv run stock-analysis-evaluate backtest --strategies ml_walk_forward --retrain-every 63
+
+# Other tickers, a fixed window, report saved to a file
+uv run stock-analysis-evaluate backtest --strategies ma_crossover \
+  --tickers NVDA AMZN JPM --start 2018-01-01 --end 2024-12-31 --output data/backtests/ma.md
+```
+
+Reading the report:
+
+- **Strategy vs buy & hold** — CAGR, volatility, Sharpe, Sortino, max drawdown, Calmar; plus trades, hit rate, turnover, cost drag and average exposure for the strategy.
+- **Is it better than chance?** — a block-bootstrap interval for the Sharpe ratio and the share of resamples in which the strategy beats buy-and-hold.
+- **Configurations tried** — every run is recorded in `data/backtests/runs.jsonl`. Once several configurations have been tried on the same tickers and period, the report adds a deflated Sharpe ratio, which discounts the best result for the number of attempts. Use `--no-log` for runs that should not count.
+
+`ml_movement` (the saved model) is refused by default because the saved model was trained on the period being tested; use `ml_walk_forward` instead, or `--allow-in-sample-ml` to override.
 
 ### Using Python Interactively
 
@@ -219,7 +244,7 @@ uv run stock-analysis-risk clear --reason "why it is safe to resume"
 
 **Outputs:**
 - State: `data/stock_analysis.db` (`paper_*` tables)
-- Report: `data/reports/YYYY-MM-DD.md`
+- Report: `data/reports/YYYY-MM-DD.md` — includes the portfolio's return since its first session next to buy-and-hold of SPY (change the ticker with `defaults.benchmark` in the config; an empty value turns it off)
 
 **Add strategies later:** implement `SignalStrategy` in `stock_analysis/trading/signals/` and register in `registry.py`.
 

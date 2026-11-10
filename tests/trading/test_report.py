@@ -59,3 +59,25 @@ def test_write_daily_report_fills_signals_unchanged(tmp_path):
     content = path.read_text(encoding="utf-8")
     assert "## Fills" in content
     assert "## Signals & decisions" in content
+
+
+def test_write_daily_report_shows_return_against_benchmark(tmp_path):
+    comparison = {
+        "benchmark": "SPY",
+        "since": "2024-01-02",
+        "portfolio_return": 0.031,
+        "benchmark_return": 0.082,
+        "excess_return": -0.051,
+    }
+    path = write_daily_report(**_base_kwargs(tmp_path), benchmark_comparison=comparison)
+    content = path.read_text(encoding="utf-8")
+    assert "## Against buy & hold (SPY)" in content
+    assert "- Since: 2024-01-02" in content
+    assert "- Portfolio: +3.10%" in content
+    assert "- SPY: +8.20%" in content
+    assert "- Difference: -5.10 percentage points" in content
+
+
+def test_write_daily_report_without_benchmark_has_no_benchmark_section(tmp_path):
+    path = write_daily_report(**_base_kwargs(tmp_path))
+    assert "Against buy & hold" not in path.read_text(encoding="utf-8")

@@ -1,0 +1,72 @@
+"""Backtest report formatting and the log of every configuration tried."""
+
+import json
+from pathlib import Path
+
+DEFAULT_RUN_LOG = Path("data/backtests/runs.jsonl")
+
+_ROWS = [
+    ("Total return", "total_return", "pct"),
+    ("CAGR", "cagr", "pct"),
+    ("Volatility (ann.)", "volatility", "pct"),
+    ("Sharpe", "sharpe", "num"),
+    ("Sortino", "sortino", "num"),
+    ("Max drawdown", "max_drawdown", "pct"),
+    ("Calmar", "calmar", "num"),
+    ("Trades", "trades", "int"),
+    ("Round trips", "round_trips", "int"),
+    ("Hit rate", "hit_rate", "pct"),
+    ("Turnover (x/yr)", "annual_turnover", "num"),
+    ("Cost drag", "cost_drag", "pct"),
+    ("Avg exposure", "avg_exposure", "pct"),
+]
+
+
+def _format(value, kind: str) -> str:
+    if value is None:
+        return "—"
+    if kind == "pct":
+        return f"{value:.2%}"
+    if kind == "int":
+        return f"{value:d}"
+    return f"{value:.2f}"
+
+
+def format_comparison(columns: dict[str, dict]) -> str:
+    """Markdown table with one column per named result ({name: metrics dict}).
+
+    Metrics a column does not have (e.g. trade counts for a benchmark) show as —.
+    """
+    names = list(columns)
+    lines = [
+        "| Metric | " + " | ".join(names) + " |",
+        "|---|" + "---:|" * len(names),
+    ]
+    for label, key, kind in _ROWS:
+        if not any(key in columns[name] for name in names):
+            continue
+        cells = [_format(columns[name].get(key), kind) for name in names]
+        lines.append(f"| {label} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+def append_run(record: dict, path: Path = DEFAULT_RUN_LOG) -> None:
+    """Append one backtest run to the log. Every run counts as a trial when judging
+    whether the best one is better than chance, so nothing is ever overwritten."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def logged_runs(experiment: str, path: Path = DEFAULT_RUN_LOG) -> list[dict]:
+    """Earlier runs of the same experiment (same tickers and dates)."""
+    if not path.exists():
+        return []
+    runs = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        if record.get("experiment") == experiment:
+            runs.append(record)
+    return runs

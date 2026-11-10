@@ -20,6 +20,7 @@ from stock_analysis.ai.technical_analysis.prepare_classification_data import (
     prepare_classification_data,
     prepare_classification_data_enhanced,
 )
+from stock_analysis.cli.backtest import add_backtest_parser
 from sklearn.ensemble import RandomForestClassifier
 
 
@@ -163,6 +164,7 @@ def cmd_train(args):
         eval_weekly,
         eval_stock,
         backtest_label,
+        leveraged_simulation=args.leveraged_sim,
     )
 
 
@@ -265,6 +267,15 @@ def build_parser():
     train.add_argument("--extra-features", action="store_true")
     train.add_argument("--overfit-check", action="store_true")
     train.add_argument("--quiet", action="store_true")
+    train.add_argument(
+        "--leveraged-sim",
+        action="store_true",
+        help=(
+            "Also run the legacy 10x mini-future profit simulation (enters at the "
+            "signal day's close; not comparable with paper trading). Use the "
+            "'backtest' command for returns net of costs against buy-and-hold."
+        ),
+    )
     train.set_defaults(func=cmd_train)
 
     strategies = sub.add_parser(
@@ -297,6 +308,8 @@ def build_parser():
     diagnose.add_argument("--threshold", type=float, default=0.005)
     diagnose.add_argument("--extra-features", action="store_true")
     diagnose.set_defaults(func=cmd_diagnose)
+
+    add_backtest_parser(sub)
 
     return parser
 

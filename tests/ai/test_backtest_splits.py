@@ -81,3 +81,30 @@ def test_resolve_backtest_period_internal_test_set():
     )
     assert len(eval_daily) == 20
     assert "internal chronological test set" in label
+
+
+def _run_backtests_with_stubs(monkeypatch, **kwargs):
+    import stock_analysis.ai.technical_analysis.movement_classification as mc
+
+    leveraged_calls = []
+    monkeypatch.setattr(mc, "simulate_trading", lambda *a, **k: pd.DataFrame())
+    monkeypatch.setattr(mc, "full_analysis", lambda *a, **k: pd.DataFrame())
+    monkeypatch.setattr(
+        mc, "analyze_trading_strategies", lambda *a, **k: leveraged_calls.append(k)
+    )
+    stock = _sample_stock(20)
+    mc.run_movement_backtests(
+        stock, None, None, None, None, None, None, 0.005, False,
+        None, None, stock, "test", **kwargs,
+    )
+    return leveraged_calls
+
+
+def test_leveraged_simulation_is_off_by_default(monkeypatch, capsys):
+    assert _run_backtests_with_stubs(monkeypatch) == []
+    assert "stock-analysis-evaluate backtest" in capsys.readouterr().out
+
+
+def test_leveraged_simulation_runs_when_asked_for(monkeypatch):
+    calls = _run_backtests_with_stubs(monkeypatch, leveraged_simulation=True)
+    assert [call["leverage"] for call in calls] == [10, 10, 10]
