@@ -100,10 +100,10 @@ class CacheStore(Protocol):
 
 ### 1. Dependencies
 
-Add to `pyproject.toml`:
+Add to `pyproject.toml` dependencies:
 
 ```toml
-sqlalchemy = "^2.0"
+"sqlalchemy>=2.0",
 ```
 
 Install with `uv sync`.

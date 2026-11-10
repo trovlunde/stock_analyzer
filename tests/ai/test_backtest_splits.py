@@ -4,7 +4,7 @@ from stock_analysis.ai.technical_analysis.movement_classification import (
     resolve_backtest_period,
     temporal_holdout_split,
 )
-from stock_analysis.portfolio_evaluating import normalize_trading_signals
+from stock_analysis.research.portfolio_evaluating import normalize_trading_signals
 
 
 def _sample_prepared(n=100):

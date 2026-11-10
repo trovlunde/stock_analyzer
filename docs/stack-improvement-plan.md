@@ -9,14 +9,14 @@ Assessment of the stock-analysis dependency stack, data sources, and ML tooling 
 | Tooling | Python 3.12+, uv, `uv.lock` | Good |
 | Core stack | pandas 2.x, numpy 2.x, scikit-learn 1.9, scipy 1.17 | Current |
 | Viz | Plotly 6.x (+ matplotlib/seaborn in research scripts) | Mixed |
-| Portfolio math | PyPortfolioOpt, QuantStats metrics in daily reports | Good |
+| Portfolio math | PyPortfolioOpt, empyrical metrics in daily reports | Good |
 | Trading calendar | pandas-market-calendars | Appropriate |
 | Persistence | SQLAlchemy 2 + SQLite | Fine for hobby / paper trading |
 | ML evaluation | Temporal holdout, LightGBM + sklearn ensembles | Good |
 | Market data | Yahoo Finance via `yfinance` + EDGAR fallback | Improved |
 | API | Flask 3.x | Works; FastAPI evaluation deferred (#13) |
 
-**Bottom line:** Phases 1–2 and MarketDataProvider (#10) are complete. Remaining stack work is Phase 3 spikes (#11–#13).
+**Bottom line:** Phases 1–2, MarketDataProvider (#10) and the Flask ADR (#13) are complete. Remaining stack work is the Phase 3 spikes #11 and #12. Trader/broker work is tracked separately in [tasks/trader-container-readiness.md](../tasks/trader-container-readiness.md).
 
 ---
 
@@ -55,7 +55,7 @@ Assessment of the stock-analysis dependency stack, data sources, and ML tooling 
 
 ### 2.2 Portfolio analytics library
 
-- [x] QuantStats metrics (Calmar, Sortino, rolling Sharpe) in daily reports
+- [x] Calmar, Sortino and rolling Sharpe in daily reports (via `empyrical-reloaded`, not QuantStats)
 - [x] Integrated into `stock_analysis/trading/report.py`
 
 ### 2.3 Supplement fundamentals beyond Yahoo
@@ -77,7 +77,7 @@ Assessment of the stock-analysis dependency stack, data sources, and ML tooling 
 
 - [x] `MarketDataProvider` protocol (prices, fundamentals, corporate actions)
 - [x] `YFinanceProvider` implementing current behaviour
-- [ ] Optional second provider stub for FMP/Polygon/Stooq (deferred)
+- [x] Second provider stub documenting the extension point (`market_data/paid_stub.py`); a real FMP/Polygon/Stooq adapter stays deferred
 
 ### 3.2 Faster batch analytics — [#11](https://github.com/trovlunde/stock_analyzer/issues/11)
 

@@ -85,9 +85,9 @@ Before committing, if you discovered durable conventions for a module, add them 
 
 ## Browser / UI Stories
 
-For Flask (`app.py`) or report output changes:
+For Flask (`stock_analysis/web/app.py`) or report output changes:
 
-1. Start locally: `uv run python app.py` (bind localhost only)
+1. Start locally: `uv run python -m stock_analysis.web.app` (bind localhost only)
 2. Verify with Playwright MCP or browser tools if configured
 3. Save screenshots to `screenshots/[story-id].png` when visual verification matters
 4. Note verification steps and screenshot paths in `progress.txt`
