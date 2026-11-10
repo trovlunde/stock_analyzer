@@ -23,7 +23,7 @@ costs:
 
 defaults:
   # ml_movement falls back to HOLD until a model is trained for a ticker
-  # (via the /api/train/<ticker> endpoint), so it's safe to enable by default.
+  # (via the POST /api/v1/train/<ticker> endpoint), so it's safe to enable by default.
   strategies: [ma_crossover, ml_movement]
   signal_mode: consensus
   ml_confidence_threshold: 0.55

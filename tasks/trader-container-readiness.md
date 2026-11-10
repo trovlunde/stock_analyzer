@@ -30,10 +30,10 @@ manual clear and resets the 20-clean-run live-gate streak.
 Only AAPL models exist (Feb 2025), predating the `pandas-ta` feature migration.
 MSFT/GOOGL have none.
 
-- [x] `/api/train` records `feature_columns` in model metadata
+- [x] `/api/v1/train` records `feature_columns` in model metadata
 - [x] `MlMovementStrategy` HOLDs with a "retrain it" reason when metadata lacks `feature_columns` (legacy models) or it differs from current features
 - [x] Per-ticker "no usable model" reason already lands in recorded signals and the daily report — no separate alert added
-- Manual: retrain AAPL/MSFT/GOOGL via `POST /api/train/<ticker>` (existing AAPL models now HOLD)
+- Manual: retrain AAPL/MSFT/GOOGL via `POST /api/v1/train/<ticker>` (existing AAPL models now HOLD)
 
 ## 4. Pin uv image in Dockerfile — done
 
