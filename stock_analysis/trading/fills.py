@@ -70,5 +70,10 @@ def apply_fill_to_state(
 
     proceeds = notional - costs.total
     state.cash += proceeds
-    state.positions = [p for p in state.positions if p.ticker != ticker]
+    held = next((p for p in state.positions if p.ticker == ticker), None)
+    if held is not None and intent.shares < held.shares:
+        # A partial sale (rebalancing) keeps the rest at the same average cost
+        held.shares -= intent.shares
+    else:
+        state.positions = [p for p in state.positions if p.ticker != ticker]
     return state

@@ -79,6 +79,40 @@ def test_second_fill_into_held_ticker_averages_correctly_in_the_db(broker_setup)
     assert reloaded.positions[0].avg_cost == pytest.approx(110.0)
 
 
+def test_partial_sell_keeps_the_rest_of_the_position_in_the_db(broker_setup):
+    """A rebalancing trim sells part of a holding; the remainder must survive in the
+    DB (a SELL used to remove the whole position whatever its size)."""
+    broker, store, state = broker_setup
+    run_id = store.start_run(state.id, dry_run=False)
+
+    def bar(day, price):
+        return {
+            "AAPL": pd.DataFrame(
+                {"Open": [price], "Close": [price]}, index=pd.to_datetime([day])
+            )
+        }
+
+    store.create_pending_order(
+        state.id, run_id, "AAPL", "BUY", 10, "entry", fill_date=date(2024, 6, 3)
+    )
+    broker.sync_fills(state, bar("2024-06-03", 100.0), session_date=date(2024, 6, 3), dry_run=False)
+    store.create_pending_order(
+        state.id, run_id, "AAPL", "SELL", 4, "rebalance", fill_date=date(2024, 6, 4)
+    )
+    broker.sync_fills(state, bar("2024-06-04", 150.0), session_date=date(2024, 6, 4), dry_run=False)
+
+    reloaded = store.get_portfolio_by_name("paper-us")
+    assert [(p.ticker, p.shares, p.avg_cost) for p in reloaded.positions] == [("AAPL", 6, 100.0)]
+    assert reloaded.cash == pytest.approx(state.cash)
+
+    store.create_pending_order(
+        state.id, run_id, "AAPL", "SELL", 6, "exit", fill_date=date(2024, 6, 5)
+    )
+    broker.sync_fills(state, bar("2024-06-05", 150.0), session_date=date(2024, 6, 5), dry_run=False)
+
+    assert store.get_portfolio_by_name("paper-us").positions == []
+
+
 def test_paper_broker_satisfies_broker_protocol(broker_setup):
     broker, _store, _state = broker_setup
     assert isinstance(broker, Broker)

@@ -75,11 +75,12 @@ class PaperBroker:
                 order.id, fill_price, costs.commission, costs.slippage
             )
 
-            if order.side == "BUY":
-                # Persist the post-fill totals apply_fill_to_state just computed
-                # (correctly averaged across any prior fills), not just this
-                # fill's shares/price — upsert_position overwrites, it doesn't add.
-                position = next(p for p in state.positions if p.ticker == order.ticker)
+            # Persist the post-fill totals apply_fill_to_state just computed
+            # (correctly averaged across any prior fills, or what is left after a
+            # partial sale), not just this fill's shares/price — upsert_position
+            # overwrites, it doesn't add.
+            position = next((p for p in state.positions if p.ticker == order.ticker), None)
+            if position is not None:
                 self.store.upsert_position(
                     state.id, order.ticker, position.shares, position.avg_cost
                 )

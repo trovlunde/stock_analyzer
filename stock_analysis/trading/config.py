@@ -6,7 +6,11 @@ import yaml
 
 from stock_analysis.trading.regime import RegimeFilter
 from stock_analysis.trading.risk import RiskConfig
+from stock_analysis.trading.signals.combine import SIGNAL_MODES
 from stock_analysis.trading.sizing import SIZING_MODES
+from stock_analysis.trading.stops import STOP_TYPES
+
+REBALANCE_FREQUENCIES = ("daily", "weekly", "monthly")
 
 
 @dataclass
@@ -23,6 +27,28 @@ class PortfolioConfig:
     risk_per_position: float = 0.02
     max_position_pct: float = 0.20
     vol_lookback: int = 60
+    # Sessions of returns behind the `min_variance` / `hrp` allocation
+    allocation_lookback: int = 252
+    # Share of portfolio value that new BUYs leave in cash (fills cost commission
+    # and slippage, and the next Open can be above the Close the order was sized at)
+    cash_buffer_pct: float = 0.01
+    # Stops — see trading.stops. `fixed` is `stop_loss_pct` below average cost.
+    stop_type: str = "fixed"
+    stop_atr_multiple: float = 3.0
+    stop_atr_period: int = 20
+    stop_lookback: int = 63
+    # Caps on new positions (None = off)
+    max_sector_pct: float | None = None
+    max_correlation: float | None = None
+    max_correlated_positions: int = 2
+    correlation_lookback: int = 126
+    # Scale new positions down while the portfolio is more volatile than this
+    target_volatility: float | None = None
+    # Move holdings back to their target weight when they drift further than
+    # `rebalance_band` (relative, e.g. 0.25 = a quarter of the target) from it
+    rebalance_band: float | None = None
+    rebalance_frequency: str = "monthly"
+    rebalance_min_trade_pct: float = 0.005
 
 
 @dataclass
@@ -34,6 +60,7 @@ class PositionEntry:
     ma_short: int | None = None
     ma_long: int | None = None
     stop_loss_pct: float | None = None
+    sector: str | None = None
 
 
 @dataclass
@@ -58,6 +85,10 @@ def _coerce_strategy_list(raw: Any, where: str) -> list[str] | None:
             f"(got {raw!r})"
         )
     return list(raw)
+
+
+def _optional_float(raw: Any) -> float | None:
+    return None if raw is None else float(raw)
 
 
 def load_portfolio_config(path: str | Path) -> PortfolioSettings:
@@ -86,11 +117,30 @@ def load_portfolio_config(path: str | Path) -> PortfolioSettings:
         risk_per_position=float(portfolio_raw.get("risk_per_position", 0.02)),
         max_position_pct=float(portfolio_raw.get("max_position_pct", 0.20)),
         vol_lookback=int(portfolio_raw.get("vol_lookback", 60)),
+        allocation_lookback=int(portfolio_raw.get("allocation_lookback", 252)),
+        cash_buffer_pct=float(portfolio_raw.get("cash_buffer_pct", 0.01)),
+        stop_type=str(portfolio_raw.get("stop_type", "fixed")),
+        stop_atr_multiple=float(portfolio_raw.get("stop_atr_multiple", 3.0)),
+        stop_atr_period=int(portfolio_raw.get("stop_atr_period", 20)),
+        stop_lookback=int(portfolio_raw.get("stop_lookback", 63)),
+        max_sector_pct=_optional_float(portfolio_raw.get("max_sector_pct")),
+        max_correlation=_optional_float(portfolio_raw.get("max_correlation")),
+        max_correlated_positions=int(portfolio_raw.get("max_correlated_positions", 2)),
+        correlation_lookback=int(portfolio_raw.get("correlation_lookback", 126)),
+        target_volatility=_optional_float(portfolio_raw.get("target_volatility")),
+        rebalance_band=_optional_float(portfolio_raw.get("rebalance_band")),
+        rebalance_frequency=str(portfolio_raw.get("rebalance_frequency", "monthly")),
+        rebalance_min_trade_pct=float(portfolio_raw.get("rebalance_min_trade_pct", 0.005)),
     )
-    if portfolio.sizing not in SIZING_MODES:
-        raise ValueError(
-            f"portfolio.sizing must be one of {list(SIZING_MODES)} (got {portfolio.sizing!r})"
-        )
+    for key, value, allowed in (
+        ("sizing", portfolio.sizing, SIZING_MODES),
+        ("stop_type", portfolio.stop_type, STOP_TYPES),
+        ("rebalance_frequency", portfolio.rebalance_frequency, REBALANCE_FREQUENCIES),
+    ):
+        if value not in allowed:
+            raise ValueError(f"portfolio.{key} must be one of {list(allowed)} (got {value!r})")
+    if portfolio.stop_type == "pct_trailing" and portfolio.stop_loss_pct is None:
+        raise ValueError("portfolio.stop_type pct_trailing needs portfolio.stop_loss_pct")
 
     regime_raw = raw.get("regime_filter")
     regime_filter = None
@@ -120,6 +170,7 @@ def load_portfolio_config(path: str | Path) -> PortfolioSettings:
                 ma_short=entry.get("ma_short"),
                 ma_long=entry.get("ma_long"),
                 stop_loss_pct=entry.get("stop_loss_pct"),
+                sector=entry.get("sector"),
             )
         )
 
@@ -141,6 +192,11 @@ def load_portfolio_config(path: str | Path) -> PortfolioSettings:
     if "strategies" in defaults:
         defaults["strategies"] = _coerce_strategy_list(
             defaults["strategies"], "defaults.strategies"
+        )
+    signal_mode = defaults.get("signal_mode", "consensus")
+    if signal_mode not in SIGNAL_MODES:
+        raise ValueError(
+            f"defaults.signal_mode must be one of {list(SIGNAL_MODES)} (got {signal_mode!r})"
         )
 
     return PortfolioSettings(

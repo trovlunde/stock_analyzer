@@ -16,7 +16,6 @@ import pandas as pd
 from stock_analysis.storage.portfolio_store import PortfolioState
 from stock_analysis.trading.config import (
     PortfolioSettings,
-    stop_loss_for_position,
     strategy_names_for_position,
     strategy_params_for_position,
 )
@@ -29,9 +28,15 @@ from stock_analysis.trading.decision import (
     with_queued_order,
 )
 from stock_analysis.trading.fills import apply_fill_to_state
+from stock_analysis.trading.portfolio_rules import (
+    allocation_weights,
+    build_run_context,
+    decision_inputs,
+    is_rebalance_session,
+    needs_universe_closes,
+)
 from stock_analysis.trading.regime import risk_off_reason
 from stock_analysis.trading.risk import check_kill_switch
-from stock_analysis.trading.sizing import annualised_volatility
 from stock_analysis.trading.signals import (
     SignalResult,
     SignalStrategy,
@@ -96,7 +101,9 @@ def _combined_signal(
     }
     if len(results) == 1:
         return next(iter(results.values()))
-    return combine_signals(results, mode=settings.defaults.get("signal_mode", "consensus"))
+    return combine_signals(
+        results, mode=settings.defaults.get("signal_mode", "consensus"), params=params
+    )
 
 
 def run_backtest(
@@ -126,7 +133,6 @@ def run_backtest(
             f"price history as market_data"
         )
     market_close = market_data["Close"] if regime_filter is not None else None
-    vol_sized = portfolio_cfg.sizing == "vol_target"
     cost_model = build_cost_model(settings.costs)
     positions = [
         p for p in settings.positions if p.enabled and p.ticker in price_data
@@ -145,6 +151,16 @@ def run_backtest(
     exposure_history: list[float] = []
     tripped_on: date | None = None
     tripped_reason: str | None = None
+    # Rules that look across tickers (allocation weights, correlation cap) need
+    # one table of closes; the allocation is recomputed once a month.
+    all_closes = (
+        pd.DataFrame({p.ticker: price_data[p.ticker]["Close"] for p in positions})
+        if needs_universe_closes(portfolio_cfg)
+        else None
+    )
+    weights: dict[str, float] | None = None
+    weights_month: tuple[int, int] | None = None
+    previous_session: pd.Timestamp | None = None
 
     for session in sessions:
         # 1. Orders queued at the previous close fill at this session's Open.
@@ -215,6 +231,21 @@ def run_backtest(
             if regime_filter is not None
             else None
         )
+        closes = all_closes.loc[:session] if all_closes is not None else None
+        if closes is not None and weights_month != (session.year, session.month):
+            weights = allocation_weights(portfolio_cfg, closes)
+            weights_month = (session.year, session.month)
+        context = build_run_context(
+            settings,
+            closes=closes,
+            equity=[v for _, v in equity_history] + [value],
+            rebalance_due=is_rebalance_session(
+                portfolio_cfg.rebalance_frequency, session, previous_session
+            ),
+            weights=weights,
+        )
+        previous_session = session
+        held = {p.ticker for p in state.positions}
         for position_entry in positions:
             ticker = position_entry.ticker
             df = price_data[ticker]
@@ -239,11 +270,13 @@ def run_backtest(
                 config=portfolio_cfg,
                 current_price=prices[ticker],
                 prices=prices,
-                stop_loss_pct=stop_loss_for_position(settings, position_entry),
-                volatility=(
-                    annualised_volatility(window["Close"], portfolio_cfg.vol_lookback)
-                    if vol_sized and signal.action == "BUY"
-                    else None
+                **decision_inputs(
+                    settings,
+                    position_entry,
+                    window,
+                    context,
+                    sizing_needed=signal.action == "BUY"
+                    or (context.rebalance_due and ticker in held),
                 ),
             )
             if decision.intent is None:
@@ -251,7 +284,9 @@ def run_backtest(
             if decision.intent.side == "BUY" and (tripped_on is not None or risk_off):
                 continue
             pending.append(decision.intent)
-            decision_state = with_queued_order(decision_state, decision.intent, prices[ticker])
+            decision_state = with_queued_order(
+                decision_state, decision.intent, prices[ticker]
+            )
 
         equity_history.append((session.date().isoformat(), value))
         exposure_history.append((value - state.cash) / value if value else 0.0)

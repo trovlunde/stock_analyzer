@@ -140,9 +140,9 @@ def test_buys_on_the_same_session_share_the_free_slots_and_cash():
     limited_cash = _run(_settings(tickers, position_size_pct=0.40), price_data, AlwaysBuy())
 
     assert [trade.ticker for trade in limited_slots.trades] == ["AAA", "BBB"]
-    # 40% + 40% + the 20% that is left, never more than the cash there is
-    assert [trade.notional for trade in limited_cash.trades] == [40_000, 40_000, 20_000]
-    assert limited_cash.exposure.max() == pytest.approx(1.0)
+    # 40% + 40% + what is left after the 1% cash buffer, never more than the cash there is
+    assert [trade.notional for trade in limited_cash.trades] == [40_000, 40_000, 19_000]
+    assert limited_cash.exposure.max() == pytest.approx(0.99)
 
 
 def test_regime_filter_does_not_block_sells():

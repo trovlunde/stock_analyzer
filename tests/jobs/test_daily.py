@@ -254,10 +254,11 @@ def test_run_daily_buys_on_the_same_day_cannot_spend_the_same_cash_twice(
 
     assert daily.run_daily(str(config_path), provider=provider, engine=engine) == 0
 
-    # 10,000 cash at a price of 100: 60% for the first order, the remaining 40% for the second
+    # 10,000 cash at a price of 100: 60% for the first order; the second gets the
+    # remaining 40% less the 1% of the portfolio kept back as a cash buffer
     assert [(o.ticker, o.shares) for o in _pending_orders(engine)] == [
         ("AAPL", 60),
-        ("MSFT", 40),
+        ("MSFT", 39),
     ]
 
 
@@ -887,6 +888,26 @@ def test_run_daily_live_broker_submits_when_within_ceilings(
 
     assert result == 0
     assert len(broker.submitted_orders) == 1
+
+
+def test_run_daily_live_portfolio_ceiling_counts_buys_queued_earlier_in_the_run(
+    write_config, engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("LIVE_MAX_NOTIONAL_PER_ORDER", raising=False)
+    # 10,000 portfolio, two 1,000 orders: the first fits under 11,500, both do not
+    monkeypatch.setenv("LIVE_MAX_PORTFOLIO_NOTIONAL", "11500")
+    config_path = write_config(strategy="buy_test", tickers=("AAPL", "MSFT"))
+    provider = _FakeProvider({"AAPL": _ohlcv(), "MSFT": _ohlcv()})
+    broker = _FakeLiveBroker(
+        live=True, read_only=False,
+        snapshot=AccountSnapshot(cash=10_000.0, positions={}, source="alpaca"),
+    )
+
+    result = daily.run_daily(config_path, provider=provider, engine=engine, broker=broker)
+
+    assert result == 0
+    assert [intent.ticker for intent in broker.submitted_orders] == ["AAPL"]
 
 
 def test_run_daily_paper_broker_unaffected_by_live_notional_env_vars(

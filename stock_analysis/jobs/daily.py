@@ -14,7 +14,6 @@ from stock_analysis.storage.portfolio_store import PortfolioState, PortfolioStor
 from stock_analysis.trading.config import (
     PortfolioSettings,
     load_portfolio_config,
-    stop_loss_for_position,
     strategy_names_for_position,
     strategy_params_for_position,
 )
@@ -39,10 +38,16 @@ from stock_analysis.trading.portfolio_metrics import (
     benchmark_relative_return,
     compute_portfolio_metrics,
 )
+from stock_analysis.trading.portfolio_rules import (
+    RunContext,
+    build_run_context,
+    decision_inputs,
+    is_rebalance_session,
+    needs_universe_closes,
+)
 from stock_analysis.trading.regime import RegimeFilter, risk_off_reason
 from stock_analysis.trading.report import write_daily_report
 from stock_analysis.trading.risk import check_kill_switch
-from stock_analysis.trading.sizing import annualised_volatility
 from stock_analysis.trading.signals import combine_signals, get_signal_strategy
 from stock_analysis.trading.signals.base import SignalResult
 
@@ -100,6 +105,34 @@ def _risk_off_reason(
         )
         return None
     return risk_off_reason(regime_filter, market["Close"])
+
+
+def _run_context(
+    settings: PortfolioSettings,
+    price_data: dict[str, pd.DataFrame],
+    prices: dict[str, float],
+    state: PortfolioState,
+    equity_curve: list[tuple[str, float]],
+) -> RunContext:
+    """Sizing, cap and rebalancing inputs shared by every ticker in this run."""
+    config = settings.portfolio
+    closes = (
+        pd.DataFrame({ticker: df["Close"] for ticker, df in price_data.items()})
+        if needs_universe_closes(config) and price_data
+        else None
+    )
+    # Rebalance on the first session of the week / month, read off the bars
+    # themselves so a holiday does not shift it.
+    calendar = max((df.index for df in price_data.values()), key=len, default=None)
+    rebalance_due = (
+        calendar is not None
+        and len(calendar) >= 2
+        and is_rebalance_session(config.rebalance_frequency, calendar[-1], calendar[-2])
+    )
+    equity = [value for _, value in equity_curve] + [portfolio_value(state, prices)]
+    return build_run_context(
+        settings, closes=closes, equity=equity, rebalance_due=rebalance_due
+    )
 
 
 def _benchmark_comparison(
@@ -364,12 +397,16 @@ def _run_session(
     if risk_off:
         logger.warning("%s", risk_off)
 
+    context = _run_context(settings, price_data, prices, state, equity_curve_history)
+
     # What decide() sees: `state` plus the BUY orders queued so far in this run, so
     # several BUYs on one day cannot together spend more cash or slots than exist.
     decision_state = state
     decisions: list[tuple[str, object]] = []
     queued = 0
+    queued_buy_notional = 0.0
     failed_tickers: list[str] = []
+    held = {p.ticker for p in state.positions}
 
     for position_entry in enabled_positions:
         ticker = position_entry.ticker
@@ -404,7 +441,7 @@ def _run_session(
                             result.metadata,
                         )
                 signal_mode = settings.defaults.get("signal_mode", "consensus")
-                signal = combine_signals(signal_results, mode=signal_mode)
+                signal = combine_signals(signal_results, mode=signal_mode, params=params)
                 if not dry_run:
                     store.record_signal(
                         run_id,
@@ -422,11 +459,13 @@ def _run_session(
                 config=portfolio_cfg,
                 current_price=current_price,
                 prices=prices,
-                stop_loss_pct=stop_loss_for_position(settings, position_entry),
-                volatility=(
-                    annualised_volatility(df["Close"], portfolio_cfg.vol_lookback)
-                    if portfolio_cfg.sizing == "vol_target"
-                    else None
+                **decision_inputs(
+                    settings,
+                    position_entry,
+                    df,
+                    context,
+                    sizing_needed=signal.action == "BUY"
+                    or (context.rebalance_due and ticker in held),
                 ),
             )
             if kill_switch_active and decision.intent is not None and decision.intent.side == "BUY":
@@ -447,11 +486,15 @@ def _run_session(
             ):
                 # Defense in depth, independent of decide()'s position sizing — the
                 # only place in the orchestration that has both a price and the
-                # live/read-only state needed to apply these.
+                # live/read-only state needed to apply these. BUYs queued earlier
+                # in this run count towards the portfolio ceiling too: none of
+                # them has filled yet, so `state` does not show them.
                 violation = live_notional_ceiling_violation(
                     ticker, decision.intent.shares, current_price
                 ) or live_portfolio_ceiling_violation(
-                    portfolio_value(state, prices) + decision.intent.shares * current_price
+                    portfolio_value(state, prices)
+                    + queued_buy_notional
+                    + decision.intent.shares * current_price
                 )
                 if violation is not None:
                     logger.error("Live order blocked: %s", violation)
@@ -466,6 +509,8 @@ def _run_session(
                 decision_state = with_queued_order(
                     decision_state, decision.intent, current_price
                 )
+                if decision.intent.side == "BUY":
+                    queued_buy_notional += decision.intent.shares * current_price
                 order_id = broker.submit_order(
                     state, run_id, decision.intent, dry_run=dry_run, fill_date=next_fill_day
                 )
