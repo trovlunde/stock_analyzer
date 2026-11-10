@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from stock_analysis.research.trading_cost_analysis import MiniFutureAnalyzer
-
 
 @dataclass(frozen=True)
 class TradeCost:
@@ -54,24 +52,24 @@ class MiniFutureCostModel:
     fixed_rate: float = 0.03
 
     def __post_init__(self) -> None:
-        self._analyzer = MiniFutureAnalyzer(
-            initial_investment=self.initial_investment,
-            leverage=self.leverage,
-            spread_pct=self.spread_pct,
-            variable_rate=self.variable_rate,
-            fixed_rate=self.fixed_rate,
-        )
+        # Same maths as research.trading_cost_analysis.MiniFutureAnalyzer, kept here so
+        # the trading path does not import research/ (see docs/architecture.md).
+        self._spread = self.spread_pct / 100
+        # Variable rate is NIBOR, floored at 0
+        daily_rate = (max(self.variable_rate, 0) + self.fixed_rate) / 365
+        self._holding_cost_multiplier = daily_rate * (self.leverage - 1)
 
     def entry_cost(self, notional: float) -> TradeCost:
-        spread = abs(notional) * self._analyzer.spread_pct
-        return TradeCost(commission=0.0, slippage=spread)
+        return self._side_cost(notional)
 
     def exit_cost(self, notional: float) -> TradeCost:
-        spread = abs(notional) * self._analyzer.spread_pct
-        return TradeCost(commission=0.0, slippage=spread)
+        return self._side_cost(notional)
 
     def daily_holding_cost(self, position_value: float) -> float:
-        return self._analyzer.simple_calculate_holding_cost(position_value)
+        return self._holding_cost_multiplier * position_value
+
+    def _side_cost(self, notional: float) -> TradeCost:
+        return TradeCost(commission=0.0, slippage=abs(notional) * self._spread)
 
 
 def build_cost_model(config: dict) -> CostModel:
