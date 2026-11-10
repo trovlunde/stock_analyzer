@@ -11,6 +11,7 @@ from stock_analysis.backtest.metrics import (
     performance_metrics,
     trade_statistics,
 )
+from stock_analysis.backtest.metrics import probability_of_backtest_overfitting
 from stock_analysis.backtest.report import append_run, format_comparison, logged_runs
 
 
@@ -172,3 +173,43 @@ def test_format_comparison_marks_metrics_a_column_lacks():
     assert "| Sharpe | 1.50 | — |" in table
     assert "| Trades | 4 | — |" in table
     assert "Hit rate" not in table
+
+
+def _noise(seed, n=1000):
+    return pd.Series(np.random.default_rng(seed).normal(0, 0.01, n))
+
+
+def test_overfitting_probability_is_low_when_one_configuration_is_genuinely_better():
+    trials = [_noise(seed) for seed in range(8)]
+    trials.append(_noise(99) + 0.003)  # a steady edge in every block
+
+    assert probability_of_backtest_overfitting(trials) == 0.0
+
+
+def test_overfitting_probability_is_near_a_coin_flip_when_every_configuration_is_noise():
+    trials = [_noise(seed) for seed in range(20)]
+
+    assert 0.25 < probability_of_backtest_overfitting(trials) < 0.75
+
+
+def test_overfitting_probability_is_high_when_each_configuration_wins_in_different_stretches():
+    # Alternating blocks of 100 sessions: each configuration is good exactly where
+    # the other is bad, so the in-sample winner is usually the out-of-sample loser
+    wave = np.repeat([0.002, -0.002] * 5, 100)
+    first = _noise(1) * 0.1 + wave
+    second = _noise(2) * 0.1 - wave
+
+    assert probability_of_backtest_overfitting([first, second]) > 0.5
+
+
+def test_overfitting_probability_needs_two_configurations_and_enough_sessions():
+    assert probability_of_backtest_overfitting([_noise(1)]) is None
+    assert probability_of_backtest_overfitting([_noise(1, n=15), _noise(2, n=15)]) is None
+    with pytest.raises(ValueError, match="same sessions"):
+        probability_of_backtest_overfitting([_noise(1), _noise(2, n=900)])
+
+
+def test_overfitting_probability_handles_a_configuration_that_never_traded():
+    result = probability_of_backtest_overfitting([_noise(1) + 0.003, pd.Series([0.0] * 1000)])
+
+    assert result == 0.0

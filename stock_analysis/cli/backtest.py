@@ -12,6 +12,7 @@ from stock_analysis.backtest.metrics import (
     deflated_sharpe_ratio,
     paired_block_bootstrap,
     performance_metrics,
+    probability_of_backtest_overfitting,
     trade_statistics,
 )
 from stock_analysis.backtest.report import (
@@ -141,18 +142,32 @@ def run_backtest_command(args, provider: MarketDataProvider | None = None) -> st
                 "daily_sharpe": sharpe,
                 "sharpe": columns["Strategy"]["sharpe"],
                 "total_return": columns["Strategy"]["total_return"],
+                # Kept so later runs can test whether the best configuration's
+                # lead survives on data it was not chosen on
+                "returns": [round(float(value), 8) for value in strategy_returns],
             },
             log_path,
         )
     # One trial per distinct configuration: re-running the same one is not a new try
+    earlier_runs = logged_runs(experiment, log_path)
     trials = {
         run["config_key"]: run["daily_sharpe"]
-        for run in logged_runs(experiment, log_path)
+        for run in earlier_runs
         if run.get("daily_sharpe") is not None
     }
     if sharpe is not None:
         trials[config_key] = sharpe
     deflated = deflated_sharpe_ratio(strategy_returns, list(trials.values()))
+
+    # Same experiment means same sessions; a different length means the price
+    # history has moved on since that run, so it cannot be lined up day for day
+    trial_returns = {
+        run["config_key"]: run["returns"]
+        for run in earlier_runs
+        if len(run.get("returns") or []) == len(strategy_returns)
+    }
+    trial_returns[config_key] = list(strategy_returns)
+    overfitting = probability_of_backtest_overfitting(list(trial_returns.values()))
 
     lines = [
         f"# Backtest — {', '.join(strategies)}",
@@ -195,6 +210,17 @@ def run_backtest_command(args, provider: MarketDataProvider | None = None) -> st
         )
     else:
         lines.append("- Deflated Sharpe: needs at least two different configurations")
+    if overfitting is not None:
+        lines.append(
+            f"- Probability of backtest overfitting ({len(trial_returns)} configurations; "
+            f"how often the best one on half the data falls in the bottom half on the "
+            f"other half): {overfitting:.0%}"
+        )
+    else:
+        lines.append(
+            "- Probability of backtest overfitting: needs at least two different "
+            "configurations logged over the same sessions"
+        )
 
     report = "\n".join(lines) + "\n"
     if args.output:

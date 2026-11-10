@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -124,3 +126,55 @@ def test_tickers_override_and_missing_data_are_reported(config_path, tmp_path):
 
     assert "Universe: CCC" in report
     assert "No data (left out): NOPE" in report
+
+
+def _logged_records(tmp_path):
+    lines = (tmp_path / "runs.jsonl").read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines]
+
+
+def test_overfitting_probability_appears_once_two_configurations_are_logged(
+    config_path, tmp_path
+):
+    provider = FakeProvider()
+    base = ["--strategies", "ma_crossover", "--benchmark", ""]
+
+    first = run_backtest_command(_args(config_path, tmp_path, *base), provider)
+    second = run_backtest_command(
+        _args(config_path, tmp_path, *base, "--signal-mode", "any"), provider
+    )
+
+    assert "Probability of backtest overfitting: needs at least two" in first
+    assert "Probability of backtest overfitting (2 configurations" in second
+    assert [len(record["returns"]) for record in _logged_records(tmp_path)] == [399, 399]
+
+
+def test_logged_runs_without_daily_returns_are_left_out_of_the_overfitting_check(
+    config_path, tmp_path
+):
+    provider = FakeProvider()
+    base = ["--strategies", "ma_crossover", "--benchmark", ""]
+    run_backtest_command(_args(config_path, tmp_path, *base), provider)
+    # Rewrite the log as a line from before daily returns were recorded
+    (record,) = _logged_records(tmp_path)
+    record.pop("returns")
+    (tmp_path / "runs.jsonl").write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+    report = run_backtest_command(
+        _args(config_path, tmp_path, *base, "--signal-mode", "any", "--no-log"), provider
+    )
+
+    assert "Configurations tried on this universe and period: 2" in report
+    assert "Probability of backtest overfitting: needs at least two" in report
+
+
+def test_strategies_command_is_labelled_legacy(monkeypatch, capsys):
+    import stock_analysis.cli.evaluate_models as cli
+
+    ran = []
+    monkeypatch.setattr(cli, "test_classifiers", lambda: ran.append(True))
+
+    cli.main(["strategies"])
+
+    assert ran == [True]
+    assert "legacy research simulator" in capsys.readouterr().out

@@ -102,7 +102,9 @@ uv run stock-analysis-evaluate train --ticker ^GSPC --holdout-months 6 --extra-f
 # Without --holdout-months, evaluation uses the internal chronological 20% test split only
 # Add --leveraged-sim for the legacy 10x mini-future profit simulation (off by default)
 
-# Compare ensemble vs RSI vs MA strategies on temporal test fold
+# Legacy: ensemble vs RSI vs MA with the old research simulator. It enters at the
+# signal day's close and shows no benchmark, so returns are optimistic — use
+# `backtest` (below) to judge a strategy
 uv run stock-analysis-evaluate strategies
 
 # Compare dual-RF pipeline variants on the same holdout (features, threshold, RF params)
@@ -158,7 +160,7 @@ Reading the report:
 
 - **Strategy vs buy & hold** — CAGR, volatility, Sharpe, Sortino, max drawdown, Calmar; plus trades, hit rate, turnover, cost drag and average exposure for the strategy.
 - **Is it better than chance?** — a block-bootstrap interval for the Sharpe ratio and the share of resamples in which the strategy beats buy-and-hold.
-- **Configurations tried** — every run is recorded in `data/backtests/runs.jsonl`. Once several configurations have been tried on the same tickers and period, the report adds a deflated Sharpe ratio, which discounts the best result for the number of attempts. Use `--no-log` for runs that should not count.
+- **Configurations tried** — every run is recorded in `data/backtests/runs.jsonl`. Once several configurations have been tried on the same tickers and period, the report adds two checks. The deflated Sharpe ratio discounts the result for the number of attempts. The probability of backtest overfitting splits the period into ten blocks, picks the best configuration on every possible half, and reports how often that pick lands in the bottom half on the remaining blocks: near 0 % means the ranking holds up, 50 % or more means choosing the best backtest is no better than choosing at random. Use `--no-log` for runs that should not count.
 
 `ml_movement` (the saved model) is refused by default because the saved model was trained on the period being tested; use `ml_walk_forward` instead, or `--allow-in-sample-ml` to override.
 

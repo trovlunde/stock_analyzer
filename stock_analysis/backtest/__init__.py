@@ -4,6 +4,7 @@ from .metrics import (
     deflated_sharpe_ratio,
     paired_block_bootstrap,
     performance_metrics,
+    probability_of_backtest_overfitting,
     trade_statistics,
 )
 
@@ -16,5 +17,6 @@ __all__ = [
     "deflated_sharpe_ratio",
     "paired_block_bootstrap",
     "performance_metrics",
+    "probability_of_backtest_overfitting",
     "trade_statistics",
 ]

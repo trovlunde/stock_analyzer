@@ -90,10 +90,11 @@ The paper-trading loop already has the right shape (decide at close → fill at 
 - [x] `stock_analysis/backtest/` engine that replays history day by day through the existing `SignalStrategy.evaluate` → `combine_signals` → `decide` → `EquityCostModel` path with an in-memory portfolio state. Do not change the `DecisionResult` / `FillResult` contracts.
 - [x] Standard report for every strategy: CAGR, volatility, Sharpe, Sortino, max drawdown, turnover, cost drag, exposure, hit rate — always next to buy-and-hold of the same universe and SPY.
 - [x] Walk-forward mode for ML strategies (`ml_walk_forward`: retrain every N sessions on an expanding window, predict only the sessions that follow).
-- [x] Guard against over-fitting to the backtest: every configuration is logged to `data/backtests/runs.jsonl`; deflated Sharpe ratio once two or more configurations exist for the same universe and period; block-bootstrap interval on Sharpe and on the comparison with buy-and-hold. Probability of backtest overfitting is not implemented.
+- [x] Guard against over-fitting to the backtest: every configuration is logged to `data/backtests/runs.jsonl`; deflated Sharpe ratio once two or more configurations exist for the same universe and period; block-bootstrap interval on Sharpe and on the comparison with buy-and-hold; probability of backtest overfitting (combinatorially symmetric cross-validation over ten blocks) from the daily returns saved with each logged run.
 - [x] `stock-analysis-evaluate backtest --strategies … --tickers …` CLI; the leveraged mini-future simulation is opt-in (`train --leveraged-sim`).
 - [x] Benchmark-relative return in the daily paper report (`defaults.benchmark`, SPY by default).
 - [x] Majority-class baseline next to classifier accuracy in `variants` output and in `compute_holdout_metrics`.
+- [ ] `stock-analysis-evaluate strategies` (ensemble vs RSI vs MA) still runs on the old research simulator and is labelled legacy. To compare those signals fairly, register RSI and the ensemble as `SignalStrategy` implementations and run them through `backtest`; then delete the command.
 
 **Phase 1 results — first baseline (2026-11-10).** AAPL, MSFT, GOOGL from `config/portfolio.yaml`, 2016-11-10 to 2026-11-09 (2512 sessions), $100,000, fills at next Open, costs from the config.
 

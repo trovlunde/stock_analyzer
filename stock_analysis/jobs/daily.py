@@ -82,7 +82,10 @@ def _benchmark_comparison(
     if not benchmark or len(equity_curve) < 2:
         return None
     try:
-        history = provider.get_history(benchmark, start=equity_curve[0][0])
+        # Start a week early so a first date that falls on a weekend or holiday
+        # still has an earlier close to be priced at
+        fetch_from = date.fromisoformat(equity_curve[0][0]) - timedelta(days=7)
+        history = provider.get_history(benchmark, start=fetch_from.isoformat())
         if history is None or history.empty:
             logger.warning("No benchmark data for %s", benchmark)
             return None

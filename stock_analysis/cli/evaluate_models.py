@@ -200,8 +200,18 @@ def cmd_diagnose(args):
             print(f"    {feat}: {coef:.6f}")
 
 
+LEGACY_STRATEGIES_NOTICE = (
+    "Note: 'strategies' uses the legacy research simulator. It enters at the signal "
+    "day's close (the price the signal was computed from), applies mini-future costs "
+    "and shows no buy-and-hold benchmark, so its returns are optimistic and not "
+    "comparable with paper trading. Use 'stock-analysis-evaluate backtest' to judge "
+    "a strategy.\n"
+)
+
+
 def cmd_strategies(args):
     """Compare ensemble, RSI, and MA strategies on temporal test fold."""
+    print(LEGACY_STRATEGIES_NOTICE)
     test_classifiers()
 
 
@@ -279,7 +289,11 @@ def build_parser():
     train.set_defaults(func=cmd_train)
 
     strategies = sub.add_parser(
-        "strategies", help="Compare ensemble vs RSI vs MA on temporal test fold"
+        "strategies",
+        help=(
+            "Legacy: compare ensemble vs RSI vs MA with the old research simulator "
+            "(optimistic fills, no benchmark) — prefer 'backtest'"
+        ),
     )
     strategies.set_defaults(func=cmd_strategies)
 
