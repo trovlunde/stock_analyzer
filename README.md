@@ -177,22 +177,41 @@ uv run pytest
 
 ### Paper Trading (Daily Job)
 
-Config-driven paper portfolio. Evaluates US equities with MA crossover signals, queues fills at next open, persists state in SQLite.
+Config-driven paper portfolio. Evaluates US equities with the configured signal strategies, queues fills at next open, persists state in SQLite.
 
-**Config:** `config/portfolio.yaml` — watchlist, sizing, strategy defaults, per-ticker overrides.
+**Config:** `config/portfolio.yaml` — watchlist, sizing, risk limits, strategy defaults, per-ticker overrides.
 
-**Run manually:**
+**Signals:** `ma_crossover` and `ml_movement`, combined per `signal_mode`. `ml_movement` HOLDs for a ticker until a model trained on the current feature set exists — train one with `POST /api/v1/train/<ticker>`.
+
+**Run once:**
 ```bash
-uv run python -m stock_analysis.jobs.daily
-uv run python -m stock_analysis.jobs.daily --dry-run
-uv run python -m stock_analysis.jobs.daily --config config/portfolio.yaml
+uv run stock-analysis-daily
+uv run stock-analysis-daily --dry-run
+uv run stock-analysis-daily --config config/portfolio.yaml
 ```
 
-**Windows Task Scheduler (after US close, ~23:00 CET):**
-- Program: `uv`
-- Arguments: `run python -m stock_analysis.jobs.daily`
-- Start in: project root directory
-- Trigger: weekdays after market close
+**Run on a schedule:** `stock-analysis-trader` is a long-running scheduler that triggers the daily job once per NYSE trading day (16:05 ET with `schedule.run_after_close: true`, otherwise 09:35 ET). A slot missed by more than two hours is skipped and alerted rather than run late. It is what the `trader` compose service runs (see [Docker](#docker)).
+
+```bash
+uv run stock-analysis-trader
+```
+
+**Broker:** selected by `BROKER_MODE` in `.env`.
+- `paper_sim` (default) — local simulator, no external account.
+- `alpaca` — Alpaca's paper endpoint; needs `ALPACA_API_KEY` and `ALPACA_SECRET_KEY`.
+
+**Kill switch:** trips on a breach of `risk.max_daily_loss_pct` / `risk.max_drawdown_pct`, an unclean shutdown (process killed mid-run), or a broker/local state mismatch. While tripped, new BUY orders are blocked. Clearing it is manual:
+
+```bash
+uv run stock-analysis-risk status
+uv run stock-analysis-risk reconcile                       # diff local state vs broker
+uv run stock-analysis-risk reconcile --accept-broker-truth
+uv run stock-analysis-risk clear --reason "why it is safe to resume"
+```
+
+**Live trading:** off by default and refused unless every check in `stock_analysis/trading/live_gate.py` passes: `BROKER_MODE=alpaca`, `LIVE_TRADING_ENABLED=true`, `LIVE_TRADING_CONFIRM` set to the exact confirmation phrase, `ALPACA_PAPER=false`, both risk limits configured, kill switch clear, 20 consecutive clean runs, and `LIVE_MAX_NOTIONAL_PER_ORDER` / `LIVE_MAX_PORTFOLIO_NOTIONAL` set. The first live run is read-only (reconcile and report, no orders).
+
+**Email alerts:** optional. Set `SMTP_HOST` and `SMTP_TO` (plus `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_USE_TLS` as needed) to receive the daily summary and failure / kill-switch alerts.
 
 **Outputs:**
 - State: `data/stock_analysis.db` (`paper_*` tables)
@@ -206,7 +225,10 @@ uv run python -m stock_analysis.jobs.daily --config config/portfolio.yaml
 docker compose up --build
 ```
 
-The API is available at `http://localhost:5000`.
+Starts two services from the same image:
+
+- `stock-analysis` — the Flask API at `http://localhost:5000`. Published on loopback only (the API has no auth); reach it remotely via an SSH tunnel or VPN.
+- `trader` — the `stock-analysis-trader` scheduler. Reads `.env`, mounts `./config`, `./data` and `./models`.
 
 ### Optional: activate the virtualenv
 
