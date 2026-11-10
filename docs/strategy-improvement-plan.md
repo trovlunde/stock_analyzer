@@ -69,7 +69,7 @@ Each phase is sized so its items can become individual issues / Ralph stories.
 - [x] Remove the mutable default `classifier=RandomForestClassifier(...)` arguments.
 - [x] `compute_holdout_metrics` pairs daily and weekly predictions by date (they were paired by position, which misaligned them at the end of the series).
 - [x] Re-run `stock-analysis-evaluate variants` — results below.
-- [ ] Existing saved models (`models/AAPL_*`) were trained with the old pipeline; retrain before relying on `ml_movement`.
+- [ ] Existing saved models (`models/AAPL_*`, dated February 2025) were trained with the old pipeline; retrain before relying on `ml_movement`. Still not done on 2026-11-10 — see decision D1 in section 5.
 - [ ] Not addressed: survivorship bias in S&P 500 pooled training (needs historical constituents).
 
 **Before / after** — `stock-analysis-evaluate variants --ticker ^GSPC --holdout-months 12`, winning variant `threshold_1pct_extra`, same test period (from 2025-11-06, 252 days):
@@ -199,3 +199,46 @@ Ordered by expected value for a hobby-scale, daily-bar, free-data setup. Each is
 6. Phase 3 spikes, one at a time, starting with learning-to-rank and meta-labeling.
 
 Success criterion throughout: a strategy is promoted to the paper portfolio only if it beats buy-and-hold of its own universe on risk-adjusted return, net of costs, on a test period that was not used to choose it.
+
+---
+
+## 5. Open tasks
+
+Status on 2026-11-10: Phase 0 and Phase 1 are done apart from the items listed here; Phase 2 has its first slice (trend signal, volatility sizing, regime filter, ETF universe). The checkboxes in section 3 are the full record; this is the same open work in the order it should be picked up. Tooling work (visualisation clean-up, Polars spike) is tracked separately in [issues/README.md](./issues/README.md).
+
+### Decisions for the owner
+
+These need a choice, not code.
+
+| # | Decision | Background |
+|---|---|---|
+| D1 | Keep `ml_movement` in `config/portfolio.yaml`, or take it out? | The only saved models are `models/AAPL_*` from February 2025, trained with the old leaky pipeline. MSFT and GOOGL have none, so the strategy does nothing for them. The walk-forward backtest showed no edge. Keeping it means retraining all three with `POST /api/v1/train/<ticker>`; the pooled model (T1) will replace it either way. |
+| D2 | Run the ETF trend portfolio in paper trading next to the existing one? | `config/portfolio-etf-trend.yaml` has its own portfolio name and state. It matched buy-and-hold on risk-adjusted return with half the drawdown, but is not a proven win. Running it costs a second scheduler entry and gives real out-of-sample evidence. |
+| D3 | Which period is the untouched test period from now on? | 2016-11-10 to 2026-11-09 has been used to compare four trend variants and must not be used for more tuning. Most of the 20 ETFs have history back to 2007 or earlier, so one option is to tune on data up to 2016-11-09 and keep the last ten years for a single final check. T3 and T4 depend on this. |
+
+### Next tasks, in order
+
+| # | Task | Size | Depends on | Section 3 items |
+|---|---|---|---|---|
+| T1 | Pooled cross-sectional ML model: one LightGBM model for the whole universe, target = 5–20 day forward return relative to the universe, features ranked per date. Model, target and features are one piece of work — changing one without the others is not worth evaluating. Run it through `backtest` as a walk-forward strategy on a universe of 100+ stocks. | Large | A stock universe without survivorship bias (T9), or accept and state the bias | ML movement model, items 1–3 |
+| T2 | Probability calibration on the validation fold, and choose the confidence threshold by net return on validation instead of by hand. | Medium | T1 | ML movement model, item 4 |
+| T3 | Wider no-trade band for `trend_state`. It wins 31 % of round trips and trades each ETF about every four months; most losses are small ones around zero momentum. | Small | D3 | Trend following (new) |
+| T4 | ATR-based or trailing stops in place of the fixed-percentage stop from average cost. | Medium | D3 | Trend following, item 3 |
+| T5 | Signal combination: a true consensus mode (N of M actionable and in agreement) and a score-based mode. Keep the existing modes. | Medium | — | Signal combination |
+| T6 | Point-in-time fundamentals from EDGAR filing dates, so the QVM screen can be backtested. | Large | — | QVM, item 2 |
+| T7 | QVM factor definitions (12-1 momentum, composite value from yields, quality additions, winsorising), then a monthly-rebalanced QVM strategy in the backtester. | Large | T6 | QVM, items 1, 3, 4 |
+| T8 | Portfolio construction: Ledoit-Wolf + minimum-variance or HRP; sector, single-name and correlation caps; rebalance bands; a portfolio-level volatility target (sizing is per position and set once at entry today). | Large | — | Portfolio construction, items 2–3 |
+| T9 | Historical index constituents for pooled training, to remove survivorship bias. | Medium | A data source | Phase 0, last item |
+| T10 | Register RSI and the ensemble classifier as `SignalStrategy` implementations, compare them through `backtest`, then delete the legacy `strategies` command. | Medium | — | Phase 1, last item |
+| T11 | Scheduled retraining with a champion/challenger check; feature importance and per-year breakdown in the evaluation report. | Medium | T1 | ML movement model, items 5–6 |
+
+After these: the Phase 3 spikes, starting with learning-to-rank and meta-labeling.
+
+### Small fixes
+
+| # | Fix | Where |
+|---|---|---|
+| F1 | No test covers the `/api/v1/train` endpoint (there is no `tests/web/`). It was changed in Phase 0 to evaluate on holdout-blind models and then refit on all data. | `stock_analysis/web/app.py` |
+| F2 | Several BUYs in one run can still leave cash slightly negative: each order is sized against cash at the signal day's close, without commission, slippage or a higher Open the next day. Reserve a small buffer or cap the last order. | `stock_analysis/trading/decision.py` |
+| F3 | Check whether the live notional ceiling counts BUY orders queued earlier in the same run. It adds only the current order to the portfolio value. | `stock_analysis/jobs/daily.py` |
+| F4 | Add `.claude/worktrees/` to `.gitignore` so agent worktrees do not show up as untracked files. | `.gitignore` |
