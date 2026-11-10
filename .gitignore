@@ -17,8 +17,9 @@ __pycache__/
 *.whl
 *.parquet
 
-# Agent caches (sandbox / uv)
+# Agent caches (sandbox / uv) and agent worktrees
 .cache/
+.claude/worktrees/
 
 # Ralph working files (local run state — not committed; see scripts/ralph/archive/ for snapshots)
 scripts/ralph/prd.json

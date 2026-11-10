@@ -22,11 +22,9 @@ costs:
   slippage_pct: 0.0005
 
 defaults:
-  # ml_movement falls back to HOLD until a model is trained for a ticker
-  # (via the POST /api/v1/train/<ticker> endpoint), so it's safe to enable by default.
-  strategies: [ma_crossover, ml_movement]
-  signal_mode: consensus
-  ml_confidence_threshold: 0.55
+  # ml_movement was taken out in November 2026: the walk-forward backtest showed no
+  # edge and the only saved models predate the label fix (docs/strategy-improvement-plan.md, D1).
+  strategies: [ma_crossover]
   ma_short: 20
   ma_long: 50
 

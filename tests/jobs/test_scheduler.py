@@ -140,6 +140,37 @@ def test_run_forever_swallows_run_daily_exception(monkeypatch, tmp_path):
     mock_notifier_instance.send_error_alert.assert_called_once()
 
 
+def test_run_forever_runs_every_config_even_if_one_fails(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        scheduler, "load_portfolio_config", lambda path: MagicMock(schedule={})
+    )
+    monkeypatch.setattr(scheduler, "next_run_at", lambda now, run_after_close: now)
+
+    stop_event = threading.Event()
+    ran = []
+
+    def _run(path, **kwargs):
+        ran.append(path)
+        if path == "first.yaml":
+            raise RuntimeError("boom")
+        stop_event.set()
+
+    notifier = MagicMock()
+    monkeypatch.setattr(scheduler, "run_daily", _run)
+    monkeypatch.setattr(scheduler, "EmailNotifier", lambda config: notifier)
+    monkeypatch.setattr(scheduler, "load_smtp_config_from_env", lambda: None)
+
+    scheduler.run_forever(
+        ["first.yaml", "second.yaml"],
+        heartbeat_path=tmp_path / "heartbeat",
+        stop_event=stop_event,
+    )
+
+    assert ran == ["first.yaml", "second.yaml"]
+    notifier.send_error_alert.assert_called_once()
+    assert "first.yaml" in notifier.send_error_alert.call_args.args[0]
+
+
 def test_run_forever_skips_and_alerts_on_a_slot_missed_by_too_much(monkeypatch, tmp_path):
     """E.g. the host slept through 16:05 and woke the next morning — running then
     would trade on a stale session (and a session date already rolled over in UTC)."""

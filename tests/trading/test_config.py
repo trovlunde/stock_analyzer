@@ -12,8 +12,7 @@ def test_load_portfolio_config():
     assert settings.portfolio.name == "paper-us"
     assert settings.portfolio.initial_cash == 100_000
     assert len(settings.positions) >= 3
-    assert settings.defaults["strategies"] == ["ma_crossover", "ml_movement"]
-    assert settings.defaults["signal_mode"] == "consensus"
+    assert settings.defaults["strategies"] == ["ma_crossover"]
     assert settings.risk.max_daily_loss_pct == 0.05
     assert settings.risk.max_drawdown_pct == 0.20
     assert settings.risk.liquidate_on_trip is False

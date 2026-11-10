@@ -64,7 +64,7 @@ def _heartbeat_during(path: Path, interval_seconds: float):
 
 
 def run_forever(
-    config_path: str = DEFAULT_CONFIG,
+    config_path: str | list[str] = DEFAULT_CONFIG,
     poll_seconds: int = DEFAULT_POLL_SECONDS,
     heartbeat_path: Path = HEARTBEAT_PATH,
     heartbeat_interval_seconds: float = DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
@@ -72,9 +72,16 @@ def run_forever(
 ) -> None:
     """Run the daily trading job once per NYSE trading day, forever, until stopped.
 
+    `config_path` may be several portfolio configs. Each is run in turn at the
+    same slot, and a failure in one does not stop the others. The slot itself
+    (timezone, before or after the close) is taken from the first config.
+
     No auto-retry within the same day on failure — a failed run alerts and waits
     for the next scheduled slot, rather than risking a crash-and-retry loop.
     """
+    config_paths = [config_path] if isinstance(config_path, str) else list(config_path)
+    if not config_paths:
+        raise ValueError("At least one portfolio config is required")
     stop_event = stop_event or threading.Event()
     signal.signal(signal.SIGTERM, lambda signum, frame: stop_event.set())
     signal.signal(signal.SIGINT, lambda signum, frame: stop_event.set())
@@ -82,7 +89,7 @@ def run_forever(
     notifier = EmailNotifier(load_smtp_config_from_env())
 
     while not stop_event.is_set():
-        settings = load_portfolio_config(config_path)
+        settings = load_portfolio_config(config_paths[0])
         tz = ZoneInfo(settings.schedule.get("timezone", "America/New_York"))
         run_after_close = settings.schedule.get("run_after_close", True)
 
@@ -107,12 +114,15 @@ def run_forever(
             continue
 
         _write_heartbeat(heartbeat_path)
-        try:
-            with _heartbeat_during(heartbeat_path, heartbeat_interval_seconds):
-                run_daily(config_path, dry_run=False, notifier=notifier)
-        except Exception as exc:
-            logger.exception("Scheduled run failed")
-            notifier.send_error_alert("Scheduled trading run failed", exc)
+        with _heartbeat_during(heartbeat_path, heartbeat_interval_seconds):
+            for path in config_paths:
+                if stop_event.is_set():
+                    break
+                try:
+                    run_daily(path, dry_run=False, notifier=notifier)
+                except Exception as exc:
+                    logger.exception("Scheduled run failed for %s", path)
+                    notifier.send_error_alert(f"Scheduled trading run failed ({path})", exc)
 
     logger.info("Scheduler stopped")
 
@@ -121,7 +131,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Long-running scheduler that triggers the daily trading job"
     )
-    parser.add_argument("--config", default=DEFAULT_CONFIG, help="Path to portfolio YAML config")
+    parser.add_argument(
+        "--config",
+        nargs="+",
+        default=[DEFAULT_CONFIG],
+        help="Portfolio YAML config(s); several run one after another at each slot",
+    )
     parser.add_argument(
         "--poll-seconds",
         type=int,

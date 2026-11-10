@@ -29,7 +29,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["uv", "run", "stock-analysis-trader"]
+    # Both paper portfolios run at the same slot; each keeps its own state.
+    command:
+      - uv
+      - run
+      - stock-analysis-trader
+      - --config
+      - config/portfolio.yaml
+      - config/portfolio-etf-trend.yaml
     volumes:
       - ./models:/app/models
       - ./data:/app/data
