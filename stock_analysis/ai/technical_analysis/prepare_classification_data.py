@@ -59,8 +59,7 @@ def prepare_classification_data(stock_data, predict_weekly=False, threshold=0.01
     feature_columns = get_features(use_extra_features)
 
     # Fill any missing features with forward fill followed by backward fill
-    data[feature_columns] = data[feature_columns].fillna(
-        method='ffill').fillna(method='bfill')
+    data[feature_columns] = data[feature_columns].ffill().bfill()
 
     print(f"Number of samples with complete features: {len(data)}")
     print(
@@ -136,8 +135,7 @@ def prepare_classification_data_enhanced(stock_data, predict_weekly=False, thres
     feature_columns = get_features(use_extra_features)
 
     # Fill any missing features with forward fill followed by backward fill
-    data[feature_columns] = data[feature_columns].fillna(
-        method='ffill').fillna(method='bfill')
+    data[feature_columns] = data[feature_columns].ffill().bfill()
 
     print(f"Number of samples with complete features: {len(data)}")
     print(
