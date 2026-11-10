@@ -21,7 +21,12 @@ from stock_analysis.trading.config import (
 from stock_analysis.trading.broker import Broker
 from stock_analysis.trading.broker_config import load_broker_from_env
 from stock_analysis.trading.cost_models import build_cost_model
-from stock_analysis.trading.decision import DecisionResult, decide, portfolio_value
+from stock_analysis.trading.decision import (
+    DecisionResult,
+    decide,
+    portfolio_value,
+    with_queued_order,
+)
 from stock_analysis.trading.live_gate import (
     live_notional_ceiling_violation,
     live_portfolio_ceiling_violation,
@@ -34,8 +39,10 @@ from stock_analysis.trading.portfolio_metrics import (
     benchmark_relative_return,
     compute_portfolio_metrics,
 )
+from stock_analysis.trading.regime import RegimeFilter, risk_off_reason
 from stock_analysis.trading.report import write_daily_report
 from stock_analysis.trading.risk import check_kill_switch
+from stock_analysis.trading.sizing import annualised_volatility
 from stock_analysis.trading.signals import combine_signals, get_signal_strategy
 from stock_analysis.trading.signals.base import SignalResult
 
@@ -70,6 +77,29 @@ def _fetch_price_data(
             df.index = df.index.tz_localize(None)
         data[ticker] = df
     return data
+
+
+def _risk_off_reason(
+    regime_filter: RegimeFilter | None, provider: MarketDataProvider
+) -> str | None:
+    """Why the regime filter blocks new BUYs today, or None if it does not.
+
+    If the filter's ticker cannot be fetched, nothing is blocked: the filter is a
+    strategy rule, not a safety limit, and the kill switch still applies.
+    """
+    if regime_filter is None:
+        return None
+    try:
+        market = _fetch_price_data([regime_filter.ticker], provider).get(regime_filter.ticker)
+    except Exception:
+        logger.exception("Regime filter data fetch failed for %s", regime_filter.ticker)
+        market = None
+    if market is None:
+        logger.warning(
+            "Regime filter skipped — no data for %s", regime_filter.ticker
+        )
+        return None
+    return risk_off_reason(regime_filter, market["Close"])
 
 
 def _benchmark_comparison(
@@ -330,6 +360,13 @@ def _run_session(
                             "Kill switch tripped", kill_switch_result.reason
                         )
 
+    risk_off = _risk_off_reason(settings.regime_filter, provider)
+    if risk_off:
+        logger.warning("%s", risk_off)
+
+    # What decide() sees: `state` plus the BUY orders queued so far in this run, so
+    # several BUYs on one day cannot together spend more cash or slots than exist.
+    decision_state = state
     decisions: list[tuple[str, object]] = []
     queued = 0
     failed_tickers: list[str] = []
@@ -381,17 +418,26 @@ def _run_session(
             decision = decide(
                 ticker=ticker,
                 signal=signal,
-                state=state,
+                state=decision_state,
                 config=portfolio_cfg,
                 current_price=current_price,
                 prices=prices,
                 stop_loss_pct=stop_loss_for_position(settings, position_entry),
+                volatility=(
+                    annualised_volatility(df["Close"], portfolio_cfg.vol_lookback)
+                    if portfolio_cfg.sizing == "vol_target"
+                    else None
+                ),
             )
             if kill_switch_active and decision.intent is not None and decision.intent.side == "BUY":
                 decision = DecisionResult(
                     signal=decision.signal,
                     intent=None,
                     skipped_reason="kill switch tripped — new BUY orders blocked",
+                )
+            elif risk_off and decision.intent is not None and decision.intent.side == "BUY":
+                decision = DecisionResult(
+                    signal=decision.signal, intent=None, skipped_reason=risk_off
                 )
             elif (
                 decision.intent is not None
@@ -417,6 +463,9 @@ def _run_session(
             decisions.append((ticker, decision))
 
             if decision.intent and next_fill_day is not None:
+                decision_state = with_queued_order(
+                    decision_state, decision.intent, current_price
+                )
                 order_id = broker.submit_order(
                     state, run_id, decision.intent, dry_run=dry_run, fill_date=next_fill_day
                 )

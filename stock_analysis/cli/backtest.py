@@ -28,7 +28,9 @@ from stock_analysis.trading.config import (
     load_portfolio_config,
     strategy_names_for_position,
 )
+from stock_analysis.trading.regime import RegimeFilter
 from stock_analysis.trading.signals import get_signal_strategy
+from stock_analysis.trading.sizing import SIZING_MODES
 
 WALK_FORWARD_ML = "ml_walk_forward"
 SAVED_MODEL_ML = "ml_movement"
@@ -48,7 +50,21 @@ def _override_settings(settings: PortfolioSettings, args) -> PortfolioSettings:
         ]
     if args.signal_mode:
         defaults["signal_mode"] = args.signal_mode
-    return dataclasses.replace(settings, positions=positions, defaults=defaults)
+    portfolio = settings.portfolio
+    if args.sizing:
+        portfolio = dataclasses.replace(portfolio, sizing=args.sizing)
+    regime_filter = settings.regime_filter
+    if args.no_regime_filter:
+        regime_filter = None
+    elif args.regime_filter:
+        regime_filter = RegimeFilter(ticker=args.regime_filter.upper())
+    return dataclasses.replace(
+        settings,
+        portfolio=portfolio,
+        positions=positions,
+        defaults=defaults,
+        regime_filter=regime_filter,
+    )
 
 
 def _strategies_in_use(settings: PortfolioSettings) -> list[str]:
@@ -88,6 +104,15 @@ def run_backtest_command(args, provider: MarketDataProvider | None = None) -> st
     def resolve_strategy(name: str):
         return walk_forward if name == WALK_FORWARD_ML else get_signal_strategy(name)
 
+    market_data = None
+    if settings.regime_filter is not None:
+        regime_ticker = settings.regime_filter.ticker
+        market_data = load_price_data([regime_ticker], provider, period=args.period).get(
+            regime_ticker
+        )
+        if market_data is None:
+            raise SystemExit(f"No price data for the regime filter ticker {regime_ticker}")
+
     result = run_backtest(
         settings,
         price_data,
@@ -95,6 +120,7 @@ def run_backtest_command(args, provider: MarketDataProvider | None = None) -> st
         end=date.fromisoformat(args.end) if args.end else None,
         resolve_strategy=resolve_strategy,
         apply_kill_switch=not args.no_kill_switch,
+        market_data=market_data,
     )
     sessions = result.equity.index
     initial_cash = result.initial_cash
@@ -126,6 +152,10 @@ def run_backtest_command(args, provider: MarketDataProvider | None = None) -> st
             "costs": settings.costs,
             "portfolio": dataclasses.asdict(settings.portfolio),
             "risk": dataclasses.asdict(settings.risk) if not args.no_kill_switch else None,
+            "regime_filter": (
+                dataclasses.asdict(settings.regime_filter)
+                if settings.regime_filter is not None else None
+            ),
             "retrain_every": args.retrain_every if WALK_FORWARD_ML in strategies else None,
         },
         sort_keys=True,
@@ -256,6 +286,18 @@ def add_backtest_parser(subparsers) -> None:
         ),
     )
     parser.add_argument("--signal-mode", choices=["consensus", "priority", "any"], default=None)
+    parser.add_argument(
+        "--sizing", choices=list(SIZING_MODES), default=None,
+        help="Position sizing (default: from the config)",
+    )
+    parser.add_argument(
+        "--regime-filter", default=None, metavar="TICKER",
+        help="Block new BUYs while TICKER is below its 200-day average (default: from the config)",
+    )
+    parser.add_argument(
+        "--no-regime-filter", action="store_true",
+        help="Ignore the config's regime filter",
+    )
     parser.add_argument(
         "--period", default="10y",
         help="How much price history to fetch (bars before --start are warm-up history)",

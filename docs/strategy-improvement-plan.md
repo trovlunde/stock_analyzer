@@ -111,9 +111,31 @@ Reading the numbers: neither strategy beats holding its own universe on risk-adj
 ### Phase 2 — Improve what we have
 
 **Trend following**
-- [ ] State-based trend signal: target is long while in the bullish regime, flat otherwise; the daily job reconciles target vs. actual position so missed days self-heal.
-- [ ] Replace single 20/50 cross with time-series momentum (e.g. 12-month minus last month, or a blend of 3/6/12-month) and a market-regime filter (index above its 200-day average). Evaluate on a broad universe, not three stocks.
+- [x] State-based trend signal (`trend_state`): BUY for as long as the uptrend holds, SELL for as long as it is broken. `decide()` skips a BUY when already long and a SELL when flat, so a missed run, a full portfolio or a ticker added mid-trend is corrected on the next run.
+- [x] Time-series momentum (average of 3/6/12-month returns) with the price above its own 200-day average for entry, plus an optional market-regime filter (`regime_filter`: no new BUYs while SPY is below its 200-day average). Evaluated on 20 ETFs — results below.
 - [ ] ATR-based stops / trailing exits instead of fixed-percentage stop from average cost.
+
+**Phase 2 results — trend following on the ETF universe (2026-11-10).** `config/portfolio-etf-trend.yaml`: 20 ETFs (US equity and sectors, international, bonds, gold, commodities, property), 2016-11-10 to 2026-11-09, $100,000, fills at next Open, $1 commission + 0.05 % slippage. All four runs are logged trials.
+
+| | A: MA cross 20/50, fixed 5 % | B: `trend_state`, fixed 5 % | C: `trend_state`, vol-target | D: C + regime filter | Buy & hold (universe) | Buy & hold (SPY) |
+|---|---:|---:|---:|---:|---:|---:|
+| CAGR | 5.29 % | 6.62 % | 7.11 % | 6.84 % | 11.59 % | 15.11 % |
+| Volatility | 7.71 % | 8.50 % | 8.20 % | 8.16 % | 14.30 % | 18.03 % |
+| Sharpe | 0.71 | 0.80 | 0.88 | 0.85 | 0.84 | 0.87 |
+| Max drawdown | −14.81 % | −13.43 % | −12.71 % | −12.67 % | −28.45 % | −33.72 % |
+| Avg exposure | 64 % | 76 % | 81 % | 79 % | 100 % | 100 % |
+| Trades | 1070 | 1130 | 930 | 870 | — | — |
+| Resamples where Sharpe beats universe buy & hold | 25 % | 36 % | 55 % | 50 % | — | — |
+
+Reading the numbers:
+- Against the Phase 1 baseline the portfolio is now actually invested (about 80 % against 20 %) and CAGR went from 4–5 % to about 7 %.
+- The best variant (C) has the same risk-adjusted return as buying and holding the same ETFs (Sharpe 0.88 against 0.84) with less than half the drawdown and about 60 % of the return. The bootstrap puts it ahead of buy-and-hold in 55 % of resamples — a coin flip. This is what trend following usually delivers: a smoother ride, not a higher return, in a decade when almost everything went up.
+- The state-based signal beats the 20/50 cross (0.80 against 0.71 at the same sizing), and volatility sizing adds a little more. The regime filter did not help here: each ETF's own trend rule already keeps it out of falling markets.
+- With four configurations the probability of backtest overfitting is 49 %, so the order between B, C and D is not reliable. Do not tune further on this period.
+- By the success criterion in section 4 this is **not yet a promotion**: C is ahead of its universe only within noise, on a period that was also used to compare the variants. It is a reasonable candidate for a second paper portfolio run side by side with the existing one (it uses its own portfolio name), judged on what it does from here on.
+- `trend_state` wins only 31 % of its round trips and trades each ETF about every four months — many small losses around the point where momentum crosses zero. A wider no-trade band is the obvious next experiment, but it has to be tested on a period not used here.
+
+**Found on the way:** several BUYs decided in the same run each saw the full cash balance and all free slots, because orders fill the next day. With three tickers at 10 % this never mattered; with twenty it let the portfolio queue more than its cash and more than `max_positions`. Both the daily job and the backtester now count orders already queued in the run (`with_queued_order`).
 
 **ML movement model**
 - [ ] One pooled cross-sectional model for the whole universe instead of one model per ticker; LightGBM as default (already a dependency).
@@ -133,10 +155,10 @@ Reading the numbers: neither strategy beats holding its own universe on risk-adj
 - [ ] Use the valuation models as a margin-of-safety feature (price vs. EPV / reverse-DCF implied growth), with sector-appropriate discount rates instead of a flat 10 %.
 
 **Portfolio construction and risk**
-- [ ] Volatility-targeted position sizing (inverse-vol or risk-parity weights, portfolio vol target) in place of fixed 10 %.
+- [x] Volatility-targeted position sizing per position (`portfolio.sizing: vol_target`: weight = `risk_per_position` / annualised volatility, capped at `max_position_pct`). Sized once at entry; no rebalancing and no portfolio-level volatility target yet.
 - [ ] Replace max-Sharpe on sample estimates with Ledoit-Wolf shrinkage + minimum-variance or Hierarchical Risk Parity (both in PyPortfolioOpt, already a dependency).
 - [ ] Sector / single-name / correlation caps; turnover budget; rebalance bands.
-- [ ] Widen the paper universe (e.g. S&P 100 or a liquid ETF set) so diversification and ranking strategies have something to work with.
+- [x] Wider universe as a separate config (`config/portfolio-etf-trend.yaml`, 20 liquid ETFs, portfolio name `paper-etf-trend`). `config/portfolio.yaml` is unchanged; running the new config in the daily job is a decision for the owner.
 
 ### Phase 3 — Modern approaches worth exploring
 

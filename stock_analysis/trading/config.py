@@ -4,7 +4,9 @@ from typing import Any
 
 import yaml
 
+from stock_analysis.trading.regime import RegimeFilter
 from stock_analysis.trading.risk import RiskConfig
+from stock_analysis.trading.sizing import SIZING_MODES
 
 
 @dataclass
@@ -16,6 +18,11 @@ class PortfolioConfig:
     position_size_pct: float
     long_only: bool
     stop_loss_pct: float | None
+    # Sizing of new positions — see trading.sizing.position_weight
+    sizing: str = "fixed"
+    risk_per_position: float = 0.02
+    max_position_pct: float = 0.20
+    vol_lookback: int = 60
 
 
 @dataclass
@@ -37,6 +44,7 @@ class PortfolioSettings:
     positions: list[PositionEntry]
     schedule: dict[str, Any] = field(default_factory=dict)
     risk: RiskConfig = field(default_factory=RiskConfig)
+    regime_filter: RegimeFilter | None = None
 
 
 def _coerce_strategy_list(raw: Any, where: str) -> list[str] | None:
@@ -74,7 +82,24 @@ def load_portfolio_config(path: str | Path) -> PortfolioSettings:
         position_size_pct=float(portfolio_raw.get("position_size_pct", 0.10)),
         long_only=bool(portfolio_raw.get("long_only", True)),
         stop_loss_pct=portfolio_raw.get("stop_loss_pct"),
+        sizing=str(portfolio_raw.get("sizing", "fixed")),
+        risk_per_position=float(portfolio_raw.get("risk_per_position", 0.02)),
+        max_position_pct=float(portfolio_raw.get("max_position_pct", 0.20)),
+        vol_lookback=int(portfolio_raw.get("vol_lookback", 60)),
     )
+    if portfolio.sizing not in SIZING_MODES:
+        raise ValueError(
+            f"portfolio.sizing must be one of {list(SIZING_MODES)} (got {portfolio.sizing!r})"
+        )
+
+    regime_raw = raw.get("regime_filter")
+    regime_filter = None
+    if regime_raw:
+        if not isinstance(regime_raw, dict) or not regime_raw.get("ticker"):
+            raise ValueError("regime_filter needs a ticker, e.g. {ticker: SPY, ma: 200}")
+        regime_filter = RegimeFilter(
+            ticker=str(regime_raw["ticker"]).upper(), ma=int(regime_raw.get("ma", 200))
+        )
 
     positions = []
     for entry in positions_raw:
@@ -125,6 +150,7 @@ def load_portfolio_config(path: str | Path) -> PortfolioSettings:
         positions=positions,
         schedule=dict(raw.get("schedule", {})),
         risk=risk,
+        regime_filter=regime_filter,
     )
 
 

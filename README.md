@@ -212,7 +212,21 @@ Config-driven paper portfolio. Evaluates US equities with the configured signal 
 
 **Config:** `config/portfolio.yaml` — watchlist, sizing, risk limits, strategy defaults, per-ticker overrides.
 
-**Signals:** `ma_crossover` and `ml_movement`, combined per `signal_mode`. `ml_movement` HOLDs for a ticker until a model trained on the current feature set exists — train one with `POST /api/v1/train/<ticker>`.
+**Signals:** `ma_crossover`, `ml_movement` and `trend_state`, combined per `signal_mode`.
+- `ma_crossover` — BUY/SELL on the day the short average crosses the long one.
+- `ml_movement` — HOLDs for a ticker until a model trained on the current feature set exists; train one with `POST /api/v1/train/<ticker>`.
+- `trend_state` — BUY every day the ticker is in an uptrend (average of its 3-, 6- and 12-month returns above zero and price above its 200-day average), SELL every day that average return is at or below zero. Because it reports the state rather than the day of a change, an entry missed one day is made the next. Parameters: `trend_lookbacks`, `trend_ma`.
+
+**Sizing:** `portfolio.sizing: fixed` (default) puts `position_size_pct` of the portfolio into each new position. `vol_target` gives calmer assets larger positions: weight = `risk_per_position` / annualised volatility over `vol_lookback` sessions, capped at `max_position_pct`.
+
+**Regime filter:** optional top-level `regime_filter: {ticker: SPY, ma: 200}` blocks new BUY orders while that ticker is below its moving average. Existing positions are still sold by their own signals.
+
+**ETF trend portfolio:** `config/portfolio-etf-trend.yaml` runs `trend_state` with volatility sizing and the regime filter on 20 ETFs. It has its own portfolio name, so it keeps separate state from `config/portfolio.yaml`:
+
+```bash
+uv run stock-analysis-evaluate backtest --config config/portfolio-etf-trend.yaml
+uv run stock-analysis-daily --config config/portfolio-etf-trend.yaml --dry-run
+```
 
 **Run once:**
 ```bash

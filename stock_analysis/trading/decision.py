@@ -1,9 +1,11 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Literal
 
 from stock_analysis.storage.portfolio_store import PortfolioState, Position
 from stock_analysis.trading.config import PortfolioConfig
 from stock_analysis.trading.signals.base import SignalAction, SignalResult
+from stock_analysis.trading.sizing import position_weight
 
 OrderSide = Literal["BUY", "SELL"]
 
@@ -38,6 +40,34 @@ def portfolio_value(state: PortfolioState, prices: dict[str, float]) -> float:
     return total
 
 
+def with_queued_order(
+    state: PortfolioState, intent: OrderIntent, price: float
+) -> PortfolioState:
+    """The portfolio as later decisions in the same run should see it once `intent`
+    is queued.
+
+    Orders fill at the next session, so `state` itself does not change when one is
+    queued. Without this, every BUY decided in one run would see the same cash and
+    the same free slots, and together they could exceed both. A queued BUY takes
+    its cash and its slot straight away; a queued SELL frees nothing until it fills.
+    `state` is not modified.
+    """
+    if intent.side != "BUY":
+        return state
+    reserved = Position(
+        ticker=intent.ticker,
+        shares=intent.shares,
+        avg_cost=price,
+        opened_at=datetime.now(timezone.utc),
+    )
+    return PortfolioState(
+        id=state.id,
+        name=state.name,
+        cash=state.cash - intent.shares * price,
+        positions=[*state.positions, reserved],
+    )
+
+
 def _stop_loss_triggered(
     position: Position, current_price: float, stop_loss_pct: float | None
 ) -> bool:
@@ -56,7 +86,13 @@ def decide(
     current_price: float,
     prices: dict[str, float],
     stop_loss_pct: float | None,
+    volatility: float | None = None,
 ) -> DecisionResult:
+    """Turn a signal into an order, or a reason for not placing one.
+
+    `volatility` is the ticker's annualised volatility; it only matters when
+    `config.sizing` is `vol_target` (see `trading.sizing.position_weight`).
+    """
     position = _position_for_ticker(state, ticker)
     open_positions = len(state.positions)
 
@@ -80,7 +116,7 @@ def decide(
             return DecisionResult(signal=signal, skipped_reason="max positions reached")
 
         total_value = portfolio_value(state, prices)
-        target_notional = total_value * config.position_size_pct
+        target_notional = total_value * position_weight(config, volatility)
         if target_notional > state.cash:
             target_notional = state.cash
 

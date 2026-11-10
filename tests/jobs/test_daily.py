@@ -233,6 +233,83 @@ def test_run_daily_normal_run_queues_buy_order(write_config, engine, tmp_path, m
     assert pending[0].side == "BUY"
 
 
+def _pending_orders(engine):
+    store = PortfolioStore(engine)
+    state = store.get_portfolio_by_name("test-portfolio")
+    return store.get_pending_orders(state.id)
+
+
+def test_run_daily_buys_on_the_same_day_cannot_spend_the_same_cash_twice(
+    engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = tmp_path / "portfolio.yaml"
+    config_path.write_text(
+        CONFIG_TEMPLATE.format(
+            strategy="buy_test", positions="  - ticker: AAPL\n  - ticker: MSFT\n"
+        ).replace("position_size_pct: 0.10", "position_size_pct: 0.60"),
+        encoding="utf-8",
+    )
+    provider = _FakeProvider({"AAPL": _ohlcv(), "MSFT": _ohlcv()})
+
+    assert daily.run_daily(str(config_path), provider=provider, engine=engine) == 0
+
+    # 10,000 cash at a price of 100: 60% for the first order, the remaining 40% for the second
+    assert [(o.ticker, o.shares) for o in _pending_orders(engine)] == [
+        ("AAPL", 60),
+        ("MSFT", 40),
+    ]
+
+
+def _regime_config(tmp_path):
+    config_path = tmp_path / "portfolio.yaml"
+    config_path.write_text(
+        CONFIG_TEMPLATE.format(strategy="buy_test", positions="  - ticker: AAPL\n")
+        + "\nregime_filter:\n  ticker: MKT\n  ma: 3\n",
+        encoding="utf-8",
+    )
+    return str(config_path)
+
+
+def test_run_daily_regime_filter_blocks_buys_while_market_is_below_its_average(
+    engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    falling_market = _ohlcv()
+    falling_market["Close"] = [100.0, 100.0, 100.0, 100.0, 90.0]
+    provider = _FakeProvider({"AAPL": _ohlcv(), "MKT": falling_market})
+
+    assert daily.run_daily(_regime_config(tmp_path), provider=provider, engine=engine) == 0
+
+    assert _pending_orders(engine) == []
+    report = next((tmp_path / "data" / "reports").glob("*.md")).read_text(encoding="utf-8")
+    assert "MKT is below its 3-day average" in report
+
+
+def test_run_daily_regime_filter_allows_buys_in_a_rising_market(
+    engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    rising_market = _ohlcv()
+    rising_market["Close"] = [100.0, 101.0, 102.0, 103.0, 104.0]
+    provider = _FakeProvider({"AAPL": _ohlcv(), "MKT": rising_market})
+
+    assert daily.run_daily(_regime_config(tmp_path), provider=provider, engine=engine) == 0
+
+    assert [o.ticker for o in _pending_orders(engine)] == ["AAPL"]
+
+
+def test_run_daily_regime_filter_without_market_data_does_not_block(
+    engine, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    provider = _FakeProvider({"AAPL": _ohlcv()})  # nothing for MKT
+
+    assert daily.run_daily(_regime_config(tmp_path), provider=provider, engine=engine) == 0
+
+    assert [o.ticker for o in _pending_orders(engine)] == ["AAPL"]
+
+
 def test_run_daily_missing_price_data_skips_ticker(write_config, engine, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     config_path = write_config(strategy="buy_test", tickers=("AAPL", "MSFT"))

@@ -1,0 +1,74 @@
+# Trend following on a broad set of liquid ETFs (US equity, sectors, international,
+# bonds, gold, commodities, property). All of them have traded since before 2010,
+# so a backtest is not flattered by picking today's winners.
+#
+#   uv run stock-analysis-evaluate backtest --config config/portfolio-etf-trend.yaml
+#   uv run stock-analysis-daily --config config/portfolio-etf-trend.yaml --dry-run
+#
+# Uses its own portfolio name, so it keeps separate state from config/portfolio.yaml.
+portfolio:
+  name: paper-etf-trend
+  enabled: true
+  initial_cash: 100000
+  max_positions: 20
+  long_only: true
+  # A calm asset gets a larger position than a jumpy one: weight = risk_per_position
+  # / annualised volatility, capped at max_position_pct.
+  sizing: vol_target
+  risk_per_position: 0.01
+  max_position_pct: 0.15
+  vol_lookback: 60
+  # Used when sizing is `fixed`, and as the fallback while volatility is unknown
+  position_size_pct: 0.05
+
+schedule:
+  timezone: America/New_York
+  run_after_close: true
+
+risk:
+  max_daily_loss_pct: 0.05
+  max_drawdown_pct: 0.20
+  liquidate_on_trip: false
+
+# No new BUYs while the market itself is below its 200-day average.
+regime_filter:
+  ticker: SPY
+  ma: 200
+
+costs:
+  model: equity
+  commission_per_trade: 1.00
+  slippage_pct: 0.0005
+
+defaults:
+  strategies: [trend_state]
+  trend_lookbacks: [63, 126, 252]
+  trend_ma: 200
+
+positions:
+  # US equity
+  - ticker: SPY
+  - ticker: QQQ
+  - ticker: IWM
+  # US sectors
+  - ticker: XLK
+  - ticker: XLF
+  - ticker: XLE
+  - ticker: XLV
+  - ticker: XLI
+  - ticker: XLY
+  - ticker: XLP
+  - ticker: XLU
+  - ticker: XLB
+  # International equity
+  - ticker: EFA
+  - ticker: EEM
+  # Property
+  - ticker: VNQ
+  # Bonds
+  - ticker: TLT
+  - ticker: IEF
+  - ticker: LQD
+  # Gold and commodities
+  - ticker: GLD
+  - ticker: DBC

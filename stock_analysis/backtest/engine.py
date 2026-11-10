@@ -26,9 +26,12 @@ from stock_analysis.trading.decision import (
     OrderIntent,
     decide,
     portfolio_value,
+    with_queued_order,
 )
 from stock_analysis.trading.fills import apply_fill_to_state
+from stock_analysis.trading.regime import risk_off_reason
 from stock_analysis.trading.risk import check_kill_switch
+from stock_analysis.trading.sizing import annualised_volatility
 from stock_analysis.trading.signals import (
     SignalResult,
     SignalStrategy,
@@ -105,14 +108,25 @@ def run_backtest(
     lookback_bars: int | None = None,
     resolve_strategy: StrategyResolver = get_signal_strategy,
     apply_kill_switch: bool = True,
+    market_data: pd.DataFrame | None = None,
 ) -> BacktestResult:
     """Simulate `settings` over `price_data` ({ticker: OHLCV frame, tz-naive daily index}).
 
     Bars before `start` are still passed to strategies as history, so fetch more
     data than the period being tested to avoid a warm-up gap. `lookback_bars`
     caps how much history each strategy call receives (None = everything so far).
+    `market_data` is the price history of `settings.regime_filter.ticker` and is
+    required when the config has a regime filter.
     """
     portfolio_cfg = settings.portfolio
+    regime_filter = settings.regime_filter
+    if regime_filter is not None and market_data is None:
+        raise ValueError(
+            f"The config has a regime filter on {regime_filter.ticker}; pass its "
+            f"price history as market_data"
+        )
+    market_close = market_data["Close"] if regime_filter is not None else None
+    vol_sized = portfolio_cfg.sizing == "vol_target"
     cost_model = build_cost_model(settings.costs)
     positions = [
         p for p in settings.positions if p.enabled and p.ticker in price_data
@@ -189,6 +203,18 @@ def run_backtest(
 
         # 4. Decide on data up to and including this session; orders fill next session.
         awaiting_fill = {intent.ticker for intent in pending}
+        # What decide() sees: the portfolio plus BUY orders already queued, so the
+        # BUYs of one session cannot together spend more cash or slots than exist.
+        decision_state = state
+        for intent in pending:
+            decision_state = with_queued_order(
+                decision_state, intent, prices.get(intent.ticker, 0.0)
+            )
+        risk_off = (
+            risk_off_reason(regime_filter, market_close.loc[:session])
+            if regime_filter is not None
+            else None
+        )
         for position_entry in positions:
             ticker = position_entry.ticker
             df = price_data[ticker]
@@ -209,17 +235,23 @@ def run_backtest(
             decision: DecisionResult = decide(
                 ticker=ticker,
                 signal=signal,
-                state=state,
+                state=decision_state,
                 config=portfolio_cfg,
                 current_price=prices[ticker],
                 prices=prices,
                 stop_loss_pct=stop_loss_for_position(settings, position_entry),
+                volatility=(
+                    annualised_volatility(window["Close"], portfolio_cfg.vol_lookback)
+                    if vol_sized and signal.action == "BUY"
+                    else None
+                ),
             )
             if decision.intent is None:
                 continue
-            if tripped_on is not None and decision.intent.side == "BUY":
+            if decision.intent.side == "BUY" and (tripped_on is not None or risk_off):
                 continue
             pending.append(decision.intent)
+            decision_state = with_queued_order(decision_state, decision.intent, prices[ticker])
 
         equity_history.append((session.date().isoformat(), value))
         exposure_history.append((value - state.cash) / value if value else 0.0)
