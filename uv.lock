@@ -1,6 +1,6 @@
 version = 1
 revision = 5
-requires-python = ">=3.14, <4.0"
+requires-python = ">=3.14"
 
 [manifest]
 overrides = [{ name = "numba", specifier = ">=0.63" }]
