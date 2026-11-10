@@ -25,8 +25,16 @@ from ...ai.technical_analysis.ma_signals import generate_multi_ma_signals
 from ..helpers import classifiers
 
 
-def temporal_holdout_split(data, holdout_months=None, test_size=0.2):
-    """Split labeled time-series rows into chronological train and holdout sets."""
+WEEKLY_LABEL_HORIZON = 5
+
+
+def temporal_holdout_split(data, holdout_months=None, test_size=0.2, label_horizon=1):
+    """Split labeled time-series rows into chronological train and holdout sets.
+
+    ``label_horizon`` is the number of bars each label looks ahead. The last
+    ``label_horizon - 1`` train rows are purged because their labels are computed
+    from prices inside the holdout period.
+    """
     training_data = data[data['Target'].notna()]
     if holdout_months is not None and holdout_months > 0:
         cutoff = training_data.index.max() - pd.DateOffset(months=int(holdout_months))
@@ -36,7 +44,25 @@ def temporal_holdout_split(data, holdout_months=None, test_size=0.2):
         split_idx = int(len(training_data) * (1 - test_size))
         train_data = training_data.iloc[:split_idx]
         holdout_data = training_data.iloc[split_idx:]
+    purge_rows = max(int(label_horizon) - 1, 0)
+    if purge_rows:
+        train_data = train_data.iloc[:-purge_rows]
     return train_data, holdout_data
+
+
+def temporal_three_way_split(data, validation_months, test_months, label_horizon=1):
+    """Split labeled rows into chronological train / validation / test sets.
+
+    Choose between models on validation; report the chosen model once on test.
+    Selecting and reporting on the same holdout gives an optimistic estimate.
+    """
+    development, test_data = temporal_holdout_split(
+        data, holdout_months=test_months, label_horizon=label_horizon
+    )
+    train_data, validation_data = temporal_holdout_split(
+        development, holdout_months=validation_months, label_horizon=label_horizon
+    )
+    return train_data, validation_data, test_data
 
 
 def train_classifier_single_stock(
@@ -46,11 +72,15 @@ def train_classifier_single_stock(
     threshold=0.005,
     plot=False,
     overfit_check=False,
-    classifier=RandomForestClassifier(random_state=42),
+    classifier=None,
     eval_split=0.2,
     verbose=True,
 ):
     """Train a three-class classifier."""
+    # A default instance in the signature would be shared (and refitted) across calls
+    if classifier is None:
+        classifier = RandomForestClassifier(random_state=42)
+
     # Get model name and initialize model correctly
     if isinstance(classifier, type):  # If it's a class (not instance)
         model = classifier(random_state=42)
@@ -189,13 +219,16 @@ def train_classifier_tickers(
     threshold=0.005,
     plot=False,
     overfit_check=False,
-    classifier=RandomForestClassifier(random_state=42),
+    classifier=None,
     use_extra_features=False,
     cutoff_date=None,
     eval_split=0.2,
     verbose=True,
 ):
     """Train a classifier on multiple tickers simultaneously."""
+    if classifier is None:
+        classifier = RandomForestClassifier(random_state=42)
+
     all_data_frames = []
 
     if verbose:
@@ -2121,8 +2154,16 @@ def compute_holdout_metrics(
         _actual_movement_class(value, threshold) for value in weekly_holdout['return']
     ]
 
+    # Daily and weekly holdouts can cover slightly different dates (weekly labels
+    # end earlier), so pair predictions by date rather than by position.
+    daily_by_date = pd.Series(daily_preds, index=daily_holdout.index)
+    weekly_by_date = pd.Series(weekly_preds, index=weekly_holdout.index)
+    common_dates = daily_holdout.index.intersection(weekly_holdout.index)
+
     combined_preds = []
-    for daily_pred, weekly_pred in zip(daily_preds, weekly_preds):
+    for daily_pred, weekly_pred in zip(
+        daily_by_date.loc[common_dates], weekly_by_date.loc[common_dates]
+    ):
         if daily_pred == 'positive' and weekly_pred == 'positive':
             combined_preds.append('positive')
         elif daily_pred == 'negative' and weekly_pred == 'negative':
@@ -2130,7 +2171,10 @@ def compute_holdout_metrics(
         else:
             combined_preds.append('neutral')
 
-    daily_returns = daily_holdout['return'].tolist()
+    daily_returns = daily_holdout['return'].loc[common_dates].tolist()
+    actual_combined = [
+        _actual_movement_class(value, threshold) for value in daily_returns
+    ]
     combined_positive_returns = [
         daily_returns[index]
         for index, pred in enumerate(combined_preds)
@@ -2149,9 +2193,9 @@ def compute_holdout_metrics(
         'holdout_samples': holdout_samples,
         'daily_accuracy': _prediction_accuracy(daily_preds, actual_daily),
         'weekly_accuracy': _prediction_accuracy(weekly_preds, actual_weekly),
-        'combined_accuracy': _prediction_accuracy(combined_preds, actual_daily),
+        'combined_accuracy': _prediction_accuracy(combined_preds, actual_combined),
         'combined_signal_rate': (
-            combined_signal_count / holdout_samples if holdout_samples else None
+            combined_signal_count / len(combined_preds) if combined_preds else None
         ),
         'combined_positive_avg_return': (
             float(np.mean(combined_positive_returns))
@@ -2180,10 +2224,15 @@ def compare_variants(
     holdout_months=12,
     variants=None,
     verbose=True,
+    validation_months=12,
 ):
     """
-    Train multiple movement-classifier pipeline variants on the same train period
-    and compare them on a shared temporal holdout.
+    Train multiple movement-classifier pipeline variants on the same train period,
+    rank them on a validation period, then score only the winner on the final
+    ``holdout_months`` test period (refitted on train + validation).
+
+    Returns the validation comparison table. The winner's untouched test metrics
+    are in ``results.attrs['test_metrics']``.
     """
     if variants is None:
         variants = DEFAULT_VARIANT_SPECS
@@ -2192,8 +2241,50 @@ def compare_variants(
     if data is None or data.empty:
         raise ValueError(f"No data for {ticker}")
 
+    def prepare_variant(variant):
+        return tuple(
+            prepare_classification_data(
+                data,
+                predict_weekly=predict_weekly,
+                threshold=variant['threshold'],
+                use_extra_features=variant['extra_features'],
+            ).dropna()
+            for predict_weekly in (False, True)
+        )
+
+    def fit_and_score(variant, daily_fit, daily_eval, weekly_fit, weekly_eval):
+        threshold = variant['threshold']
+        use_extra_features = variant['extra_features']
+        daily_model, daily_scaler, _ = train_classifier_single_stock(
+            daily_fit,
+            use_extra_features=use_extra_features,
+            threshold=threshold,
+            classifier=_build_variant_classifier(variant),
+            eval_split=0,
+            verbose=False,
+        )
+        weekly_model, weekly_scaler, _ = train_classifier_single_stock(
+            weekly_fit,
+            predict_weekly=True,
+            use_extra_features=use_extra_features,
+            threshold=threshold,
+            classifier=_build_variant_classifier(variant),
+            eval_split=0,
+            verbose=False,
+        )
+        return compute_holdout_metrics(
+            daily_eval,
+            daily_model,
+            daily_scaler,
+            weekly_eval,
+            weekly_model,
+            weekly_scaler,
+            threshold,
+            use_extra_features,
+        )
+
     rows = []
-    holdout_start = None
+    validation_start = None
 
     for variant in variants:
         name = variant['name']
@@ -2205,55 +2296,19 @@ def compare_variants(
             print(f"Variant: {name}")
             print(f"{'='*60}")
 
-        prepared_daily = prepare_classification_data(
-            data,
-            predict_weekly=False,
-            threshold=threshold,
-            use_extra_features=use_extra_features,
-        ).dropna()
-        prepared_weekly = prepare_classification_data(
-            data,
-            predict_weekly=True,
-            threshold=threshold,
-            use_extra_features=use_extra_features,
-        ).dropna()
+        prepared_daily, prepared_weekly = prepare_variant(variant)
 
-        daily_train, daily_holdout = temporal_holdout_split(
-            prepared_daily, holdout_months=holdout_months
+        daily_train, daily_validation, _ = temporal_three_way_split(
+            prepared_daily, validation_months, holdout_months
         )
-        weekly_train, weekly_holdout = temporal_holdout_split(
-            prepared_weekly, holdout_months=holdout_months
+        weekly_train, weekly_validation, _ = temporal_three_way_split(
+            prepared_weekly, validation_months, holdout_months,
+            label_horizon=WEEKLY_LABEL_HORIZON,
         )
-        holdout_start = daily_holdout.index.min()
+        validation_start = daily_validation.index.min()
 
-        classifier = _build_variant_classifier(variant)
-        daily_model, daily_scaler, _ = train_classifier_single_stock(
-            daily_train,
-            use_extra_features=use_extra_features,
-            threshold=threshold,
-            classifier=classifier,
-            eval_split=0,
-            verbose=False,
-        )
-        weekly_model, weekly_scaler, _ = train_classifier_single_stock(
-            weekly_train,
-            predict_weekly=True,
-            use_extra_features=use_extra_features,
-            threshold=threshold,
-            classifier=_build_variant_classifier(variant),
-            eval_split=0,
-            verbose=False,
-        )
-
-        metrics = compute_holdout_metrics(
-            daily_holdout,
-            daily_model,
-            daily_scaler,
-            weekly_holdout,
-            weekly_model,
-            weekly_scaler,
-            threshold,
-            use_extra_features,
+        metrics = fit_and_score(
+            variant, daily_train, daily_validation, weekly_train, weekly_validation
         )
 
         rows.append({
@@ -2270,11 +2325,33 @@ def compare_variants(
         'combined_accuracy', ascending=False, na_position='last'
     ).reset_index(drop=True)
 
+    # Score only the validation winner on the final test period, refitted on
+    # everything before it. These numbers were not used to choose the variant.
+    best_name = results.iloc[0]['variant']
+    best_variant = next(v for v in variants if v['name'] == best_name)
+    prepared_daily, prepared_weekly = prepare_variant(best_variant)
+    daily_development, daily_test = temporal_holdout_split(
+        prepared_daily, holdout_months=holdout_months
+    )
+    weekly_development, weekly_test = temporal_holdout_split(
+        prepared_weekly, holdout_months=holdout_months,
+        label_horizon=WEEKLY_LABEL_HORIZON,
+    )
+    test_metrics = fit_and_score(
+        best_variant, daily_development, daily_test, weekly_development, weekly_test
+    )
+    results.attrs['selected_variant'] = best_name
+    results.attrs['test_start'] = daily_test.index.min()
+    results.attrs['test_metrics'] = test_metrics
+
     if verbose:
         print(f"\n{'='*60}")
-        print(f"Variant comparison for {ticker} (holdout={holdout_months} months)")
-        if holdout_start is not None:
-            print(f"Holdout starts: {holdout_start.date()}")
+        print(
+            f"Variant comparison for {ticker} "
+            f"(validation={validation_months} months, test={holdout_months} months)"
+        )
+        if validation_start is not None:
+            print(f"Validation starts: {validation_start.date()}")
         print(f"{'='*60}")
 
         display_cols = [
@@ -2296,9 +2373,22 @@ def compare_variants(
 
         best = results.iloc[0]
         print(
-            f"\nBest variant by combined accuracy: {best['variant']} "
+            f"\nBest variant by validation combined accuracy: {best['variant']} "
             f"({best['combined_accuracy']:.2%})"
         )
+
+        print(
+            f"\nFinal test for {best_name} "
+            f"(from {results.attrs['test_start'].date()}, "
+            f"{test_metrics['holdout_samples']} days, not used for selection):"
+        )
+        for key in [
+            'daily_accuracy', 'weekly_accuracy', 'combined_accuracy',
+            'combined_signal_rate', 'combined_positive_avg_return',
+            'combined_negative_avg_return',
+        ]:
+            value = test_metrics[key]
+            print(f"  {key}: {value:.2%}" if value is not None else f"  {key}: n/a")
 
     return results
 
@@ -2311,14 +2401,19 @@ def evaluate_all_classifiers(
     holdout_months=None,
     plot=True,
     classifier_names=None,
+    label_horizon=1,
 ):
     """
     Compare classifiers with time-series CV on the training period,
     then evaluate the best model on a temporal holdout set.
+
+    ``label_horizon`` is the number of bars each label looks ahead (5 for weekly
+    labels); it sets the purge gap between train and test rows.
     """
     features = get_features(use_extra_features)
     train_data, holdout_data = temporal_holdout_split(
-        prepared_data, holdout_months=holdout_months, test_size=test_size
+        prepared_data, holdout_months=holdout_months, test_size=test_size,
+        label_horizon=label_horizon,
     )
 
     if len(train_data) < 30:
@@ -2347,9 +2442,11 @@ def evaluate_all_classifiers(
     class_weights = compute_class_weight('balanced', classes=classes, y=y_train)
     class_weight_dict = dict(zip(classes, class_weights))
 
+    # Unscaled features: compare_classifiers fits its own scaler inside each CV fold
     results = compare_classifiers(
-        X_train_scaled, y_train, class_weights=class_weight_dict,
+        X_train, y_train, class_weights=class_weight_dict,
         classifier_names=classifier_names,
+        label_horizon=label_horizon,
     )
     print_best_configs(results)
     if plot:

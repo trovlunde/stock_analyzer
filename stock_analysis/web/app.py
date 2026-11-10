@@ -8,10 +8,11 @@ import logging
 import sys
 from stock_analysis.ai.model_manager import ModelManager
 from stock_analysis.ai.technical_analysis.movement_classification import (
+    WEEKLY_LABEL_HORIZON,
+    compute_holdout_metrics,
     train_classifier_single_stock,
     train_classifier_tickers,
     temporal_holdout_split,
-    test_model_performance,
 )
 from stock_analysis.ai.technical_analysis.prepare_classification_data import prepare_classification_data
 from sklearn.ensemble import RandomForestClassifier
@@ -225,61 +226,72 @@ def train_movement_classifier(ticker):
             use_extra_features=use_extra_features
         )
 
+        def fit_models(daily_rows, weekly_rows):
+            # eval_split=0: fit on every row given. The default would silently
+            # leave the most recent 20% of rows out of the model.
+            fitted = []
+            for rows, predict_weekly in ((daily_rows, False), (weekly_rows, True)):
+                fitted.extend(train_classifier_single_stock(
+                    rows,
+                    predict_weekly=predict_weekly,
+                    threshold=threshold,
+                    use_extra_features=use_extra_features,
+                    classifier=RandomForestClassifier(
+                        n_estimators=100, random_state=42),
+                    eval_split=0,
+                    plot=False,
+                    verbose=False,
+                )[:2])
+            return fitted
+
+        # Evaluate first, on models that never saw the holdout period
+        holdout_metrics = None
         if holdout_months > 0:
             daily_train, daily_holdout = temporal_holdout_split(
                 prepared_data, holdout_months=holdout_months
             )
             weekly_train, weekly_holdout = temporal_holdout_split(
-                prepared_weekly_data, holdout_months=holdout_months
+                prepared_weekly_data, holdout_months=holdout_months,
+                label_horizon=WEEKLY_LABEL_HORIZON,
             )
             logger.info(
                 f"Temporal holdout: {holdout_months} months "
                 f"(daily train={len(daily_train)}, holdout={len(daily_holdout)})"
             )
-        else:
-            daily_train, daily_holdout = prepared_data, None
-            weekly_train, weekly_holdout = prepared_weekly_data, None
+            if len(daily_holdout) > 0:
+                logger.info("Evaluating models on temporal holdout set")
+                eval_models = fit_models(daily_train, weekly_train)
+                metrics = compute_holdout_metrics(
+                    daily_holdout,
+                    eval_models[0],
+                    eval_models[1],
+                    weekly_holdout,
+                    eval_models[2],
+                    eval_models[3],
+                    threshold,
+                    use_extra_features,
+                )
+                holdout_metrics = {
+                    'holdout_months': holdout_months,
+                    'holdout_start': str(daily_holdout.index.min().date()),
+                    **metrics,
+                }
 
-        # Train models
-        logger.info("Initializing classifiers")
-        daily_classifier = RandomForestClassifier(
-            n_estimators=100, random_state=42)
-        weekly_classifier = RandomForestClassifier(
-            n_estimators=100, random_state=42)
-
-        # Train daily model
-        logger.info("Training daily model")
+        # The saved models are fitted on all labelled data, including the holdout
+        # period, so they are as current as possible when the daily job uses them.
+        logger.info("Training models on all labelled data")
         try:
-            daily_model, daily_scaler, daily_data = train_classifier_single_stock(
-                daily_train,
-                predict_weekly=False,
-                threshold=threshold,
-                use_extra_features=use_extra_features,
-                classifier=daily_classifier,
-                plot=False
+            daily_model, daily_scaler, weekly_model, weekly_scaler = fit_models(
+                prepared_data, prepared_weekly_data
             )
         except Exception as e:
-            logger.error(f"Error training daily model: {str(e)}")
-            raise
-
-        # Train weekly model
-        logger.info("Training weekly model")
-        try:
-            weekly_model, weekly_scaler, weekly_data = train_classifier_single_stock(
-                weekly_train,
-                predict_weekly=True,
-                threshold=threshold,
-                use_extra_features=use_extra_features,
-                classifier=weekly_classifier,
-                plot=False
-            )
-        except Exception as e:
-            logger.error(f"Error training weekly model: {str(e)}")
+            logger.error(f"Error training models: {str(e)}")
             raise
 
         # Save models with metadata
         logger.info("Saving models")
         model_name = f"{ticker}_movement"
+        labelled_daily = prepared_data[prepared_data['Target'].notna()]
         metadata = {
             'ticker': ticker,
             'threshold': threshold,
@@ -287,8 +299,13 @@ def train_movement_classifier(ticker):
             # MlMovementStrategy refuses models whose features don't match its own
             'feature_columns': list(get_features(use_extra_features)),
             'period': period,
-            'training_date': pd.Timestamp.now().isoformat()
+            'training_date': pd.Timestamp.now().isoformat(),
+            'trained_through': str(labelled_daily.index.max().date()),
+            'training_samples': len(labelled_daily),
         }
+        if holdout_metrics:
+            metadata['holdout_months'] = holdout_months
+            metadata['holdout_metrics'] = holdout_metrics
 
         try:
             # Save daily model
@@ -325,26 +342,6 @@ def train_movement_classifier(ticker):
         except Exception as e:
             logger.error(f"Error saving models: {str(e)}")
             raise
-
-        holdout_metrics = None
-        if holdout_months > 0 and daily_holdout is not None and len(daily_holdout) > 0:
-            logger.info("Evaluating models on temporal holdout set")
-            test_model_performance(
-                daily_holdout,
-                daily_model,
-                daily_scaler,
-                weekly_holdout,
-                weekly_model,
-                weekly_scaler,
-                threshold=threshold,
-                use_extra_features=use_extra_features,
-            )
-            holdout_metrics = {
-                'holdout_months': holdout_months,
-                'holdout_samples': len(daily_holdout),
-                'holdout_start': str(daily_holdout.index.min().date()),
-            }
-            metadata['holdout_months'] = holdout_months
 
         logger.info(f"Successfully trained and saved models for {ticker}")
         response = {

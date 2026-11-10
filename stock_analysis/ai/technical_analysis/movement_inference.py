@@ -26,10 +26,13 @@ def predict_latest(
         stock_data, predict_weekly=False, use_extra_features=use_extra_features
     )
     feature_columns = get_features(use_extra_features)
-    latest_features = prepared[feature_columns].iloc[[-1]]
 
-    if latest_features.isna().any(axis=1).iloc[0]:
+    # Rows with incomplete features are dropped during preparation, so the latest
+    # bar is only present when all of its features could be computed.
+    if prepared.empty or prepared.index[-1] != stock_data.index[-1]:
         raise ValueError("Insufficient history to compute features for the latest bar")
+
+    latest_features = prepared[feature_columns].iloc[[-1]]
 
     scaled = scaler.transform(latest_features)
     label = model.predict(scaled)[0]

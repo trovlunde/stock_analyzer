@@ -183,10 +183,24 @@ def prepare_classification_data_cache(ticker, _cache_dir=None):
         return None
 
 
+def split_by_report_date(X, y, test_size=0.2):
+    """Chronological train/test split for rows pooled across tickers.
+
+    Every report dated before the cutoff trains, the rest test. A random split
+    would test on reports that sit between (and on the same dates as) training
+    reports from other tickers.
+    """
+    report_dates = pd.to_datetime(X.index, utc=True)
+    cutoff = report_dates.sort_values()[int(len(report_dates) * (1 - test_size))]
+    train_mask = report_dates < cutoff
+    if not train_mask.any():
+        raise ValueError("All reports share one date; cannot split chronologically")
+    return X[train_mask], X[~train_mask], y[train_mask], y[~train_mask]
+
+
 def train_classifier(tickers):
     """Train daily and weekly classifiers using financial data from multiple tickers."""
     from sklearn.ensemble import RandomForestClassifier
-    from sklearn.model_selection import train_test_split
     from sklearn.metrics import accuracy_score, classification_report
 
     # Initialize lists to store features and targets from all tickers
@@ -225,13 +239,7 @@ def train_classifier(tickers):
     print("\nWeekly target class distribution:")
     print(y['weekly_target'].value_counts(normalize=True))
 
-    # Split the data with stratification if enough samples
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y['daily_target'] if len(X) >= 10 else None
-    )
+    X_train, X_test, y_train, y_test = split_by_report_date(X, y, test_size=0.2)
 
     # Initialize classifiers with balanced class weights
     daily_clf = RandomForestClassifier(

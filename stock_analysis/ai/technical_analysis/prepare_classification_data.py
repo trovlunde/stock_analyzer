@@ -11,10 +11,12 @@ def prepare_classification_data(stock_data, predict_weekly=False, threshold=0.01
     # Initialize with full date range
     data = pd.DataFrame(index=stock_data.index)
 
-    # Target: today's or next week's return (only needed for training)
+    # Target: tomorrow's or next week's return (only needed for training)
     if predict_weekly:
+        # Close[t+5] / Close[t] - 1. Shifting by less than the period would pull
+        # today's already-known return (a feature) into the label.
         data['return'] = stock_data['Close'].pct_change(
-            periods=5, fill_method=None).shift(-4)  # Next week's return
+            periods=5, fill_method=None).shift(-5)  # Next week's return
     else:
         data['return'] = stock_data['Close'].pct_change(
             fill_method=None).shift(-1)  # Tomorrow's return
@@ -58,9 +60,9 @@ def prepare_classification_data(stock_data, predict_weekly=False, threshold=0.01
     # Get the appropriate feature list
     feature_columns = get_features(use_extra_features)
 
-    # Fill any missing features with forward fill followed by backward fill
-    data[feature_columns] = data[feature_columns].fillna(
-        method='ffill').fillna(method='bfill')
+    # Drop rows whose features can't be computed (rolling warm-up, missing bars).
+    # Filling them would copy later values back into earlier rows.
+    data = data.dropna(subset=feature_columns)
 
     print(f"Number of samples with complete features: {len(data)}")
     print(
@@ -74,10 +76,12 @@ def prepare_classification_data_enhanced(stock_data, predict_weekly=False, thres
     # Initialize with full date range
     data = pd.DataFrame(index=stock_data.index)
 
-    # Target: today's or next week's return (only needed for training)
+    # Target: tomorrow's or next week's return (only needed for training)
     if predict_weekly:
+        # Close[t+5] / Close[t] - 1. Shifting by less than the period would pull
+        # today's already-known return (a feature) into the label.
         data['return'] = stock_data['Close'].pct_change(
-            periods=5, fill_method=None).shift(-4)  # Next week's return
+            periods=5, fill_method=None).shift(-5)  # Next week's return
     else:
         data['return'] = stock_data['Close'].pct_change(
             fill_method=None).shift(-1)  # Tomorrow's return
@@ -135,9 +139,9 @@ def prepare_classification_data_enhanced(stock_data, predict_weekly=False, thres
     # Get the appropriate feature list
     feature_columns = get_features(use_extra_features)
 
-    # Fill any missing features with forward fill followed by backward fill
-    data[feature_columns] = data[feature_columns].fillna(
-        method='ffill').fillna(method='bfill')
+    # Drop rows whose features can't be computed (rolling warm-up, missing bars).
+    # Filling them would copy later values back into earlier rows.
+    data = data.dropna(subset=feature_columns)
 
     print(f"Number of samples with complete features: {len(data)}")
     print(
@@ -212,7 +216,7 @@ def prepare_classification_data_iterative(stock_data, predict_weekly=False, thre
     # Calculate returns for target (using full dataset to get actual returns)
     if predict_weekly:
         final_data['return'] = stock_data['Close'].pct_change(
-            periods=5, fill_method=None).shift(-4)
+            periods=5, fill_method=None).shift(-5)
     else:
         final_data['return'] = stock_data['Close'].pct_change(fill_method=None).shift(-1)
 
@@ -225,9 +229,8 @@ def prepare_classification_data_iterative(stock_data, predict_weekly=False, thre
     # Get the appropriate feature list
     feature_columns = get_features(use_extra_features)
 
-    # Fill any missing features
-    final_data[feature_columns] = final_data[feature_columns].fillna(
-        method='ffill').fillna(method='bfill')
+    # Drop rows whose features can't be computed
+    final_data = final_data.dropna(subset=feature_columns)
 
     print(f"Number of samples with complete features: {len(final_data)}")
     print(

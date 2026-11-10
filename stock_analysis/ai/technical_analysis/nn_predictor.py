@@ -15,7 +15,7 @@ def prepare_data(data, predict_weekly=False):
 
     if predict_weekly:
         X['target'] = data['Close'].pct_change(
-            periods=5, fill_method=None).shift(-4)
+            periods=5, fill_method=None).shift(-5)
     else:
         X['target'] = data['Close'].pct_change(fill_method=None).shift(-1)
 

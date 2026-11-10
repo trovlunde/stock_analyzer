@@ -1,5 +1,7 @@
 from sklearn.model_selection import GridSearchCV, cross_val_score, TimeSeriesSplit
 from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import matplotlib.pyplot as plt
 from stock_analysis.ai.helpers import classifiers
@@ -42,9 +44,22 @@ def get_classifier_param_grid():
     }
 
 
-def compare_classifiers(X, y, cv=5, class_weights=None, classifier_names=None):
+def purged_time_series_cv(n_splits=5, label_horizon=1):
+    """Walk-forward CV whose train folds stop ``label_horizon`` rows before the test fold.
+
+    A label that looks ``label_horizon`` bars ahead is computed from prices inside
+    the following test fold; the gap purges those rows so no train label overlaps
+    the test period.
     """
-    Evaluate classifiers with class weights and stratified CV.
+    return TimeSeriesSplit(n_splits=n_splits, gap=max(int(label_horizon), 0))
+
+
+def compare_classifiers(X, y, cv=5, class_weights=None, classifier_names=None, label_horizon=1):
+    """
+    Evaluate classifiers with class weights and purged time-series CV.
+
+    Pass unscaled features: scaling is fitted inside each CV fold so test-fold
+    statistics never reach training.
     """
     results = {}
     scoring = {
@@ -57,8 +72,7 @@ def compare_classifiers(X, y, cv=5, class_weights=None, classifier_names=None):
     param_grid = get_classifier_param_grid()
 
     # Use time series cross-validation
-    tscv = TimeSeriesSplit(n_splits=5)
-    cv = tscv  # Replace standard CV with time series CV
+    cv = purged_time_series_cv(n_splits=5, label_horizon=label_horizon)
 
     active_classifiers = (
         {n: c for n, c in classifiers.items() if n in classifier_names}
@@ -74,19 +88,27 @@ def compare_classifiers(X, y, cv=5, class_weights=None, classifier_names=None):
             if hasattr(clf, 'class_weight') and class_weights is not None:
                 param_grid[name]['class_weight'] = [class_weights]
 
+            pipeline = Pipeline([
+                ('scaler', StandardScaler().set_output(transform="pandas")),
+                ('clf', clf),
+            ])
             grid = GridSearchCV(
-                clf,
-                param_grid[name],
+                pipeline,
+                {f'clf__{param}': values for param, values in param_grid[name].items()},
                 scoring=scoring,
                 refit='f1',
-                cv=cv,  # Using stratified CV
+                cv=cv,
                 n_jobs=-1,
                 verbose=1
             )
             grid.fit(X, y)
 
             results[name] = {
-                'best_params': grid.best_params_,
+                # Classifier params only, without the pipeline step prefix
+                'best_params': {
+                    param.removeprefix('clf__'): value
+                    for param, value in grid.best_params_.items()
+                },
                 'best_score': grid.best_score_,
                 'cv_results': {
                     metric: grid.cv_results_[

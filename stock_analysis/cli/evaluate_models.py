@@ -6,6 +6,7 @@ import pandas as pd
 
 from stock_analysis.ai.helpers import get_index_data, classifiers as _classifiers_registry
 from stock_analysis.ai.technical_analysis.movement_classification import (
+    WEEKLY_LABEL_HORIZON,
     compare_variants,
     evaluate_all_classifiers,
     resolve_backtest_period,
@@ -96,7 +97,8 @@ def cmd_train(args):
             prepared_daily, holdout_months=args.holdout_months
         )
         weekly_train, weekly_holdout = temporal_holdout_split(
-            prepared_weekly, holdout_months=args.holdout_months
+            prepared_weekly, holdout_months=args.holdout_months,
+            label_horizon=WEEKLY_LABEL_HORIZON,
         )
     else:
         daily_train, daily_holdout = prepared_daily, None
@@ -207,6 +209,7 @@ def cmd_variants(args):
         ticker=args.ticker,
         period=args.period,
         holdout_months=args.holdout_months,
+        validation_months=args.validation_months,
         verbose=True,
     )
 
@@ -275,7 +278,14 @@ def build_parser():
     )
     variants.add_argument("--ticker", default="^GSPC")
     variants.add_argument("--period", default="20y")
-    variants.add_argument("--holdout-months", type=int, default=12)
+    variants.add_argument(
+        "--holdout-months", type=int, default=12,
+        help="Final test period; only the selected variant is scored on it",
+    )
+    variants.add_argument(
+        "--validation-months", type=int, default=12,
+        help="Period before the test period, used to rank the variants",
+    )
     variants.set_defaults(func=cmd_variants)
 
     diagnose = sub.add_parser(
