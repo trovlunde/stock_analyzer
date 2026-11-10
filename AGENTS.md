@@ -30,7 +30,7 @@ uv run python -m stock_analysis.jobs.daily --dry-run
 
 ## Conventions
 
-- Python ≥3.12; dependencies via **uv** only
+- Python ≥3.14; dependencies via **uv** only
 - Temporal holdout for classifier evaluation (train past, test recent)
 - SQLite `CacheStore` with namespaced keys for cached fundamentals/market data
 - Paper trading: daily job, `SignalStrategy` registry — do not break `DecisionResult` / `FillResult` contracts

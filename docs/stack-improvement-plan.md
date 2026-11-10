@@ -6,7 +6,7 @@ Assessment of the stock-analysis dependency stack, data sources, and ML tooling 
 
 | Area | Choice | Status |
 |------|--------|--------|
-| Tooling | Python 3.12+, uv, `uv.lock` | Good |
+| Tooling | Python 3.14+, uv, `uv.lock` | Good |
 | Core stack | pandas 2.x, numpy 2.x, scikit-learn 1.9, scipy 1.17 | Current |
 | Viz | Plotly 6.x (+ matplotlib/seaborn in research scripts) | Mixed |
 | Portfolio math | PyPortfolioOpt, empyrical metrics in daily reports | Good |

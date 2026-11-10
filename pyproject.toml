@@ -3,7 +3,7 @@ name = "stock-analysis"
 version = "0.1.0"
 description = ""
 readme = "README.md"
-requires-python = ">=3.12,<4.0"
+requires-python = ">=3.14,<4.0"
 dependencies = [
     "pandas>=2.2.1",
     "numpy>=2.2.6",
@@ -43,6 +43,11 @@ stock-analysis-daily = "stock_analysis.jobs.daily:main"
 stock-analysis-trader = "stock_analysis.jobs.scheduler:main"
 stock-analysis-risk = "stock_analysis.cli.risk:main"
 stock-analysis-evaluate = "stock_analysis.cli.evaluate_models:main"
+
+[tool.uv]
+# pandas-ta pins numba==0.61.2, which refuses to install on Python 3.14.
+# Override the pin until pandas-ta relaxes it.
+override-dependencies = ["numba>=0.63"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

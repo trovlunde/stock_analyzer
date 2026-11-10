@@ -2,7 +2,7 @@
 
 ## Setup
 
-Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+.
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.14+.
 
 ```bash
 # First-time setup (creates .venv and installs dependencies)
