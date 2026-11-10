@@ -89,6 +89,48 @@ def test_moving_average_check_can_be_switched_off():
     assert result.action == "BUY"
 
 
+def _with_momentum(strategy_params):
+    """Slightly rising / slightly falling series: momentum of about +1.2% and -1.2%."""
+    up = TrendStateStrategy().evaluate(_frame(100 * 1.0003 ** np.arange(120)), "AAA", strategy_params)
+    down = TrendStateStrategy().evaluate(_frame(100 * 0.9997 ** np.arange(120)), "AAA", strategy_params)
+    return up, down
+
+
+def test_no_trade_band_holds_while_momentum_is_near_zero():
+    plain_up, plain_down = _with_momentum(PARAMS)
+    banded = {**PARAMS, "trend_entry_threshold": 0.02, "trend_exit_threshold": -0.02}
+    band_up, band_down = _with_momentum(banded)
+
+    assert (plain_up.action, plain_down.action) == ("BUY", "SELL")
+    assert 0 < plain_up.metadata["momentum"] < 0.02
+    assert (band_up.action, band_down.action) == ("HOLD", "HOLD")
+    assert "no-trade band" in band_up.reason
+
+
+def test_no_trade_band_still_trades_a_clear_trend():
+    banded = {**PARAMS, "trend_entry_threshold": 0.02, "trend_exit_threshold": -0.02}
+
+    assert TrendStateStrategy().evaluate(_rising(), "AAA", banded).action == "BUY"
+    assert TrendStateStrategy().evaluate(_falling(), "AAA", banded).action == "SELL"
+
+
+def test_exit_threshold_above_entry_is_rejected():
+    import pytest
+
+    with pytest.raises(ValueError, match="trend_exit_threshold"):
+        TrendStateStrategy().evaluate(
+            _rising(), "AAA", {**PARAMS, "trend_entry_threshold": 0.0, "trend_exit_threshold": 0.01}
+        )
+
+
+def test_score_is_momentum_scaled_and_clipped():
+    result = TrendStateStrategy().evaluate(_rising(), "AAA", PARAMS)
+    steep = TrendStateStrategy().evaluate(_frame(100 * 1.02 ** np.arange(120)), "AAA", PARAMS)
+
+    assert result.metadata["score"] == result.metadata["momentum"] / 0.20
+    assert steep.metadata["score"] == 1.0
+
+
 def test_defaults_need_about_a_year_of_history():
     result = TrendStateStrategy().evaluate(_rising(252), "AAA", {})
     assert "need 253" in result.reason
