@@ -2,7 +2,7 @@
 
 ## Setup
 
-Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+.
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.14+.
 
 ```bash
 # First-time setup (creates .venv and installs dependencies)
@@ -16,7 +16,9 @@ After changing `pyproject.toml` dependencies, run `uv sync` again.
 
 ### Project plans
 
-- [GitHub issues #1–#13](docs/issues/README.md) — stack tooling epic and child tasks (`needs-triage`)
+- [Trader container readiness](tasks/trader-container-readiness.md) — coding tasks before the `trader` service runs unattended
+- [Architecture](docs/architecture.md) — entry surfaces, layers, import boundaries
+- [GitHub issues #1–#13](docs/issues/README.md) — stack tooling epic and child tasks (status per issue)
 - [PRD: Stack & tooling improvements](docs/prd-stack-tooling-improvements.md) — problem statement, user stories, implementation & testing decisions
 - [Stack & tooling improvements](docs/stack-improvement-plan.md) — phased checklist (dependency hygiene, data sources, ML upgrades)
 - [Database cache](docs/database-cache-plan.md) — SQLite cache architecture and phase-2 scope
@@ -43,16 +45,18 @@ Start the Flask web server:
 
 ```bash
 uv run python -m stock_analysis.web.app
-# or backward-compatible:
-uv run python app.py
 ```
 
 The API will be available at `http://localhost:5000` (or the port specified in your `.env` file).
 
 **Available API Endpoints:**
+- `GET /` - Landing page
+- `GET /movement-analysis` - Movement analysis page
 - `GET /health` - Health check
 - `GET /api/v1/status` - API status
 - `GET /api/v1/models` - List available models
+- `DELETE /api/v1/models/cache` - Clear the in-memory model cache
+- `POST /api/v1/predict/<model_name>/<model_type>` - Predict with a named model
 - `POST /api/v1/train/<ticker>` - Train movement classifier for a ticker
 - `GET /api/v1/predict/movement/<ticker>` - Get movement predictions
 - `GET /api/v1/models/movement` - List movement classifier models
@@ -68,7 +72,7 @@ uv run python -m stock_analysis.ai.fundamental_analysis.valuation_example
 
 **Run finviz classifier** (requires local scrape data under `finviz_recs/`, not committed to git):
 ```bash
-# From repo root — populates finviz_recs/*.json (Windows: finviz_scrape.bat)
+# From repo root — populates finviz_recs/*.json (Windows: scripts\finviz\finviz_scrape.bat)
 uv run python scripts/finviz/finviz_scrape.py
 
 uv run python -m stock_analysis.ai.finviz_classifier.finviz_classifier
@@ -139,8 +143,8 @@ You can also import and use functions directly in Python:
 
 ```python
 # In Python shell or script
-from stock_analysis.fetch_stock_data import fetch_stock_data
-from stock_analysis.analyze_stock_data import analyze_stock_data
+from stock_analysis.research.fetch_stock_data import fetch_stock_data
+from stock_analysis.research.analyze_stock_data import analyze_stock_data
 from stock_analysis.ai.fundamental_analysis.valuation_methods import StockValuation
 
 # Fetch and analyze a stock
@@ -156,17 +160,17 @@ all_valuations = valuation.get_all_valuations()
 
 **Analyze a single stock:**
 ```bash
-uv run python -c "from stock_analysis.fetch_stock_data import fetch_stock_data; from stock_analysis.analyze_stock_data import analyze_stock_data; df, _ = fetch_stock_data('AAPL', period='1y'); print(analyze_stock_data(df))"
+uv run python -c "from stock_analysis.research.fetch_stock_data import fetch_stock_data; from stock_analysis.research.analyze_stock_data import analyze_stock_data; df, _ = fetch_stock_data('AAPL', period='1y'); print(analyze_stock_data(df))"
 ```
 
 **Find high dividend stocks:**
 ```bash
-uv run python -c "from stock_analysis.stock_finder import find_high_dividend_stocks, display_stocks; import yfinance as yf; stocks = yf.Tickers('AAPL MSFT GOOGL'); result = find_high_dividend_stocks(stocks=stocks); display_stocks(result)"
+uv run python -c "from stock_analysis.research.stock_finder import find_high_dividend_stocks, display_stocks; from stock_analysis.market_data import YFinanceProvider; stocks = YFinanceProvider().get_tickers_obj(['AAPL', 'MSFT', 'GOOGL']); result = find_high_dividend_stocks(stocks=stocks); display_stocks(result)"
 ```
 
 **Get market index tickers:**
 ```bash
-uv run python -c "from stock_analysis.market_indices import MarketIndices; print(MarketIndices.get_sp500_tickers())"
+uv run python -c "from stock_analysis.research.market_indices import MarketIndices; print(MarketIndices.get_sp500_tickers())"
 ```
 
 ### Tests
@@ -177,22 +181,41 @@ uv run pytest
 
 ### Paper Trading (Daily Job)
 
-Config-driven paper portfolio. Evaluates US equities with MA crossover signals, queues fills at next open, persists state in SQLite.
+Config-driven paper portfolio. Evaluates US equities with the configured signal strategies, queues fills at next open, persists state in SQLite.
 
-**Config:** `config/portfolio.yaml` — watchlist, sizing, strategy defaults, per-ticker overrides.
+**Config:** `config/portfolio.yaml` — watchlist, sizing, risk limits, strategy defaults, per-ticker overrides.
 
-**Run manually:**
+**Signals:** `ma_crossover` and `ml_movement`, combined per `signal_mode`. `ml_movement` HOLDs for a ticker until a model trained on the current feature set exists — train one with `POST /api/v1/train/<ticker>`.
+
+**Run once:**
 ```bash
-uv run python -m stock_analysis.jobs.daily
-uv run python -m stock_analysis.jobs.daily --dry-run
-uv run python -m stock_analysis.jobs.daily --config config/portfolio.yaml
+uv run stock-analysis-daily
+uv run stock-analysis-daily --dry-run
+uv run stock-analysis-daily --config config/portfolio.yaml
 ```
 
-**Windows Task Scheduler (after US close, ~23:00 CET):**
-- Program: `uv`
-- Arguments: `run python -m stock_analysis.jobs.daily`
-- Start in: project root directory
-- Trigger: weekdays after market close
+**Run on a schedule:** `stock-analysis-trader` is a long-running scheduler that triggers the daily job once per NYSE trading day (16:05 ET with `schedule.run_after_close: true`, otherwise 09:35 ET). A slot missed by more than two hours is skipped and alerted rather than run late. It is what the `trader` compose service runs (see [Docker](#docker)).
+
+```bash
+uv run stock-analysis-trader
+```
+
+**Broker:** selected by `BROKER_MODE` in `.env`.
+- `paper_sim` (default) — local simulator, no external account.
+- `alpaca` — Alpaca's paper endpoint; needs `ALPACA_API_KEY` and `ALPACA_SECRET_KEY`.
+
+**Kill switch:** trips on a breach of `risk.max_daily_loss_pct` / `risk.max_drawdown_pct`, an unclean shutdown (process killed mid-run), or a broker/local state mismatch. While tripped, new BUY orders are blocked. Clearing it is manual:
+
+```bash
+uv run stock-analysis-risk status
+uv run stock-analysis-risk reconcile                       # diff local state vs broker
+uv run stock-analysis-risk reconcile --accept-broker-truth
+uv run stock-analysis-risk clear --reason "why it is safe to resume"
+```
+
+**Live trading:** off by default and refused unless every check in `stock_analysis/trading/live_gate.py` passes: `BROKER_MODE=alpaca`, `LIVE_TRADING_ENABLED=true`, `LIVE_TRADING_CONFIRM` set to the exact confirmation phrase, `ALPACA_PAPER=false`, both risk limits configured, kill switch clear, 20 consecutive clean runs, and `LIVE_MAX_NOTIONAL_PER_ORDER` / `LIVE_MAX_PORTFOLIO_NOTIONAL` set. The first live run is read-only (reconcile and report, no orders).
+
+**Email alerts:** optional. Set `SMTP_HOST` and `SMTP_TO` (plus `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_USE_TLS` as needed) to receive the daily summary and failure / kill-switch alerts.
 
 **Outputs:**
 - State: `data/stock_analysis.db` (`paper_*` tables)
@@ -206,7 +229,10 @@ uv run python -m stock_analysis.jobs.daily --config config/portfolio.yaml
 docker compose up --build
 ```
 
-The API is available at `http://localhost:5000`.
+Starts two services from the same image:
+
+- `stock-analysis` — the Flask API at `http://localhost:5000`. Published on loopback only (the API has no auth); reach it remotely via an SSH tunnel or VPN.
+- `trader` — the `stock-analysis-trader` scheduler. Reads `.env`, mounts `./config`, `./data` and `./models`.
 
 ### Optional: activate the virtualenv
 
@@ -270,7 +296,7 @@ This section documents the available functions for stock analysis functionality 
 
 ### Data Fetching
 
-**Module:** `stock_analysis.fetch_stock_data`
+**Module:** `stock_analysis.research.fetch_stock_data`
 
 - `fetch_stock_data(tickers, start_date=None, end_date=None, period="1mo")`
   - Fetches stock price data and events (dividends, earnings) from Yahoo Finance
@@ -287,7 +313,7 @@ This section documents the available functions for stock analysis functionality 
 
 ### Stock Analysis
 
-**Module:** `stock_analysis.analyze_stock_data`
+**Module:** `stock_analysis.research.analyze_stock_data`
 
 - `analyze_stock_data(df)`
   - Analyzes stock data for risk and return metrics
@@ -305,7 +331,7 @@ This section documents the available functions for stock analysis functionality 
 
 ### Stock Finding & Screening
 
-**Module:** `stock_analysis.stock_finder`
+**Module:** `stock_analysis.research.stock_finder`
 
 - `find_stocks_by_method(method='high_dividend', stockTickers=[...])`
   - Main function to find stocks based on specified method
@@ -333,7 +359,7 @@ This section documents the available functions for stock analysis functionality 
 
 ### Sector Analysis
 
-**Module:** `stock_analysis.sector_analysis`
+**Module:** `stock_analysis.research.sector_analysis`
 
 - `analyze_and_display_sector_metrics(stocks_df, min_market_cap=1e9)`
   - Analyzes and visualizes key metrics for each sector
@@ -351,7 +377,7 @@ This section documents the available functions for stock analysis functionality 
 
 ### Market Indices
 
-**Module:** `stock_analysis.market_indices`
+**Module:** `stock_analysis.research.market_indices`
 
 **Class:** `MarketIndices`
   - Contains methods to scrape ticker lists from Wikipedia for various market indices
@@ -437,7 +463,7 @@ This section documents the available functions for stock analysis functionality 
 
 ### Portfolio & Trading Analysis
 
-**Module:** `stock_analysis.portfolio_evaluating`
+**Module:** `stock_analysis.research.portfolio_evaluating`
 
 - `analyze_trading_strategies(stock_data, signals, initial_investment=10000, leverage=10, signal_type="")`
   - Analyzes trading strategies with backtesting
@@ -447,7 +473,7 @@ This section documents the available functions for stock analysis functionality 
 - `calculate_sharpe_ratio(values, risk_free_rate=0.02)` - Calculates Sharpe ratio
 - `plot_trading_analysis(stock_data, results, title="Trading Analysis")` - Plots trading analysis results
 
-**Module:** `stock_analysis.trading_cost_analysis`
+**Module:** `stock_analysis.research.trading_cost_analysis`
 
 **Classes:**
 - `CalculateCost` - Base class for cost calculations
@@ -459,11 +485,11 @@ This section documents the available functions for stock analysis functionality 
 
 ### Visualization
 
-**Module:** `stock_analysis.efficient_frontier_plot`
+**Module:** `stock_analysis.research.efficient_frontier_plot`
 
 - `plot_efficient_frontier(stock_data)` - Plots efficient frontier for portfolio optimization
 
-**Module:** `stock_analysis.display_stock_data`
+**Module:** `stock_analysis.research.display_stock_data`
 
 - `display_stock_data(df, events, ticker)` - Displays stock data with events
 
@@ -482,7 +508,7 @@ Market and index OHLCV data are cached in SQLite (`data/stock_analysis.db` by de
 - `CacheStore.put(key, df)` - Write cached DataFrame
 - `CacheStore.delete(key)` / `clear_prefix(prefix)` - Invalidate entries
 
-**Module:** `stock_analysis.cache_data`
+**Module:** `stock_analysis.research.cache_data`
 
 - `get_cached_stock_data(market)` - Retrieves cached stock data
 - `save_stock_data(stocks_df, market)` - Saves stock data to cache
@@ -519,11 +545,11 @@ Market and index OHLCV data are cached in SQLite (`data/stock_analysis.db` by de
 
 ```python
 # Fetch stock data
-from stock_analysis.fetch_stock_data import fetch_stock_data
+from stock_analysis.research.fetch_stock_data import fetch_stock_data
 df, events = fetch_stock_data('AAPL', period='1y')
 
 # Analyze stock
-from stock_analysis.analyze_stock_data import analyze_stock_data
+from stock_analysis.research.analyze_stock_data import analyze_stock_data
 analysis = analyze_stock_data(df)
 
 # Get valuations
@@ -532,10 +558,10 @@ valuation = StockValuation('AAPL')
 all_valuations = valuation.get_all_valuations()
 
 # Find high dividend stocks
-from stock_analysis.stock_finder import find_high_dividend_stocks
+from stock_analysis.research.stock_finder import find_high_dividend_stocks
 stocks = find_high_dividend_stocks(min_yield=0.03, min_market_cap=1e9)
 
 # Optimize portfolio
-from stock_analysis.analyze_stock_data import optimize_portfolio
+from stock_analysis.research.analyze_stock_data import optimize_portfolio
 weights = optimize_portfolio(stock_data)
 ```

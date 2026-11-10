@@ -7,7 +7,9 @@ import io
 import logging
 from typing import Iterable
 
-import yfinance as yf
+from stock_analysis.market_data import YFinanceProvider
+
+_default_provider = YFinanceProvider()
 
 # Wikipedia / OSE mnemonic → Yahoo symbol when they diverge.
 YAHOO_SYMBOL_REMAP: dict[str, str] = {
@@ -76,14 +78,7 @@ def validate_yahoo_symbols(
         for i in range(0, len(unique), chunk_size):
             chunk = unique[i : i + chunk_size]
             with contextlib.redirect_stderr(io.StringIO()):
-                df = yf.download(
-                    chunk,
-                    period=period,
-                    progress=False,
-                    auto_adjust=True,
-                    threads=True,
-                    group_by="ticker",
-                )
+                df = _default_provider.download_history(chunk, period=period)
             if df is None or df.empty:
                 continue
             if len(chunk) == 1:
@@ -110,7 +105,7 @@ def search_osl_symbol(company_name: str) -> str | None:
     query = f"{company_name} Oslo"
     try:
         with contextlib.redirect_stderr(io.StringIO()):
-            quotes = yf.Search(query, max_results=8).quotes or []
+            quotes = _default_provider.search_quotes(query, max_results=8)
     except Exception:
         return None
 

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from stock_analysis.portfolio_evaluating import analyze_trading_strategies
+from stock_analysis.research.portfolio_evaluating import analyze_trading_strategies
 
 
 def test_trading_signal_markers_align_with_price_dates():

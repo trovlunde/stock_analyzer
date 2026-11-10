@@ -8,7 +8,9 @@ Single-repo modular monolith: one Python package (`stock_analysis/`) with severa
 |---------|-------------|---------|
 | Interactive CLI | `python -m stock_analysis.research.main` | Exploratory analysis, stock finder, sector views |
 | Web API | `python -m stock_analysis.web.app` | Flask REST API for movement classifiers |
-| Paper trading | `python -m stock_analysis.jobs.daily` | Daily signal evaluation and paper fills |
+| Daily trading job | `stock-analysis-daily` (`jobs.daily`) | One run: signal evaluation, orders via the configured broker, report |
+| Trader scheduler | `stock-analysis-trader` (`jobs.scheduler`) | Long-running; triggers the daily job once per NYSE trading day (the `trader` compose service) |
+| Risk CLI | `stock-analysis-risk` (`cli.risk`) | Inspect/clear the kill switch, reconcile local state against the broker |
 | ML evaluation | `stock-analysis-evaluate` CLI | Temporal holdout classifier comparison |
 | Research scripts | `stock_analysis.ai.*` modules | Notebooks-style ML and valuation experiments |
 
@@ -41,6 +43,7 @@ flowchart TB
   Daily --> Trading
   Daily --> Storage
   Daily --> MarketData
+  Trading --> AI
   EvalCLI --> AI
   EvalCLI --> Diagnostics
   AI --> MarketData
@@ -50,7 +53,8 @@ flowchart TB
 
 ## Import boundaries
 
-- **`jobs/daily.py` and `trading/`** — production paper-trading path. Use `market_data`, `storage`, and `trading` only. Do not import `diagnostics/` or heavy research viz.
+- **`jobs/` and `trading/`** — production trading path. Use `market_data`, `storage`, `trading`, and `notifications` only. Do not import `research/`, `diagnostics/` or heavy research viz. Exception: `trading/signals/` reuses `ai/` for signal maths and model loading (`ma_signals`, `model_manager`, `movement_inference`).
+- **`cli/risk.py`** — operator CLI. Uses `storage` and `trading` only.
 - **`web/app.py`** — serves ML endpoints. Imports `ai/` only; no diagnostics by default.
 - **`diagnostics/`** — opt-in statsmodels helpers. Never imported by `jobs/daily`, `web/app`, or paper-trading modules. Researchers and `cli/evaluate_models` may call it explicitly.
 - **`research/`** — interactive CLI and exploratory scripts (sector analysis, stock finder, portfolio plots). May import `market_data` and `storage`; not used by the daily job.
@@ -61,9 +65,10 @@ flowchart TB
 |------|------|
 | `stock_analysis/market_data/` | `MarketDataProvider` protocol and `YFinanceProvider` |
 | `stock_analysis/storage/` | SQLite cache and paper-trading portfolio store |
-| `stock_analysis/trading/` | Signals, paper broker, daily report |
-| `stock_analysis/jobs/` | Scheduled jobs (`daily.py`) |
-| `stock_analysis/cli/` | Non-interactive CLIs (`evaluate_models`) |
+| `stock_analysis/trading/` | Signals, `Broker` abstraction (paper simulator, Alpaca), kill switch, live-trading gate, daily report |
+| `stock_analysis/jobs/` | Daily job (`daily.py`) and its scheduler (`scheduler.py`) |
+| `stock_analysis/notifications/` | Email alerts (daily summary, failures, kill-switch trips) |
+| `stock_analysis/cli/` | Non-interactive CLIs (`evaluate_models`, `risk`) |
 | `stock_analysis/web/` | Flask app and templates |
 | `stock_analysis/research/` | Interactive CLI and exploratory analysis modules |
 | `stock_analysis/ai/` | ML models, classifiers, valuation |

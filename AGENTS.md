@@ -10,6 +10,10 @@ Guidance for human developers and autonomous agents (Ralph, Cursor, Claude Code)
 | `tests/` | pytest suite (`uv run pytest`) |
 | `stock_analysis/research/` | Interactive CLI and exploratory analysis |
 | `stock_analysis/web/` | Flask API and templates |
+| `stock_analysis/trading/` | Signals, brokers (paper simulator, Alpaca), risk, live gate |
+| `stock_analysis/jobs/` | Daily trading job and its scheduler |
+| `stock_analysis/notifications/` | Email alerts |
+| `config/` | Runtime YAML (`portfolio.yaml`) |
 | `docs/` | PRDs, improvement plans, ADRs ([architecture.md](docs/architecture.md)) |
 | `scripts/finviz/` | Finviz scrape script (outputs to `finviz_recs/`) |
 | `scripts/ralph/` | [Ralph](https://github.com/snarktank/ralph) loop — working `prd.json` / `progress.txt` are gitignored; completed runs snapshotted under `archive/` (committed) |
@@ -26,7 +30,7 @@ uv run python -m stock_analysis.jobs.daily --dry-run
 
 ## Conventions
 
-- Python ≥3.12; dependencies via **uv** only
+- Python ≥3.14; dependencies via **uv** only
 - Temporal holdout for classifier evaluation (train past, test recent)
 - SQLite `CacheStore` with namespaced keys for cached fundamentals/market data
 - Paper trading: daily job, `SignalStrategy` registry — do not break `DecisionResult` / `FillResult` contracts
@@ -38,7 +42,7 @@ Based on [snarktank/ralph](https://github.com/snarktank/ralph) (bash loop, fresh
 
 ### Path A — GitHub issue (recommended for stack tooling)
 
-One issue = one Ralph run. Issue index: `docs/issues/README.md`. Recommended order: #2 → #3 → #5 → #4.
+One issue = one Ralph run. Issue index and remaining order: `docs/issues/README.md`.
 
 | Step | Skill / action |
 |------|----------------|
@@ -128,7 +132,7 @@ EOF
 
 ### Optional: Playwright MCP for Flask UI stories
 
-Only needed when Ralph stories touch `app.py` or rendered templates. Add `.mcp.json` with `@playwright/mcp` and a `screenshots/` folder — not required for backend/ML work.
+Only needed when Ralph stories touch `stock_analysis/web/app.py` or rendered templates. Add `.mcp.json` with `@playwright/mcp` and a `screenshots/` folder — not required for backend/ML work.
 
 ### File mapping (vs JeredBlu guide)
 
