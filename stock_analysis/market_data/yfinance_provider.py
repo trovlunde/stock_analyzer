@@ -46,3 +46,17 @@ class YFinanceProvider:
 
     def get_market_stocks(self, market: str):
         return yf.tickers(market=market.upper())
+
+    def download_history(self, symbols: list[str], period: str = "5d") -> pd.DataFrame:
+        """Batch OHLCV download, columns grouped by ticker."""
+        return yf.download(
+            symbols,
+            period=period,
+            progress=False,
+            auto_adjust=True,
+            threads=True,
+            group_by="ticker",
+        )
+
+    def search_quotes(self, query: str, max_results: int = 8) -> list[dict]:
+        return yf.Search(query, max_results=max_results).quotes or []

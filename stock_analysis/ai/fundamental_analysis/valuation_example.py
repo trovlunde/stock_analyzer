@@ -1,5 +1,4 @@
 from .valuation_methods import StockValuation, format_valuation_results, compare_stocks_valuation
-import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
