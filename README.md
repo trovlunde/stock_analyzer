@@ -317,8 +317,7 @@ This section documents the available functions for stock analysis functionality 
 
 - `analyze_stock_data(df)`
   - Analyzes stock data for risk and return metrics
-  - Returns: Dictionary with volatility, annual return, Sharpe ratio, RSI, MACD, max drawdown, VaR
-  - Calculates technical indicators using pandas_ta
+  - Returns: Dictionary with volatility, annual return, Sharpe ratio, RSI, max drawdown, VaR
 
 - `analyze_portfolio_correlation(stock_data)`
   - Analyzes correlation between stocks in a portfolio

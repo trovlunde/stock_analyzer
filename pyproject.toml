@@ -25,7 +25,6 @@ dependencies = [
     "requests-ratelimiter>=0.4.0",
     "scipy>=1.12.0",
     "plottable>=0.1.5",
-    "pandas-ta>=0.4.71b0",
     "sqlalchemy>=2.0",
     "pyyaml>=6.0",
     "lightgbm>=4.6.0",
@@ -43,11 +42,6 @@ stock-analysis-daily = "stock_analysis.jobs.daily:main"
 stock-analysis-trader = "stock_analysis.jobs.scheduler:main"
 stock-analysis-risk = "stock_analysis.cli.risk:main"
 stock-analysis-evaluate = "stock_analysis.cli.evaluate_models:main"
-
-[tool.uv]
-# pandas-ta pins numba==0.61.2, which refuses to install on Python 3.14.
-# Override the pin until pandas-ta relaxes it.
-override-dependencies = ["numba>=0.63"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

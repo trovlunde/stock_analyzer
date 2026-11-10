@@ -209,6 +209,18 @@ def RSI(data, window=14, adjust=False):
     return RSI
 
 
+def macd_histogram(close, fast=12, slow=26, signal=9):
+    """MACD histogram: (fast EMA - slow EMA) minus its signal-period EMA.
+
+    NaN until enough bars exist for the slow EMA and then the signal EMA.
+    """
+    fast_ema = close.ewm(span=fast, adjust=False, min_periods=fast).mean()
+    slow_ema = close.ewm(span=slow, adjust=False, min_periods=slow).mean()
+    macd_line = fast_ema - slow_ema
+    signal_line = macd_line.ewm(span=signal, adjust=False, min_periods=signal).mean()
+    return macd_line - signal_line
+
+
 classifiers = {
     "Nearest Neighbors": KNeighborsClassifier(3),
     "Linear SVM": SVC(kernel="linear", C=0.025),

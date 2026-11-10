@@ -2,8 +2,7 @@ import os
 import time
 import pandas as pd
 import numpy as np
-from ..helpers import RSI, get_features
-import pandas_ta as ta
+from ..helpers import RSI, get_features, macd_histogram
 
 
 def prepare_classification_data(stock_data, predict_weekly=False, threshold=0.01, use_extra_features=False):
@@ -121,15 +120,7 @@ def prepare_classification_data_enhanced(stock_data, predict_weekly=False, thres
         data['bollinger_band_position'] = (stock_data['Close'] - stock_data['Close'].rolling(20).mean()) / \
             (stock_data['Close'].rolling(20).std() * 2)
 
-        macd_result = ta.macd(stock_data['Close'])
-        if isinstance(macd_result, pd.DataFrame) and len(macd_result.columns) > 0:
-            histogram_col = next(
-                (col for col in macd_result.columns if col.startswith('MACDh')),
-                macd_result.columns[-1],
-            )
-            data['macd_diff'] = macd_result[histogram_col]
-        else:
-            data['macd_diff'] = np.nan
+        data['macd_diff'] = macd_histogram(stock_data['Close'])
 
     # Create categorical target where we have the data
     data['Target'] = pd.cut(data['return'],

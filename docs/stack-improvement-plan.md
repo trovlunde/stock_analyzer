@@ -34,6 +34,7 @@ Assessment of the stock-analysis dependency stack, data sources, and ML tooling 
 - [x] Migrate movement feature prep to `pandas-ta`
 - [x] Remove `ta` from `pyproject.toml`
 - [x] Tests pass after migration
+- [x] November 2026: `pandas-ta` removed as well — it pins a numba that does not install on Python 3.14, and only RSI and MACD were used. Both are now plain pandas in `stock_analysis/ai/helpers.py` (`RSI`, `macd_histogram`)
 
 ### 1.3 Resolve orphaned neural-network module
 

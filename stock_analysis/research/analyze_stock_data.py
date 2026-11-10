@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
 from scipy import stats
-import pandas_ta as ta
 from pypfopt import EfficientFrontier
 from pypfopt import risk_models
 from pypfopt import expected_returns
 
+from stock_analysis.ai.helpers import RSI
 from stock_analysis.market_data import MarketDataProvider, YFinanceProvider
 
 
@@ -32,32 +32,8 @@ def analyze_stock_data(df):
     risk_free_rate = 0.01
     sharpe_ratio = (annual_return - risk_free_rate) / volatility
 
-    # Calculate technical indicators
-    # RSI (Relative Strength Index)
-    try:
-        rsi = ta.rsi(df['Close'])
-        # Handle both Series and DataFrame returns
-        if isinstance(rsi, pd.DataFrame):
-            rsi = rsi.iloc[:, 0] if len(rsi.columns) > 0 else pd.Series(
-                dtype=float, index=df.index)
-        elif not isinstance(rsi, pd.Series):
-            rsi = pd.Series(dtype=float, index=df.index)
-    except Exception as e:
-        rsi = pd.Series(dtype=float, index=df.index)
-
-    # MACD (Moving Average Convergence Divergence)
-    try:
-        macd_result = ta.macd(df['Close'])
-        # MACD returns a DataFrame with MACD, MACD_signal, MACD_diff columns
-        if isinstance(macd_result, pd.DataFrame):
-            macd = macd_result.iloc[:, 0] if len(
-                macd_result.columns) > 0 else pd.Series(dtype=float, index=df.index)
-        elif isinstance(macd_result, pd.Series):
-            macd = macd_result
-        else:
-            macd = pd.Series(dtype=float, index=df.index)
-    except Exception as e:
-        macd = pd.Series(dtype=float, index=df.index)
+    # RSI (Relative Strength Index), 14-day
+    rsi = RSI(df)
 
     results = {
         'Volatility (Annual)': volatility,
