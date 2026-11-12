@@ -69,8 +69,8 @@ Each phase is sized so its items can become individual issues / Ralph stories.
 - [x] Remove the mutable default `classifier=RandomForestClassifier(...)` arguments.
 - [x] `compute_holdout_metrics` pairs daily and weekly predictions by date (they were paired by position, which misaligned them at the end of the series).
 - [x] Re-run `stock-analysis-evaluate variants` — results below.
-- [ ] Existing saved models (`models/AAPL_*`, dated February 2025) were trained with the old pipeline; retrain before relying on `ml_movement`. Still not done on 2026-11-10 — see decision D1 in section 5.
-- [ ] Not addressed: survivorship bias in S&P 500 pooled training (needs historical constituents).
+- [x] Saved per-ticker models (`models/AAPL_*`, February 2025, old pipeline) are no longer used: `ml_movement` was taken out of `config/portfolio.yaml` (D1). Retrain with `POST /api/v1/train/<ticker>` before putting it back.
+- [x] Survivorship bias: `--universe sp500` uses historical index members rebuilt from the Wikipedia change log (`market_data/index_membership.py`). Yahoo has no prices for many delisted names, so part of the bias remains; the report shows the coverage per year.
 
 **Before / after** — `stock-analysis-evaluate variants --ticker ^GSPC --holdout-months 12`, winning variant `threshold_1pct_extra`, same test period (from 2025-11-06, 252 days):
 
@@ -94,7 +94,7 @@ The paper-trading loop already has the right shape (decide at close → fill at 
 - [x] `stock-analysis-evaluate backtest --strategies … --tickers …` CLI; the leveraged mini-future simulation is opt-in (`train --leveraged-sim`).
 - [x] Benchmark-relative return in the daily paper report (`defaults.benchmark`, SPY by default).
 - [x] Majority-class baseline next to classifier accuracy in `variants` output and in `compute_holdout_metrics`.
-- [ ] `stock-analysis-evaluate strategies` (ensemble vs RSI vs MA) still runs on the old research simulator and is labelled legacy. To compare those signals fairly, register RSI and the ensemble as `SignalStrategy` implementations and run them through `backtest`; then delete the command.
+- [x] RSI (`rsi`) and the ensemble classifier (`ensemble_walk_forward`) run through `backtest`; the legacy `strategies` command is removed.
 
 **Phase 1 results — first baseline (2026-11-10).** AAPL, MSFT, GOOGL from `config/portfolio.yaml`, 2016-11-10 to 2026-11-09 (2512 sessions), $100,000, fills at next Open, costs from the config.
 
@@ -113,7 +113,7 @@ Reading the numbers: neither strategy beats holding its own universe on risk-adj
 **Trend following**
 - [x] State-based trend signal (`trend_state`): BUY for as long as the uptrend holds, SELL for as long as it is broken. `decide()` skips a BUY when already long and a SELL when flat, so a missed run, a full portfolio or a ticker added mid-trend is corrected on the next run.
 - [x] Time-series momentum (average of 3/6/12-month returns) with the price above its own 200-day average for entry, plus an optional market-regime filter (`regime_filter`: no new BUYs while SPY is below its 200-day average). Evaluated on 20 ETFs — results below.
-- [ ] ATR-based stops / trailing exits instead of fixed-percentage stop from average cost.
+- [x] Trailing stops: `portfolio.stop_type: atr_trailing | pct_trailing`; the stop level also blocks re-entry. A no-trade band for `trend_state` (`trend_entry_threshold` / `trend_exit_threshold`).
 
 **Phase 2 results — trend following on the ETF universe (2026-11-10).** `config/portfolio-etf-trend.yaml`: 20 ETFs (US equity and sectors, international, bonds, gold, commodities, property), 2016-11-10 to 2026-11-09, $100,000, fills at next Open, $1 commission + 0.05 % slippage. All four runs are logged trials.
 
@@ -137,28 +137,68 @@ Reading the numbers:
 
 **Found on the way:** several BUYs decided in the same run each saw the full cash balance and all free slots, because orders fill the next day. With three tickers at 10 % this never mattered; with twenty it let the portfolio queue more than its cash and more than `max_positions`. Both the daily job and the backtester now count orders already queued in the run (`with_queued_order`).
 
+**Phase 2 results — second round (2026-11-12).** Test protocol (D3): variants are compared on 2007-03-01 to 2016-11-09; only the best one is then run once on 2016-11-10 to 2026-11-09, which was already used in the first round and is not used for choosing any more.
+
+ETF trend portfolio (`config/portfolio-etf-trend.yaml`), tuning period 2007-03-01 to 2016-11-09 (2,444 sessions, includes 2008):
+
+| | V0: config as is | V1: no-trade band ±2 % | V2: ATR trailing stop | V3: HRP sizing | V4: band + ATR stop | Buy & hold (universe) | Buy & hold (SPY) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| CAGR | 4.71 % | 4.93 % | 2.12 % | 2.86 % | 2.14 % | 6.20 % | 6.76 % |
+| Volatility | 7.70 % | 7.69 % | 6.81 % | 3.33 % | 6.78 % | 14.92 % | 21.08 % |
+| Sharpe | 0.64 | 0.66 | 0.34 | 0.86 | 0.35 | 0.48 | 0.42 |
+| Max drawdown | −11.68 % | −11.41 % | −15.12 % | −6.08 % | −14.33 % | −41.00 % | −55.19 % |
+| Trades | 714 | 350 | 2,698 | 812 | 2,512 | — | — |
+| Cost drag | 3.13 % | 1.43 % | 12.80 % | 2.28 % | 12.09 % | — | — |
+| Resamples where Sharpe beats universe buy & hold | 70 % | 73 % | 32 % | 86 % | 32 % | — | — |
+
+Probability of backtest overfitting over the five: 1 %, so the order is stable within this period. Final check of the winner (V3, HRP) on 2016-11-10 to 2026-11-09: CAGR 3.76 %, volatility 5.12 %, Sharpe 0.75, max drawdown −11.33 %, against Sharpe 0.84 for buy-and-hold of the same ETFs and 0.85 for the config as is (run D above). It beats buy-and-hold in 36 % of resamples.
+
+Reading the numbers:
+- **The config as is (V0) passed a real out-of-sample test.** It was chosen on 2016–2026; on 2007–2016, which it never saw, it beat buy-and-hold of its universe (Sharpe 0.64 against 0.48, in 70 % of resamples) with a drawdown of −12 % against −41 %. Together with 2016–2026 (a tie on Sharpe, half the drawdown) this is the best evidence in this document. The paper portfolio keeps this config.
+- **HRP did not carry over.** On 2007–2016 it won by holding mostly bonds during a bond bull market (3 % volatility). On 2016–2026 it lost to buy-and-hold. Not adopted.
+- **The no-trade band halves trading and cost** for about the same result. A cheap improvement, but too small to separate from noise; it is not switched on in the paper config.
+- **The trailing stops as built hurt badly** (cost drag 12–13 %). The stop level trails the highest close of the last 63 sessions regardless of entry, and re-entry is allowed as soon as the price is back above it, so a state-based BUY buys straight back and is stopped out again (open task O1). Stops are opt-in; nothing live uses them.
+
+Pooled model (`ml_pooled`, `config/research-pooled.yaml`), one untuned run with default parameters: 150 tickers drawn at random from all 884 S&P 500 members since 1976, of which 105 have Yahoo prices, traded only while they were index members; 2016-11-10 to 2026-11-09.
+
+| | `ml_pooled` | Buy & hold (members, equal weight) | Buy & hold (SPY) |
+|---|---:|---:|---:|
+| CAGR | 7.66 % | 13.72 % | 15.11 % |
+| Volatility | 16.20 % | 18.19 % | 18.03 % |
+| Sharpe | 0.54 | 0.80 | 0.87 |
+| Max drawdown | −37.86 % | −39.20 % | −33.72 % |
+| Turnover / cost drag | 9.2×/yr / 8.39 % | — | — |
+| Avg exposure | 50 % | 100 % | 100 % |
+
+- **It fails.** The model ranks a little better than chance (mean daily rank IC 0.013; the top 10 names beat the universe by 0.25 % per 10 sessions before costs; 2025 was the only strong year), but after costs and with half the money idle it trails buy-and-hold in 94 % of resamples. Calibration works (the predicted probabilities match observed frequencies by decile), so the model knows how little it knows.
+- Volatility and beta features carry the most weight; momentum features matter less than expected.
+- This run used `--no-kill-switch`. The first run with the config's risk limits tripped the kill switch on 2020-03-09 (a 6.7 % day) and bought nothing for the next six years; both runs are logged trials.
+- Survivorship bias is reduced, not gone: Yahoo has no prices for 45 of the 150 sampled names (mostly acquired or delisted companies), and coverage of members is 61–71 % before 2017.
+
+QVM (`qvm`) has not been run on real data: it needs `EDGAR_IDENTITY` set (open task O2).
+
 **ML movement model**
-- [ ] One pooled cross-sectional model for the whole universe instead of one model per ticker; LightGBM as default (already a dependency).
-- [ ] Change the target: 5–20 day forward return *relative to the universe* (rank or top-quintile label) rather than absolute next-day direction. Alternative label: triple-barrier (profit target / stop / time-out).
-- [ ] Features: multi-horizon momentum and reversal, volatility and volume regime, distance from 52-week high, sector and market relative strength, VIX and rates, days to/from earnings; cross-sectionally ranked per date.
-- [ ] Probability calibration (isotonic / Platt on the validation fold) so `ml_confidence_threshold` means something; choose the threshold by net return on validation, not by hand.
-- [ ] Scheduled retraining job with a champion/challenger check before a new model replaces the old one.
-- [ ] Feature importance / SHAP and per-year performance breakdown in the evaluation report to catch regime dependence.
+- [x] One pooled cross-sectional LightGBM model for the whole universe (`ai/cross_sectional/`, `ml_pooled` in the backtester), retrained walk-forward.
+- [x] Target: top fifth of the 10-session forward return among that date's members (`labels.py`). Triple-barrier not done.
+- [x] Features: momentum and reversal over several horizons, volatility and volume regime, distance from the 52-week high, beta-adjusted market and sector relative strength, ranked per date; VIX, 10-year yield and index trend as levels. Days since earnings is supported but off by default (free earnings history is too short).
+- [x] Isotonic calibration on a held-out validation year; the entry threshold is the one that earned most net of costs there, or none.
+- [x] `retrain-pooled`: champion/challenger retraining, meant for cron / Task Scheduler. Nothing in the daily job reads the saved model yet.
+- [x] Gain share and SHAP contribution per feature, rank IC per year and a walk-forward calibration table in the backtest report.
 
 **Signal combination**
-- [ ] Add a true consensus mode (N of M must be actionable and agree) and a score-based mode where each strategy returns a continuous score that is blended and then sized. Keep the existing modes for backward compatibility.
+- [x] `signal_mode: quorum` (N of M agree, none disagree) and `score` (weighted blend of per-strategy scores, with smaller positions for weaker blends). Existing modes unchanged.
 
 **QVM / fundamentals**
-- [ ] Momentum = 12-1 month total return; value = composite of earnings yield, FCF yield, EV/EBITDA, book-to-price (yields, so negatives rank correctly); quality adds gross profitability, accruals, earnings stability; winsorise before ranking.
-- [ ] Point-in-time fundamentals from EDGAR (filing dates are available through the existing `edgar_adapter`) so the screen can be backtested with realistic reporting lag.
-- [ ] Monthly-rebalanced QVM strategy in the backtester (top decile, sector-neutral, equal or inverse-vol weight), then as a watchlist generator for the paper portfolio.
-- [ ] Use the valuation models as a margin-of-safety feature (price vs. EPV / reverse-DCF implied growth), with sector-appropriate discount rates instead of a flat 10 %.
+- [x] QVM factors: 12-1 momentum, value as a composite of yields, quality with gross profitability, accruals and earnings stability; winsorised and ranked within sector (`factors/`).
+- [x] Point-in-time fundamentals from EDGAR (`ai/fundamentals/point_in_time.py`): known from filing date plus a lag, trailing twelve months from quarterlies, restatements do not leak backwards. Needs `EDGAR_IDENTITY`.
+- [x] Monthly-rebalanced QVM strategy in the backtester (`qvm`) and `qvm-watchlist` for a positions snippet.
+- [x] EPV / reverse-DCF margin of safety with sector discount rates, as an optional value input (`qvm_margin_of_safety`).
 
 **Portfolio construction and risk**
-- [x] Volatility-targeted position sizing per position (`portfolio.sizing: vol_target`: weight = `risk_per_position` / annualised volatility, capped at `max_position_pct`). Sized once at entry; no rebalancing and no portfolio-level volatility target yet.
-- [ ] Replace max-Sharpe on sample estimates with Ledoit-Wolf shrinkage + minimum-variance or Hierarchical Risk Parity (both in PyPortfolioOpt, already a dependency).
-- [ ] Sector / single-name / correlation caps; turnover budget; rebalance bands.
-- [x] Wider universe as a separate config (`config/portfolio-etf-trend.yaml`, 20 liquid ETFs, portfolio name `paper-etf-trend`). `config/portfolio.yaml` is unchanged; running the new config in the daily job is a decision for the owner.
+- [x] Volatility-targeted position sizing per position (`portfolio.sizing: vol_target`: weight = `risk_per_position` / annualised volatility, capped at `max_position_pct`). Rebalancing and a portfolio-level volatility target were added later (next two items).
+- [x] `portfolio.sizing: min_variance | hrp` on a Ledoit-Wolf-shrunk covariance (PyPortfolioOpt); `target_volatility` for the portfolio as a whole.
+- [x] `max_sector_pct`, a correlation cap on new positions, `rebalance_band` with a minimum trade size, and a 1 % cash buffer. No explicit turnover budget: the band and the minimum trade size are what limit turnover.
+- [x] Wider universe as a separate config (`config/portfolio-etf-trend.yaml`, 20 liquid ETFs, portfolio name `paper-etf-trend`). The `trader` service runs it next to `config/portfolio.yaml` (D2).
 
 ### Phase 3 — Modern approaches worth exploring
 
@@ -204,41 +244,31 @@ Success criterion throughout: a strategy is promoted to the paper portfolio only
 
 ## 5. Open tasks
 
-Status on 2026-11-10: Phase 0 and Phase 1 are done apart from the items listed here; Phase 2 has its first slice (trend signal, volatility sizing, regime filter, ETF universe). The checkboxes in section 3 are the full record; this is the same open work in the order it should be picked up. Tooling work (visualisation clean-up, Polars spike) is tracked separately in [issues/README.md](./issues/README.md).
+Status on 2026-11-12: Phases 0–2 are done; every checkbox in section 3 is ticked. Results are in the Phase 1 and Phase 2 sections. What is left is listed here in the order it should be picked up. Tooling work (visualisation clean-up, Polars spike) is tracked separately in [issues/README.md](./issues/README.md).
 
-### Decisions for the owner
+### Decisions taken in Phase 2
 
-These need a choice, not code.
-
-| # | Decision | Background |
+| # | Decision | Outcome |
 |---|---|---|
-| D1 | Keep `ml_movement` in `config/portfolio.yaml`, or take it out? | The only saved models are `models/AAPL_*` from February 2025, trained with the old leaky pipeline. MSFT and GOOGL have none, so the strategy does nothing for them. The walk-forward backtest showed no edge. Keeping it means retraining all three with `POST /api/v1/train/<ticker>`; the pooled model (T1) will replace it either way. |
-| D2 | Run the ETF trend portfolio in paper trading next to the existing one? | `config/portfolio-etf-trend.yaml` has its own portfolio name and state. It matched buy-and-hold on risk-adjusted return with half the drawdown, but is not a proven win. Running it costs a second scheduler entry and gives real out-of-sample evidence. |
-| D3 | Which period is the untouched test period from now on? | 2016-11-10 to 2026-11-09 has been used to compare four trend variants and must not be used for more tuning. Most of the 20 ETFs have history back to 2007 or earlier, so one option is to tune on data up to 2016-11-09 and keep the last ten years for a single final check. T3 and T4 depend on this. |
+| D1 | Keep `ml_movement` in `config/portfolio.yaml`? | Taken out: no edge in the walk-forward backtest, and the only saved models predate the label fix. |
+| D2 | Run the ETF trend portfolio in paper trading? | Yes: the `trader` service runs `config/portfolio.yaml` and `config/portfolio-etf-trend.yaml` side by side. |
+| D3 | Which period is the untouched test period? | Variants are compared on 2007-03-01 to 2016-11-09; only the winner is run once on 2016-11-10 to 2026-11-09. Both periods have now been used; the next clean test is paper trading from November 2026 on. |
 
 ### Next tasks, in order
 
-| # | Task | Size | Depends on | Section 3 items |
-|---|---|---|---|---|
-| T1 | Pooled cross-sectional ML model: one LightGBM model for the whole universe, target = 5–20 day forward return relative to the universe, features ranked per date. Model, target and features are one piece of work — changing one without the others is not worth evaluating. Run it through `backtest` as a walk-forward strategy on a universe of 100+ stocks. | Large | A stock universe without survivorship bias (T9), or accept and state the bias | ML movement model, items 1–3 |
-| T2 | Probability calibration on the validation fold, and choose the confidence threshold by net return on validation instead of by hand. | Medium | T1 | ML movement model, item 4 |
-| T3 | Wider no-trade band for `trend_state`. It wins 31 % of round trips and trades each ETF about every four months; most losses are small ones around zero momentum. | Small | D3 | Trend following (new) |
-| T4 | ATR-based or trailing stops in place of the fixed-percentage stop from average cost. | Medium | D3 | Trend following, item 3 |
-| T5 | Signal combination: a true consensus mode (N of M actionable and in agreement) and a score-based mode. Keep the existing modes. | Medium | — | Signal combination |
-| T6 | Point-in-time fundamentals from EDGAR filing dates, so the QVM screen can be backtested. | Large | — | QVM, item 2 |
-| T7 | QVM factor definitions (12-1 momentum, composite value from yields, quality additions, winsorising), then a monthly-rebalanced QVM strategy in the backtester. | Large | T6 | QVM, items 1, 3, 4 |
-| T8 | Portfolio construction: Ledoit-Wolf + minimum-variance or HRP; sector, single-name and correlation caps; rebalance bands; a portfolio-level volatility target (sizing is per position and set once at entry today). | Large | — | Portfolio construction, items 2–3 |
-| T9 | Historical index constituents for pooled training, to remove survivorship bias. | Medium | A data source | Phase 0, last item |
-| T10 | Register RSI and the ensemble classifier as `SignalStrategy` implementations, compare them through `backtest`, then delete the legacy `strategies` command. | Medium | — | Phase 1, last item |
-| T11 | Scheduled retraining with a champion/challenger check; feature importance and per-year breakdown in the evaluation report. | Medium | T1 | ML movement model, items 5–6 |
+| # | Task | Size | Notes |
+|---|---|---|---|
+| O1 | Fix re-entry after a trailing stop. Today the stop level trails the 63-day high whatever the entry was, and re-entry is allowed as soon as the price is back above it, so a state-based signal churns (12 % cost drag). Options: a cool-down after a stop-out, or re-entry only on a new N-day high. Test on 2007–2016 only. | Small | Stops are opt-in; nothing live uses them |
+| O2 | Run `qvm` in the backtester on a historical S&P 500 sample, with `EDGAR_IDENTITY="Name email"` set. Same protocol: compare variants on 2007–2016, final check on 2016–2026. | Medium (mostly download time) | Needs the owner's SEC contact identity |
+| O3 | Review the two paper portfolios after six and twelve months against SPY and their own universes, using the benchmark section of the daily report. This is the only test period nothing has been tuned on. | Small, recurring | From 2026-11 |
+| O4 | Decide whether to keep the no-trade band (`trend_entry_threshold: 0.02`, `trend_exit_threshold: -0.02`) in the ETF config: half the trades and cost for the same result on 2007–2016. Not yet run on 2016–2026. | Small | |
+| O5 | Pooled model follow-ups, only if Phase 3 learning-to-rank does not replace it: a longer label horizon (20–60 sessions), a larger universe (the full index, not a 150-name sample), triple-barrier labels. The model is calibrated but its ranking edge (rank IC 0.013) does not survive costs. | Medium | `retrain-pooled` exists, but nothing reads the saved model |
+| O6 | Price history for delisted companies. Yahoo has none for about a third of past S&P 500 members, so survivorship bias remains before 2017 (61–71 % coverage). Needs another data source. | Medium | Data source to be found |
 
-After these: the Phase 3 spikes, starting with learning-to-rank and meta-labeling.
+After these: the Phase 3 spikes, starting with learning-to-rank (it builds directly on the pooled model's features, labels and historical universe) and meta-labeling on top of `trend_state`.
 
 ### Small fixes
 
 | # | Fix | Where |
 |---|---|---|
-| F1 | No test covers the `/api/v1/train` endpoint (there is no `tests/web/`). It was changed in Phase 0 to evaluate on holdout-blind models and then refit on all data. | `stock_analysis/web/app.py` |
-| F2 | Several BUYs in one run can still leave cash slightly negative: each order is sized against cash at the signal day's close, without commission, slippage or a higher Open the next day. Reserve a small buffer or cap the last order. | `stock_analysis/trading/decision.py` |
-| F3 | Check whether the live notional ceiling counts BUY orders queued earlier in the same run. It adds only the current order to the portfolio value. | `stock_analysis/jobs/daily.py` |
-| F4 | Add `.claude/worktrees/` to `.gitignore` so agent worktrees do not show up as untracked files. | `.gitignore` |
+| F5 | `pd.Timedelta(days=…)` warns about the NumPy "generic" unit under Python 3.14 (also inside `pandas_market_calendars` and `exchange_calendars`). Recheck after the next pandas / NumPy upgrade. | `stock_analysis/research/analyze_stock_data.py:75-76` |
