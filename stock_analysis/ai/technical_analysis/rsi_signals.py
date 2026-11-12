@@ -1,6 +1,8 @@
-import pandas as pd
-import numpy as np
 from typing import List, Union
+
+import pandas as pd
+
+from ..helpers import RSI
 
 
 def generate_rsi_signals(
@@ -10,13 +12,19 @@ def generate_rsi_signals(
     oversold_threshold: float = 30
 ) -> Union[pd.DataFrame, List[pd.DataFrame]]:
     """
-    Generate buy/sell signals based on RSI indicator.
+    Add RSI and level-based signal columns, for research and plotting.
+
+    The RSI is the Wilder-smoothed one from `helpers.RSI`, the only RSI definition
+    in the package. `Signal` marks every day the RSI is beyond a threshold (1 below
+    oversold, -1 above overbought), so it repeats for as long as the level holds.
+    For trading use the `rsi` signal strategy, which acts on crosses and has a
+    trend filter.
 
     Args:
         stock_data: Single DataFrame or list of DataFrames with stock price data
         period: RSI calculation period (default: 14)
-        overbought_threshold: RSI threshold for sell signal (default: 70)
-        oversold_threshold: RSI threshold for buy signal (default: 30)
+        overbought_threshold: RSI level above which Signal is -1 (default: 70)
+        oversold_threshold: RSI level below which Signal is 1 (default: 30)
 
     Returns:
         DataFrame or list of DataFrames with added RSI and signal columns
@@ -26,26 +34,10 @@ def generate_rsi_signals(
         # Make a copy to avoid modifying original data
         df = df.copy()
 
-        # Calculate price changes
-        delta = df['Close'].diff()
+        df['RSI'] = RSI(df, window=period)
 
-        # Calculate gains (positive) and losses (negative)
-        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-
-        # Calculate relative strength
-        rs = gain / loss
-
-        # Calculate RSI
-        df['RSI'] = 100 - (100 / (1 + rs))
-
-        # Generate signals
         df['Signal'] = 0  # 0: no signal, 1: buy, -1: sell
-
-        # Buy signal when RSI crosses below oversold threshold
         df.loc[df['RSI'] < oversold_threshold, 'Signal'] = 1
-
-        # Sell signal when RSI crosses above overbought threshold
         df.loc[df['RSI'] > overbought_threshold, 'Signal'] = -1
 
         return df

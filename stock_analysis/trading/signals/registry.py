@@ -1,11 +1,13 @@
 from .base import SignalStrategy
 from .ma_crossover import MaCrossoverStrategy
 from .ml_movement import MlMovementStrategy
+from .rsi import RsiStrategy
 from .trend_state import TrendStateStrategy
 
 _STRATEGIES: dict[str, SignalStrategy] = {
     "ma_crossover": MaCrossoverStrategy(),
     "ml_movement": MlMovementStrategy(),
+    "rsi": RsiStrategy(),
     "trend_state": TrendStateStrategy(),
 }
 
