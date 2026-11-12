@@ -1,0 +1,43 @@
+# Backtest-only config for the pooled cross-sectional model (`ml_pooled`).
+# Not a paper portfolio: `enabled: false` keeps the daily job away from it.
+#
+#   uv run stock-analysis-evaluate backtest --config config/research-pooled.yaml \
+#       --universe sp500 --universe-sample 150 --period max \
+#       --start 2016-11-10 --end 2026-11-09 --no-kill-switch
+#
+# Use --no-kill-switch to judge the model: in a backtest a tripped kill switch
+# blocks new BUYs for the rest of the run, and the daily-loss limit below tripped
+# on 2020-03-09.
+#
+# With --universe the positions below are replaced by the index's historical
+# members; the one listed only satisfies the config loader.
+portfolio:
+  name: research-pooled
+  enabled: false
+  initial_cash: 100000
+  # top_k names are bought; holdings are kept until they fall below exit rank
+  # (2 x top_k), so up to 20 positions of 5 %
+  max_positions: 20
+  position_size_pct: 0.05
+  long_only: true
+
+risk:
+  max_daily_loss_pct: 0.05
+  max_drawdown_pct: 0.30
+  liquidate_on_trip: false
+
+costs:
+  model: equity
+  commission_per_trade: 1.00
+  slippage_pct: 0.0005
+
+defaults:
+  strategies: [ml_pooled]
+  pooled_horizon: 10
+  pooled_top_k: 10
+  pooled_retrain_every: 63
+  pooled_train_years: 5
+  pooled_validation_sessions: 252
+
+positions:
+  - ticker: SPY

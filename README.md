@@ -159,6 +159,46 @@ Reading the report:
 
 `ml_movement` (the saved model) is refused by default because the saved model was trained on the period being tested; use `ml_walk_forward` instead, or `--allow-in-sample-ml` to override.
 
+**Trying a variation without editing the config:** `--set KEY=VALUE` (repeatable) overrides a strategy parameter or, with a `portfolio.` prefix, a portfolio field. Values are parsed as YAML. Each distinct variation is a new logged trial.
+
+```bash
+uv run stock-analysis-evaluate backtest --config config/portfolio-etf-trend.yaml \
+  --set trend_entry_threshold=0.02 --set portfolio.stop_type=atr_trailing
+```
+
+**Strategies only available in the backtester** (they need the whole universe or train as history unfolds):
+
+| Name | What it does |
+|---|---|
+| `ml_walk_forward` | Per-ticker movement classifier, retrained every `--retrain-every` sessions on past bars only |
+| `ensemble_walk_forward` | Same, with the ensemble classifier |
+| `ml_pooled` | One LightGBM model for the whole universe (see below) |
+| `qvm` | Monthly quality/value/momentum ranking on point-in-time fundamentals (see below) |
+
+**Historical index members:** `--universe sp500` trades the S&P 500 as it was on each date, rebuilt from the Wikipedia change log, so companies that were later removed or delisted take part while they were members. `--universe-sample N` draws N tickers at random from all members ever (not today's members), so a smaller test universe is not picked with hindsight. Price history is cached for a day; `--no-price-cache` skips the cache. The report lists how many members per year had price data — Yahoo has nothing for many delisted names, so some survivorship bias remains.
+
+**Pooled cross-sectional model (`ml_pooled`):** one LightGBM model for the whole universe. It predicts whether a stock ends in the best fifth of its universe over the next 10 sessions, from features ranked per date (momentum and reversal over several horizons, volatility and volume regime, distance from the 52-week high, market- and sector-relative strength) plus VIX, rates and index trend. It is retrained every 63 sessions on labels that were complete by then; probabilities are calibrated on a held-out validation year, and an entry threshold is used only if it earned more after costs on that year. The strategy buys the `pooled_top_k` highest-scored names and sells a holding once it falls below rank `pooled_exit_rank`. The report adds feature importance (gain share and SHAP), rank correlation per year and a calibration table. `config/research-pooled.yaml` is a backtest-only config for it:
+
+```bash
+uv run stock-analysis-evaluate backtest --config config/research-pooled.yaml \
+  --universe sp500 --universe-sample 150 --period max --start 2016-11-10 --end 2026-11-09 \
+  --no-kill-switch
+```
+
+`--no-kill-switch` matters for long research runs: in a backtest a tripped kill switch blocks new BUYs for the rest of the run (in production someone clears it), so one bad day — 9 March 2020 in this run — can leave the strategy in cash for years and say nothing about the signal.
+
+Retraining on a schedule: `retrain-pooled` trains a new model on data up to today and saves it only if it ranks the latest validation year at least as well as the saved one (`--force` overrides). Nothing in the daily job uses the saved model yet. Scheduling examples (cron, Task Scheduler, Docker) are in `stock_analysis/cli/retrain.py`.
+
+```bash
+uv run stock-analysis-evaluate retrain-pooled --universe sp500
+```
+
+**QVM on point-in-time fundamentals (`qvm`):** quality, value and momentum ranked within sectors, rebalanced monthly. Fundamentals come from SEC EDGAR filings as they were known on each date (filing date plus a day; restatements do not leak backwards). Needs `EDGAR_IDENTITY="Your Name you@example.com"` in the environment — the SEC requires a contact on every request. Parameters: `qvm_top_fraction`, `qvm_sector_neutral`, `qvm_min_sector_size`, `qvm_margin_of_safety`. For today's top names as a `positions:` snippet to paste into a config:
+
+```bash
+uv run stock-analysis-evaluate qvm-watchlist --universe sp500 --top 20
+```
+
 ### Using Python Interactively
 
 You can also import and use functions directly in Python:
@@ -207,12 +247,24 @@ Config-driven paper portfolio. Evaluates US equities with the configured signal 
 
 **Config:** `config/portfolio.yaml` — watchlist, sizing, risk limits, strategy defaults, per-ticker overrides.
 
-**Signals:** `ma_crossover`, `ml_movement` and `trend_state`, combined per `signal_mode`.
+**Signals:** `ma_crossover`, `ml_movement`, `trend_state` and `rsi`, combined per `signal_mode`.
 - `ma_crossover` — BUY/SELL on the day the short average crosses the long one.
-- `ml_movement` — HOLDs for a ticker until a model trained on the current feature set exists; train one with `POST /api/v1/train/<ticker>`.
-- `trend_state` — BUY every day the ticker is in an uptrend (average of its 3-, 6- and 12-month returns above zero and price above its 200-day average), SELL every day that average return is at or below zero. Because it reports the state rather than the day of a change, an entry missed one day is made the next. Parameters: `trend_lookbacks`, `trend_ma`.
+- `ml_movement` — HOLDs for a ticker until a model trained on the current feature set exists; train one with `POST /api/v1/train/<ticker>`. No longer in `config/portfolio.yaml`: the walk-forward backtest showed no edge.
+- `trend_state` — BUY every day the ticker is in an uptrend (average of its 3-, 6- and 12-month returns above zero and price above its 200-day average), SELL every day that average return is at or below zero. Because it reports the state rather than the day of a change, an entry missed one day is made the next. Parameters: `trend_lookbacks`, `trend_ma`, and `trend_entry_threshold` / `trend_exit_threshold` for a no-trade band around zero (e.g. buy above +2 %, sell below −2 %).
+- `rsi` — BUY when the RSI crosses back up through `rsi_oversold` (30) while the price is above its `rsi_trend_ma`-day average (200); SELL when it crosses up through `rsi_overbought` (70).
 
-**Sizing:** `portfolio.sizing: fixed` (default) puts `position_size_pct` of the portfolio into each new position. `vol_target` gives calmer assets larger positions: weight = `risk_per_position` / annualised volatility over `vol_lookback` sessions, capped at `max_position_pct`.
+**Combining signals (`signal_mode`):** `consensus` (default: any non-HOLD, conflicting signals cancel), `priority` (first strategy that is not HOLD), `any`, `quorum` (at least `signal_quorum` strategies — default all — must agree and none disagree; `signal_exit_quorum` for sells), and `score` (weighted average of the strategies' scores with `signal_weights`; BUY above `signal_score_buy`, SELL below `signal_score_sell`, and a weaker blend buys a smaller position unless `signal_score_sizing: false`).
+
+**Sizing (`portfolio.sizing`):**
+- `fixed` (default) — `position_size_pct` of the portfolio per new position.
+- `vol_target` — calmer assets get larger positions: weight = `risk_per_position` / annualised volatility over `vol_lookback` sessions, capped at `max_position_pct`.
+- `min_variance` / `hrp` — weights from a Ledoit-Wolf-shrunk covariance of the whole watchlist over `allocation_lookback` sessions (minimum variance or hierarchical risk parity).
+- `target_volatility` (optional) scales new positions down while the portfolio's own volatility is above it.
+- New BUYs always leave `cash_buffer_pct` (1 %) in cash, so a higher Open plus costs cannot overdraw.
+
+**Stops (`portfolio.stop_type`):** `fixed` (default; `stop_loss_pct` below the average cost), `pct_trailing` (that percentage below the highest close of the last `stop_lookback` sessions) or `atr_trailing` (`stop_atr_multiple` × ATR below that high). After a trailing stop the ticker is not bought back until the price is above the stop level again.
+
+**Caps and rebalancing:** `max_sector_pct` caps a sector's share of the portfolio (set `sector:` on a position); with `max_correlation` set, no new position is opened while `max_correlated_positions` (2) holdings already have a return correlation of at least that with it. `rebalance_band` (a fraction of the target weight, e.g. 0.25) moves a holding back to its target weight on the first session of each `rebalance_frequency` period (`daily`, `weekly`, `monthly`) once it has drifted further than that; trades under `rebalance_min_trade_pct` of the portfolio are skipped.
 
 **Regime filter:** optional top-level `regime_filter: {ticker: SPY, ma: 200}` blocks new BUY orders while that ticker is below its moving average. Existing positions are still sold by their own signals.
 
@@ -230,10 +282,11 @@ uv run stock-analysis-daily --dry-run
 uv run stock-analysis-daily --config config/portfolio.yaml
 ```
 
-**Run on a schedule:** `stock-analysis-trader` is a long-running scheduler that triggers the daily job once per NYSE trading day (16:05 ET with `schedule.run_after_close: true`, otherwise 09:35 ET). A slot missed by more than two hours is skipped and alerted rather than run late. It is what the `trader` compose service runs (see [Docker](#docker)).
+**Run on a schedule:** `stock-analysis-trader` is a long-running scheduler that triggers the daily job once per NYSE trading day (16:05 ET with `schedule.run_after_close: true`, otherwise 09:35 ET). A slot missed by more than two hours is skipped and alerted rather than run late. It takes several configs and runs each in turn at the same slot; a failure in one does not stop the others. The `trader` compose service runs both `config/portfolio.yaml` and `config/portfolio-etf-trend.yaml` (see [Docker](#docker)).
 
 ```bash
 uv run stock-analysis-trader
+uv run stock-analysis-trader --config config/portfolio.yaml config/portfolio-etf-trend.yaml
 ```
 
 **Broker:** selected by `BROKER_MODE` in `.env`.
@@ -268,7 +321,7 @@ docker compose up --build
 Starts two services from the same image:
 
 - `stock-analysis` — the Flask API at `http://localhost:5000`. Published on loopback only (the API has no auth); reach it remotely via an SSH tunnel or VPN.
-- `trader` — the `stock-analysis-trader` scheduler. Reads `.env`, mounts `./config`, `./data` and `./models`.
+- `trader` — the `stock-analysis-trader` scheduler for both paper portfolios (`config/portfolio.yaml` and `config/portfolio-etf-trend.yaml`). Reads `.env`, mounts `./config`, `./data` and `./models`.
 
 ### Optional: activate the virtualenv
 

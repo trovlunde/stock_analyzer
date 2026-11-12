@@ -73,10 +73,11 @@ flowchart TB
 | `stock_analysis/notifications/` | Email alerts (daily summary, failures, kill-switch trips) |
 | `stock_analysis/backtest/` | Backtest engine, performance metrics, buy-and-hold benchmarks, walk-forward ML strategy, run log |
 | `stock_analysis/factors/` | QVM factor definitions and scoring, sector discount rates, monthly-rebalanced QVM score provider and watchlist |
-| `stock_analysis/cli/` | Non-interactive CLIs (`evaluate_models`, `backtest`, `qvm`, `risk`) |
+| `stock_analysis/cli/` | Non-interactive CLIs (`evaluate_models`, `backtest`, `qvm`, `retrain`, `universe`, `risk`) |
 | `stock_analysis/web/` | Flask app and templates |
 | `stock_analysis/research/` | Interactive CLI and exploratory analysis modules |
-| `stock_analysis/ai/` | ML models, classifiers, valuation |
+| `stock_analysis/ai/` | ML models, classifiers, valuation; `ai/cross_sectional/` holds the pooled LightGBM model (features, labels, walk-forward fitting, calibration, champion/challenger); `ai/fundamentals/point_in_time.py` holds EDGAR fundamentals as known on a date |
+| `stock_analysis/market_data/index_membership.py` | Historical S&P 500 members rebuilt from the Wikipedia change log |
 | `stock_analysis/diagnostics/` | Opt-in time-series diagnostics (statsmodels) |
 | `config/` | Runtime YAML (e.g. `portfolio.yaml`) |
 | `scripts/ralph/` | Agent loop tooling (not runtime) |
