@@ -31,27 +31,40 @@ class RankedUniverseStrategy:
     score on a session that has a ranking (it left the universe, or its data is
     missing) is a SELL.
 
-    `rank_top_k` and `rank_exit` in the strategy params override the constructor.
+    With `min_score`, a ticker in the top `top_k` whose score is below it is a
+    HOLD instead of a BUY: being the best of a bad lot is not a reason to enter.
+    Exits are unchanged, so a holding is still kept until it falls below
+    `exit_rank`.
+
+    `rank_top_k`, `rank_exit` and `rank_min_score` in the strategy params
+    override the constructor.
     """
 
-    def __init__(self, provider: ScoreProvider, *, top_k: int = 10, exit_rank: int | None = None):
+    def __init__(
+        self,
+        provider: ScoreProvider,
+        *,
+        top_k: int = 10,
+        exit_rank: int | None = None,
+        min_score: float | None = None,
+    ):
         self.provider = provider
         self.top_k = top_k
         self.exit_rank = exit_rank
-        self._cached: tuple[pd.Timestamp, pd.Series | None] | None = None
+        self.min_score = min_score
+        self._cached: tuple[pd.Timestamp, pd.Series | None, pd.Series | None] | None = None
 
     def _ranks(self, session: pd.Timestamp) -> pd.Series | None:
-        if self._cached is not None and self._cached[0] == session:
-            return self._cached[1]
-        scores = self.provider.scores_on(session)
-        ranks = None
-        if scores is not None:
-            scores = scores.dropna()
-            if not scores.empty:
-                # 1 = best; ties broken by position so the result is deterministic
-                ranks = scores.rank(ascending=False, method="first").astype(int)
-        self._cached = (session, ranks)
-        return ranks
+        if self._cached is None or self._cached[0] != session:
+            scores = self.provider.scores_on(session)
+            ranks = None
+            if scores is not None:
+                scores = scores.dropna()
+                if not scores.empty:
+                    # 1 = best; ties broken by position so the result is deterministic
+                    ranks = scores.rank(ascending=False, method="first").astype(int)
+            self._cached = (session, ranks, scores)
+        return self._cached[1]
 
     def evaluate(self, df: pd.DataFrame, ticker: str, params: dict) -> SignalResult:
         top_k = int(params.get("rank_top_k", self.top_k))
@@ -68,6 +81,17 @@ class RankedUniverseStrategy:
 
         rank = int(ranks[ticker])
         metadata = {"rank": rank, "universe": len(ranks), "top_k": top_k, "exit_rank": exit_rank}
+        min_score = params.get("rank_min_score", self.min_score)
+        if rank <= top_k and min_score is not None:
+            score = float(self._cached[2][ticker])
+            metadata["score"] = score
+            if score < float(min_score):
+                return SignalResult(
+                    action="HOLD",
+                    reason=f"rank {rank} of {len(ranks)} but score {score:.4f} is below "
+                    f"the minimum {float(min_score):.4f}",
+                    metadata=metadata,
+                )
         if rank <= top_k:
             return SignalResult(
                 action="BUY", reason=f"rank {rank} of {len(ranks)} (top {top_k})", metadata=metadata

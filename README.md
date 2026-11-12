@@ -102,11 +102,6 @@ uv run stock-analysis-evaluate train --ticker ^GSPC --holdout-months 6 --extra-f
 # Without --holdout-months, evaluation uses the internal chronological 20% test split only
 # Add --leveraged-sim for the legacy 10x mini-future profit simulation (off by default)
 
-# Legacy: ensemble vs RSI vs MA with the old research simulator. It enters at the
-# signal day's close and shows no benchmark, so returns are optimistic — use
-# `backtest` (below) to judge a strategy
-uv run stock-analysis-evaluate strategies
-
 # Compare dual-RF pipeline variants on the same holdout (features, threshold, RF params)
 uv run stock-analysis-evaluate variants --ticker ^GSPC --holdout-months 12
 ```

@@ -66,3 +66,29 @@ def test_scores_are_fetched_once_per_session():
         _action(strategy, ticker)
 
     assert provider.calls == 1
+
+
+def test_top_ranked_below_min_score_is_held_not_bought():
+    provider = _FixedScores(pd.Series({"A": 0.3, "B": -0.1, "C": -0.2, "D": -0.5}))
+    strategy = RankedUniverseStrategy(provider, top_k=2, exit_rank=3, min_score=0.0)
+
+    # B is in the top two but under the minimum; exits are unchanged (D is sold)
+    assert [_action(strategy, t) for t in "ABCD"] == ["BUY", "HOLD", "HOLD", "SELL"]
+    result = strategy.evaluate(_frame(), "B", {})
+    assert "below the minimum" in result.reason
+    assert result.metadata["score"] == -0.1
+
+
+def test_score_equal_to_min_score_is_bought():
+    provider = _FixedScores(pd.Series({"A": 0.0, "B": -1.0}))
+
+    assert _action(RankedUniverseStrategy(provider, top_k=1, min_score=0.0), "A") == "BUY"
+
+
+def test_min_score_param_overrides_constructor_and_default_is_off():
+    provider = _FixedScores(pd.Series({"A": 0.3, "B": 0.1, "C": 0.0}))
+    strategy = RankedUniverseStrategy(provider, top_k=2)
+
+    assert _action(strategy, "B") == "BUY"
+    assert _action(strategy, "B", {"rank_min_score": 0.2}) == "HOLD"
+    assert _action(strategy, "A", {"rank_min_score": 0.2}) == "BUY"

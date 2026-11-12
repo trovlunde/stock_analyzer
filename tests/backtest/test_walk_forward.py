@@ -3,7 +3,11 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
 import stock_analysis.backtest.walk_forward as walk_forward_mod
-from stock_analysis.backtest.walk_forward import WalkForwardMlStrategy
+from stock_analysis.backtest.walk_forward import (
+    LabelledEnsembleClassifier,
+    WalkForwardMlStrategy,
+    walk_forward_strategies,
+)
 
 
 def _synthetic_ohlcv(n: int = 400, seed: int = 42) -> pd.DataFrame:
@@ -94,3 +98,69 @@ def test_low_confidence_predictions_hold():
 
     assert result.action == "HOLD"
     assert "below threshold" in result.reason
+
+
+def _ensemble_strategy(**overrides):
+    strategy = walk_forward_strategies(retrain_every=10)["ensemble_walk_forward"]
+    for name, value in overrides.items():
+        setattr(strategy, name, value)
+    return strategy
+
+
+def test_factory_builds_both_walk_forward_strategies_with_the_retrain_interval():
+    strategies = walk_forward_strategies(retrain_every=21)
+
+    assert set(strategies) == {"ml_walk_forward", "ensemble_walk_forward"}
+    assert all(strategy.retrain_every == 21 for strategy in strategies.values())
+    assert isinstance(
+        strategies["ensemble_walk_forward"].classifier_factory(), LabelledEnsembleClassifier
+    )
+    assert strategies["ml_walk_forward"] is not strategies["ensemble_walk_forward"]
+
+
+def test_labelled_ensemble_trains_on_and_predicts_label_names(capsys):
+    rng = np.random.default_rng(0)
+    features = rng.normal(size=(150, 4))
+    labels = pd.Series(np.array(["negative", "neutral", "positive"])[np.arange(150) % 3])
+
+    model = LabelledEnsembleClassifier().fit(features, labels)
+    predicted = model.predict(features[:20])
+    probabilities = model.predict_proba(features[:20])
+
+    assert list(model.classes_) == ["negative", "neutral", "positive"]
+    assert set(predicted) <= set(model.classes_)
+    assert probabilities.shape == (20, 3)
+    assert np.allclose(probabilities.sum(axis=1), 1.0)
+    # The ensemble prints while fitting; the wrapper keeps backtest output readable
+    assert capsys.readouterr().out == ""
+
+
+def test_ensemble_walk_forward_trains_only_on_the_bars_it_is_given(monkeypatch):
+    data = _synthetic_ohlcv()
+    calls = _record_training(monkeypatch)
+    strategy = _ensemble_strategy(min_train_rows=100)
+
+    window = data.iloc[:200]
+    result = strategy.evaluate(window, "AAA", {})
+
+    assert result.action in {"BUY", "SELL", "HOLD"}
+    assert result.metadata["label"] in {"negative", "neutral", "positive"}
+    assert 0.0 <= result.metadata["confidence"] <= 1.0
+    assert len(calls) == 1
+    assert calls[0].max() == window.index[-2]
+    assert result.metadata["trained_through"] == str(window.index[-1].date())
+
+
+def test_ensemble_walk_forward_emits_valid_actions_and_retrains_on_schedule(monkeypatch):
+    data = _synthetic_ohlcv()
+    calls = _record_training(monkeypatch)
+    strategy = _ensemble_strategy(min_train_rows=100)
+
+    actions = [
+        strategy.evaluate(data.iloc[:end], "AAA", {"ml_confidence_threshold": 0.0}).action
+        for end in range(200, 212)
+    ]
+
+    assert set(actions) <= {"BUY", "SELL", "HOLD"}
+    # Sessions 200 and 210
+    assert [index.max() for index in calls] == [data.index[198], data.index[208]]

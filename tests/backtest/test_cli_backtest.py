@@ -168,13 +168,111 @@ def test_logged_runs_without_daily_returns_are_left_out_of_the_overfitting_check
     assert "Probability of backtest overfitting: needs at least two" in report
 
 
-def test_strategies_command_is_labelled_legacy(monkeypatch, capsys):
-    import stock_analysis.cli.evaluate_models as cli
+def test_legacy_strategies_command_is_gone(capsys):
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["strategies"])
 
-    ran = []
-    monkeypatch.setattr(cli, "test_classifiers", lambda: ran.append(True))
+    assert "invalid choice: 'strategies'" in capsys.readouterr().err
 
-    cli.main(["strategies"])
 
-    assert ran == [True]
-    assert "legacy research simulator" in capsys.readouterr().out
+@pytest.mark.parametrize("name", ["ml_walk_forward", "ensemble_walk_forward"])
+def test_walk_forward_strategies_resolve_by_name(config_path, tmp_path, monkeypatch, name):
+    import stock_analysis.backtest.walk_forward as walk_forward_mod
+    from stock_analysis.trading.signals import SignalResult
+
+    class Recorder:
+        def __init__(self):
+            self.calls = 0
+
+        def evaluate(self, df, ticker, params):
+            self.calls += 1
+            return SignalResult(action="HOLD", reason="stub")
+
+    real_names = set(walk_forward_mod.walk_forward_strategies())
+    recorders = {key: Recorder() for key in real_names}
+    retrain_every = []
+
+    def fake_factory(every):
+        retrain_every.append(every)
+        return recorders
+
+    monkeypatch.setattr(walk_forward_mod, "walk_forward_strategies", fake_factory)
+    args = _args(
+        config_path, tmp_path,
+        "--strategies", name, "--retrain-every", "21", "--benchmark", "", "--no-log",
+    )
+
+    report = run_backtest_command(args, FakeProvider())
+
+    assert name in real_names
+    assert f"# Backtest — {name}" in report
+    assert retrain_every == [21]
+    assert recorders[name].calls > 0
+    assert all(rec.calls == 0 for key, rec in recorders.items() if key != name)
+
+
+def test_walk_forward_strategies_are_not_in_the_production_registry():
+    from stock_analysis.trading.signals import get_signal_strategy
+
+    with pytest.raises(ValueError, match="Unknown strategy"):
+        get_signal_strategy("ensemble_walk_forward")
+
+
+def test_set_overrides_strategy_params_and_portfolio_fields(config_path, tmp_path):
+    base = ["--strategies", "ma_crossover", "--benchmark", ""]
+
+    run_backtest_command(_args(config_path, tmp_path, *base), FakeProvider())
+    report = run_backtest_command(
+        _args(config_path, tmp_path, *base, "--set", "ma_short=10",
+              "--set", "portfolio.position_size_pct=0.2"),
+        FakeProvider(),
+    )
+
+    # A different configuration, so a second trial
+    assert "Configurations tried on this universe and period: 2" in report
+    logged = [
+        json.loads(line)
+        for line in (tmp_path / "runs.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    key = json.loads(logged[-1]["config_key"])
+    assert key["defaults"]["ma_short"] == 10
+    assert key["portfolio"]["position_size_pct"] == 0.2
+
+
+def test_set_rejects_unknown_portfolio_fields_and_bad_syntax(config_path, tmp_path):
+    with pytest.raises(SystemExit, match="Unknown portfolio field"):
+        run_backtest_command(
+            _args(config_path, tmp_path, "--strategies", "ma_crossover",
+                  "--set", "portfolio.nope=1"),
+            FakeProvider(),
+        )
+    with pytest.raises(SystemExit, match="KEY=VALUE"):
+        run_backtest_command(
+            _args(config_path, tmp_path, "--strategies", "ma_crossover", "--set", "ma_short"),
+            FakeProvider(),
+        )
+
+
+def test_run_log_key_leaves_out_newer_portfolio_fields_at_their_default(config_path, tmp_path):
+    """A configuration logged before a portfolio field existed must still count as
+    the same trial when it is run again."""
+    run_backtest_command(
+        _args(config_path, tmp_path, "--strategies", "ma_crossover", "--benchmark", ""),
+        FakeProvider(),
+    )
+
+    line = (tmp_path / "runs.jsonl").read_text(encoding="utf-8").splitlines()[0]
+    portfolio = json.loads(json.loads(line)["config_key"])["portfolio"]
+    assert "stop_type" not in portfolio and "cash_buffer_pct" not in portfolio
+    assert portfolio["sizing"] == "fixed"  # original fields are always written
+
+
+def test_report_has_returns_per_calendar_year(config_path, tmp_path):
+    report = run_backtest_command(
+        _args(config_path, tmp_path, "--strategies", "ma_crossover", "--no-log"),
+        FakeProvider(),
+    )
+
+    assert "## Return per calendar year" in report
+    assert "| Year | Strategy | Buy & hold (universe) | Buy & hold (SPY) |" in report
+    assert "| 2022 |" in report and "| 2023 |" in report

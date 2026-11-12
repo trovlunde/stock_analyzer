@@ -50,6 +50,28 @@ def format_comparison(columns: dict[str, dict]) -> str:
     return "\n".join(lines)
 
 
+def format_yearly_returns(equity_curves: dict) -> str:
+    """Markdown table of each curve's return per calendar year ({name: equity Series}).
+
+    One good or bad year can carry a whole backtest; this shows whether a result
+    depends on a particular stretch of the market. The first and last year are
+    usually part-years.
+    """
+    names = list(equity_curves)
+    yearly = {}
+    for name, equity in equity_curves.items():
+        year_end = equity.groupby(equity.index.year).last()
+        previous = year_end.shift(1)
+        previous.iloc[0] = equity.iloc[0]
+        yearly[name] = year_end / previous - 1
+    years = sorted(set().union(*(series.index for series in yearly.values())))
+    lines = ["| Year | " + " | ".join(names) + " |", "|---|" + "---:|" * len(names)]
+    for year in years:
+        cells = [_format(yearly[name].get(year), "pct") for name in names]
+        lines.append(f"| {year} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
 def append_run(record: dict, path: Path = DEFAULT_RUN_LOG) -> None:
     """Append one backtest run to the log. Every run counts as a trial when judging
     whether the best one is better than chance, so nothing is ever overwritten."""

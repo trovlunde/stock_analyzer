@@ -60,6 +60,7 @@ flowchart TB
 - **`diagnostics/`** — opt-in statsmodels helpers. Never imported by `jobs/daily`, `web/app`, or paper-trading modules. Researchers and `cli/evaluate_models` may call it explicitly.
 - **`backtest/`** — historical replay of the trading path. Calls the same `trading/` functions as the daily job (`get_signal_strategy`, `combine_signals`, `decide`, cost models, `check_kill_switch`) with in-memory state; no database, no broker. Uses `ai/` for walk-forward model training. Never imported by `jobs/` or `trading/`.
 - **`research/`** — interactive CLI and exploratory scripts (sector analysis, stock finder, portfolio plots). May import `market_data` and `storage`; not used by the daily job.
+- **`factors/`** — factor definitions (QVM metrics, sector-relative scoring, valuation margin of safety) and the QVM ranking strategy. Pure pandas on the data it is handed: it never imports `research/`, `backtest/` or `ai/`, so `research/`, `backtest/`, `cli/` and `trading/` can all use it. `factors/qvm_strategy.py` imports `trading/signals/ranked.py`; fundamentals reach it through a small protocol that `ai/fundamentals/point_in_time.PointInTimeFundamentals` satisfies.
 
 ## Package layout
 
@@ -71,7 +72,8 @@ flowchart TB
 | `stock_analysis/jobs/` | Daily job (`daily.py`) and its scheduler (`scheduler.py`) |
 | `stock_analysis/notifications/` | Email alerts (daily summary, failures, kill-switch trips) |
 | `stock_analysis/backtest/` | Backtest engine, performance metrics, buy-and-hold benchmarks, walk-forward ML strategy, run log |
-| `stock_analysis/cli/` | Non-interactive CLIs (`evaluate_models`, `backtest`, `risk`) |
+| `stock_analysis/factors/` | QVM factor definitions and scoring, sector discount rates, monthly-rebalanced QVM score provider and watchlist |
+| `stock_analysis/cli/` | Non-interactive CLIs (`evaluate_models`, `backtest`, `qvm`, `risk`) |
 | `stock_analysis/web/` | Flask app and templates |
 | `stock_analysis/research/` | Interactive CLI and exploratory analysis modules |
 | `stock_analysis/ai/` | ML models, classifiers, valuation |
@@ -85,7 +87,7 @@ flowchart TB
 
 Two similarly named areas under `ai/` serve different layers:
 
-- **`ai/fundamentals/`** — data layer: `FundamentalsProvider` protocol, yfinance and EDGAR adapters, composite fallback.
+- **`ai/fundamentals/`** — data layer: `FundamentalsProvider` protocol, yfinance and EDGAR adapters, composite fallback, and `point_in_time.py` (EDGAR facts with filing dates, answering "what was known on this date"; needs `EDGAR_IDENTITY`).
 - **`ai/fundamental_analysis/`** — analysis layer: valuation models (`StockValuation`), fin statement classifier, examples.
 
 When adding features, put data fetching in `fundamentals/` and valuation logic in `fundamental_analysis/` (or a future `ai/valuation/` rename).

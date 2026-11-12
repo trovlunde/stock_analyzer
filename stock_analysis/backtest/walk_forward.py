@@ -1,4 +1,4 @@
-"""Walk-forward version of the ML movement signal, for backtesting only.
+"""Walk-forward versions of the ML movement signals, for backtesting only.
 
 A saved model has already seen the period being backtested. This strategy
 instead trains on the bars it is given (the engine never passes bars after the
@@ -10,9 +10,11 @@ import contextlib
 import io
 from typing import Callable
 
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
+from stock_analysis.ai.technical_analysis.ensemble_classifier import EnsembleClassifier
 from stock_analysis.ai.technical_analysis.movement_classification import (
     train_classifier_single_stock,
 )
@@ -20,13 +22,43 @@ from stock_analysis.ai.technical_analysis.movement_inference import predict_late
 from stock_analysis.ai.technical_analysis.prepare_classification_data import (
     prepare_classification_data,
 )
-from stock_analysis.trading.signals.base import SignalResult
+from stock_analysis.trading.signals.base import SignalResult, SignalStrategy
+
+WALK_FORWARD_ML = "ml_walk_forward"
+WALK_FORWARD_ENSEMBLE = "ensemble_walk_forward"
 
 _LABEL_TO_ACTION = {"positive": "BUY", "negative": "SELL", "neutral": "HOLD"}
 
 
 def _default_classifier():
     return RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+
+
+class LabelledEnsembleClassifier:
+    """`EnsembleClassifier` behind the string labels the movement pipeline uses.
+
+    The ensemble works on integer classes (0 negative, 1 neutral, 2 positive) and
+    prints while fitting; the pipeline trains on and predicts the label names.
+    """
+
+    classes_ = np.array(["negative", "neutral", "positive"], dtype=object)
+
+    def __init__(self, **ensemble_kwargs):
+        self.ensemble = EnsembleClassifier(**ensemble_kwargs)
+
+    def fit(self, X, y):
+        codes = pd.Index(self.classes_).get_indexer(np.asarray(y))
+        if (codes < 0).any():
+            raise ValueError(f"Labels must be among {list(self.classes_)}")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.ensemble.fit(X, codes)
+        return self
+
+    def predict(self, X):
+        return self.classes_[self.ensemble.predict(X)]
+
+    def predict_proba(self, X):
+        return self.ensemble.predict_proba(X)
 
 
 class WalkForwardMlStrategy:
@@ -108,3 +140,17 @@ class WalkForwardMlStrategy:
             reason=f"ML predicts {label} ({confidence:.0%} confidence)",
             metadata=metadata,
         )
+
+
+def walk_forward_strategies(retrain_every: int = 63) -> dict[str, SignalStrategy]:
+    """The backtest-only strategies by name, each with its own model cache.
+
+    They are kept out of the production registry: retraining inside the daily job
+    is not how a live model would be run.
+    """
+    return {
+        WALK_FORWARD_ML: WalkForwardMlStrategy(retrain_every=retrain_every),
+        WALK_FORWARD_ENSEMBLE: WalkForwardMlStrategy(
+            retrain_every=retrain_every, classifier_factory=LabelledEnsembleClassifier
+        ),
+    }

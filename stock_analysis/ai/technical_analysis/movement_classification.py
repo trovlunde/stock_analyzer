@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import learning_curve, train_test_split, StratifiedKFold, TimeSeriesSplit
+from sklearn.model_selection import learning_curve, train_test_split, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
@@ -13,15 +13,12 @@ from scipy.stats import gaussian_kde
 import os
 import time
 
-from stock_analysis.ai.technical_analysis.ensemble_classifier import test_ensemble, EnsembleClassifier
 from ..helpers import get_index_data, get_ticker, RSI, get_features
 from stock_analysis.research.market_indices import MarketIndices
 from stock_analysis.research.portfolio_evaluating import analyze_trading_strategies
 from ...ai.technical_analysis.prepare_classification_data import prepare_classification_data_cache, prepare_classification_data, prepare_classification_data_enhanced
 from ...ai.technical_analysis.classifier_comparison import compare_classifiers, plot_classifier_comparison, print_best_configs
 from sklearn.utils.class_weight import compute_class_weight
-from ...ai.technical_analysis.rsi_signals import generate_rsi_signals
-from ...ai.technical_analysis.ma_signals import generate_multi_ma_signals
 from ..helpers import classifiers
 
 
@@ -2509,193 +2506,6 @@ def evaluate_all_classifiers(
     }
 
 
-def test_classifiers():
-    """Test and compare different classifiers including ensemble (binary and combined), RSI and MA signals."""
-    print("Testing classifier comparison")
-    data = get_index_data("^GSPC", "20y")
-    prepared_data = prepare_classification_data_enhanced(
-        data,
-        predict_weekly=False,
-        threshold=0.005,
-        use_extra_features=True
-    )
-
-    # Remove rows with NaN values in features or target
-    prepared_data = prepared_data.dropna()
-
-    # Separate features and target
-    X = prepared_data.drop(columns=['Target', 'return'])
-    y = prepared_data['Target']
-
-    # Convert target to numeric
-    target_map = {'negative': 0, 'neutral': 1, 'positive': 2}
-    y = y.map(target_map)
-
-    # Use the last TimeSeriesSplit fold (largest train, most recent test)
-    tscv = TimeSeriesSplit(n_splits=5)
-    train_index, test_index = None, None
-    for train_index, test_index in tscv.split(X):
-        pass
-
-    X_train_raw = X.iloc[train_index]
-    X_test_raw = X.iloc[test_index]
-    y_train = y.iloc[train_index]
-    y_test = y.iloc[test_index]
-
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train_raw)
-    X_test = scaler.transform(X_test_raw)
-
-    # Train both ensemble approaches
-    print("\nTraining Binary Ensemble Classifier...")
-    binary_ensemble = EnsembleClassifier(mode='binary')
-    binary_ensemble.fit(X_train, y_train)
-
-    print("\nTraining Combined Ensemble Classifier...")
-    combined_ensemble = EnsembleClassifier(mode='combined')
-    combined_ensemble.fit(X_train, y_train)
-
-    # Get predictions for both approaches
-    binary_preds = binary_ensemble.predict(X_test)
-    binary_probs = binary_ensemble.predict_proba(X_test)
-
-    combined_preds = combined_ensemble.predict(X_test)
-    combined_probs = combined_ensemble.predict_proba(X_test)
-
-    # Convert numeric predictions back to labels
-    reverse_map = {0: 'negative', 1: 'neutral', 2: 'positive'}
-    binary_signals = pd.Series(
-        [reverse_map[p] for p in binary_preds], index=data.index[test_index])
-    combined_signals = pd.Series(
-        [reverse_map[p] for p in combined_preds], index=data.index[test_index])
-
-    # Generate RSI signals
-    print("\nGenerating RSI signals...")
-    rsi_data = generate_rsi_signals(data)
-    rsi_signals = pd.Series(rsi_data['Signal'].map({1: 'positive', -1: 'negative', 0: 'neutral'}),
-                            index=data.index)
-
-    # Generate MA signals
-    print("\nGenerating MA signals...")
-    ma_data = generate_multi_ma_signals(data)
-    ma_signals = pd.Series(ma_data['Combined_Signal'].map({1: 'positive', -1: 'negative', 0: 'neutral'}),
-                           index=data.index)
-
-    # Prepare test period data
-    test_period = data.index[test_index]
-    test_data = data.loc[test_period]
-
-    # Create DataFrames for each signal type with proper format for analyze_trading_strategies
-    signal_dfs = {
-        'Binary Ensemble': pd.DataFrame({'prediction': binary_signals}),
-        'Combined Ensemble': pd.DataFrame({'prediction': combined_signals}),
-        'RSI': pd.DataFrame({'prediction': rsi_signals.loc[test_period]}),
-        'MA': pd.DataFrame({'prediction': ma_signals.loc[test_period]})
-    }
-
-    # Analysis parameters
-    initial_investment = 10000
-    leverage = 1
-
-    print("\nAnalyzing trading performance:")
-
-    results = {}
-    for signal_name, signal_df in signal_dfs.items():
-        print(f"\n{signal_name} Strategy Analysis:")
-        try:
-            results[signal_name] = analyze_trading_strategies(
-                test_data,
-                signal_df,
-                initial_investment=initial_investment,
-                leverage=leverage,
-                signal_type=signal_name
-            )
-        except Exception as e:
-            print(f"Error analyzing {signal_name} strategy: {str(e)}")
-            continue
-
-    # Compare strategy performances
-    print("\nStrategy Performance Comparison:")
-    print("=" * 50)
-
-    comparison = pd.DataFrame(
-        columns=['Total Return', 'Max Drawdown', 'Sharpe Ratio'])
-
-    for strategy_name, result in results.items():
-        metrics = result['metrics']
-        comparison.loc[f"{strategy_name} (Day Trading)"] = [
-            f"{metrics['Day_Trading']['Total_Return']*100:.2f}%",
-            f"{metrics['Day_Trading']['Max_Drawdown']*100:.2f}%",
-            f"{metrics['Day_Trading']['Sharpe_Ratio']:.2f}"
-        ]
-        comparison.loc[f"{strategy_name} (Position Trading)"] = [
-            f"{metrics['Position_Trading']['Total_Return']*100:.2f}%",
-            f"{metrics['Position_Trading']['Max_Drawdown']*100:.2f}%",
-            f"{metrics['Position_Trading']['Sharpe_Ratio']:.2f}"
-        ]
-
-    print(comparison)
-
-    # Plot combined signals
-    fig = make_subplots(rows=5, cols=1,
-                        subplot_titles=('Price', 'Binary Ensemble Signals',
-                                        'Combined Ensemble Signals', 'RSI Signals', 'MA Signals'),
-                        vertical_spacing=0.05,
-                        row_heights=[0.3, 0.175, 0.175, 0.175, 0.175])
-
-    # Add price plot
-    fig.add_trace(
-        go.Scatter(x=test_data.index, y=test_data['Close'], name='Price'),
-        row=1, col=1
-    )
-
-    # Add signal plots
-    signal_data = {
-        'Binary Ensemble': binary_signals,
-        'Combined Ensemble': combined_signals,
-        'RSI': rsi_signals.loc[test_period],
-        'MA': ma_signals.loc[test_period]
-    }
-
-    for i, (signal_name, signals) in enumerate(signal_data.items(), start=2):
-        # Convert signals to numeric for plotting
-        numeric_signals = signals.map(
-            {'positive': 1, 'neutral': 0, 'negative': -1})
-
-        fig.add_trace(
-            go.Scatter(
-                x=test_data.index,
-                y=numeric_signals,
-                name=f'{signal_name} Signals',
-                line=dict(color=['blue', 'purple', 'green', 'red'][i-2])
-            ),
-            row=i, col=1
-        )
-
-    fig.update_layout(
-        height=1500,  # Increased height for 5 subplots
-        title_text="Signal Comparison",
-        showlegend=True,
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
-    )
-
-    # Update axes labels
-    fig.update_yaxes(title_text="Price ($)", row=1, col=1)
-    for i in range(2, 6):
-        fig.update_yaxes(title_text="Signal", row=i, col=1)
-    fig.update_xaxes(title_text="Date", row=5, col=1)
-
-    fig.show()
-
-    return {
-        'results': results,
-        'binary_ensemble': binary_ensemble,
-        'combined_ensemble': combined_ensemble,
-        'binary_signals': binary_signals,
-        'combined_signals': combined_signals
-    }
-
-
 if __name__ == "__main__":
     while True:
         # Get mode
@@ -2703,11 +2513,10 @@ if __name__ == "__main__":
         print("1. Single stock train (train and analyze one stock)")
         print("2. SP500 all tickers trained, single stock analysis")
         print("3. Quit")
-        print("4. Test strategy comparison (ensemble vs RSI vs MA)")
         print("5. Compare ML classifiers (temporal holdout)")
         print("6. Compare pipeline variants (dual-RF configs)")
 
-        mode = input("\nEnter mode (1/2/3/4/5/6) [1]: ") or "1"
+        mode = input("\nEnter mode (1/2/3/5/6) [1]: ") or "1"
 
         if mode == "3":
             print("\nExiting program...")
@@ -3025,9 +2834,6 @@ if __name__ == "__main__":
                 eval_stock,
                 backtest_label,
             )
-
-        elif mode == "4":
-            test_classifiers()
 
         elif mode == "5":
             ticker = input("\nEnter ticker [^GSPC]: ") or "^GSPC"

@@ -14,13 +14,14 @@ from stock_analysis.ai.technical_analysis.movement_classification import (
     temporal_holdout_split,
     train_classifier_single_stock,
     test_model_performance,
-    test_classifiers,
 )
 from stock_analysis.ai.technical_analysis.prepare_classification_data import (
     prepare_classification_data,
     prepare_classification_data_enhanced,
 )
 from stock_analysis.cli.backtest import add_backtest_parser
+from stock_analysis.cli.qvm import add_qvm_parser
+from stock_analysis.cli.retrain import add_retrain_parser
 from sklearn.ensemble import RandomForestClassifier
 
 
@@ -200,21 +201,6 @@ def cmd_diagnose(args):
             print(f"    {feat}: {coef:.6f}")
 
 
-LEGACY_STRATEGIES_NOTICE = (
-    "Note: 'strategies' uses the legacy research simulator. It enters at the signal "
-    "day's close (the price the signal was computed from), applies mini-future costs "
-    "and shows no buy-and-hold benchmark, so its returns are optimistic and not "
-    "comparable with paper trading. Use 'stock-analysis-evaluate backtest' to judge "
-    "a strategy.\n"
-)
-
-
-def cmd_strategies(args):
-    """Compare ensemble, RSI, and MA strategies on temporal test fold."""
-    print(LEGACY_STRATEGIES_NOTICE)
-    test_classifiers()
-
-
 def cmd_variants(args):
     """Compare movement-classifier pipeline variants on a shared holdout."""
     compare_variants(
@@ -288,15 +274,6 @@ def build_parser():
     )
     train.set_defaults(func=cmd_train)
 
-    strategies = sub.add_parser(
-        "strategies",
-        help=(
-            "Legacy: compare ensemble vs RSI vs MA with the old research simulator "
-            "(optimistic fills, no benchmark) — prefer 'backtest'"
-        ),
-    )
-    strategies.set_defaults(func=cmd_strategies)
-
     variants = sub.add_parser(
         "variants",
         help="Compare dual-RF pipeline variants on the same temporal holdout",
@@ -324,6 +301,8 @@ def build_parser():
     diagnose.set_defaults(func=cmd_diagnose)
 
     add_backtest_parser(sub)
+    add_qvm_parser(sub)
+    add_retrain_parser(sub)
 
     return parser
 
