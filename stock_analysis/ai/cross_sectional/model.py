@@ -289,6 +289,16 @@ def brier_score(probability: np.ndarray, label: np.ndarray) -> float | None:
     return float(np.mean((probability[known] - label[known]) ** 2))
 
 
+def _positive_probability(model: LGBMClassifier, X: np.ndarray) -> np.ndarray:
+    """Probability of the positive class, straight from the booster.
+
+    Same numbers as `model.predict_proba(X)[:, 1]` for a binary model, without
+    the scikit-learn input check that warns on every call ("X does not have
+    valid feature names") when a model fitted on a plain array is given one.
+    """
+    return model.booster_.predict(X)
+
+
 @dataclass
 class FittedPooledModel:
     """A trained model with its calibrator, threshold and what it was trained on."""
@@ -307,7 +317,7 @@ class FittedPooledModel:
     validation: dict = field(default_factory=dict)
 
     def raw_probability(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict_proba(X)[:, 1]
+        return _positive_probability(self.model, X)
 
     def probability(self, X: np.ndarray) -> np.ndarray:
         """Calibrated probability of ending in the top quantile."""
@@ -368,7 +378,7 @@ def fit_pooled_model(
         known = ~np.isnan(dataset.label[rows])
         label = dataset.label[rows][known]
         if len(label) and len(np.unique(label)) == 2:
-            raw = model.predict_proba(dataset.X[rows][known])[:, 1]
+            raw = _positive_probability(model, dataset.X[rows][known])
             rel_return = dataset.rel_return[rows][known]
             dates = dataset.position[rows][known]
             calibrator = IsotonicRegression(y_min=0.0, y_max=1.0, out_of_bounds="clip")

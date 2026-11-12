@@ -279,6 +279,17 @@ def test_calibrated_probabilities_are_probabilities(dataset):
     assert ((probability >= 0) & (probability <= 1)).all()
 
 
+def test_raw_probability_matches_predict_proba_without_warnings(dataset, recwarn):
+    fitted = fit_pooled_model(dataset, 600, _config())
+    X = dataset.X[dataset.rows(590, 600)]
+    recwarn.clear()
+
+    raw = fitted.raw_probability(X)
+
+    assert not [w for w in recwarn if "feature names" in str(w.message)]
+    np.testing.assert_allclose(raw, fitted.model.predict_proba(X)[:, 1])
+
+
 def test_provider_scores_with_the_latest_model_and_retrains_on_schedule(dataset):
     config = _config(retrain_every=50)
     provider = PooledModelScoreProvider(dataset, config)
